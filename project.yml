@@ -29,6 +29,10 @@ targets:
         # Ollama/LM Studio on the user's own machine speak plain http.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
+        # OAuth (PKCE) callback, e.g. aiapp://oauth/openrouter
+        CFBundleURLTypes:
+          - CFBundleURLName: de.dongfang.aiapp
+            CFBundleURLSchemes: [aiapp]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: de.dongfang.aiapp

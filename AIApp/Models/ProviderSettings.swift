@@ -1,50 +1,55 @@
 import Foundation
 
-enum ProviderKind: String, CaseIterable, Identifiable, Codable {
-    case anthropic
-    case openAICompatible
-    case mlx
-
-    var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .anthropic: return "Anthropic (Claude)"
-        case .openAICompatible: return "OpenAI-kompatibel (OpenAI, OpenRouter, Ollama, LM Studio …)"
-        case .mlx: return "Lokal auf dem Gerät (MLX)"
-        }
-    }
-}
-
 /// Non-secret provider configuration. The API key itself lives in the
 /// Keychain (see `Keychain.swift`), never in UserDefaults.
 struct ProviderSettings: Codable, Equatable {
-    var kind: ProviderKind = .anthropic
+    var presetId: String = "anthropic"
+    /// Override for presets with editable endpoints (self-hosted, LAN).
     var baseURL: String = ""
-    var model: String = "claude-sonnet-5"
+    var model: String = ""
     /// Optional search endpoint (SearXNG instance or similar). Empty = use
     /// the built-in DuckDuckGo HTML fallback.
     var searchEndpoint: String = ""
-    /// Hub id of the selected on-device model (kind == .mlx).
+    /// Hub id of the selected on-device model (preset "mlx").
     var localModelId: String = LocalModel.defaultId
 
     static let storageKey = "provider-settings-v1"
 
+    var preset: ProviderPreset { ProviderPreset.preset(for: presetId) }
+
     // Manual decoding: every field is optional in stored/injected JSON so
-    // settings survive schema growth (and tests can pass partial configs).
+    // settings survive schema growth, and the legacy `kind` field (v1/v2
+    // storage and existing test configs) still maps onto a preset.
     private enum CodingKeys: String, CodingKey {
-        case kind, baseURL, model, searchEndpoint, localModelId
+        case presetId, kind, baseURL, model, searchEndpoint, localModelId
     }
 
     init() {}
 
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
-        kind = try values.decodeIfPresent(ProviderKind.self, forKey: .kind) ?? .anthropic
+        if let stored = try values.decodeIfPresent(String.self, forKey: .presetId) {
+            presetId = stored
+        } else if let legacy = try values.decodeIfPresent(String.self, forKey: .kind) {
+            switch legacy {
+            case "openAICompatible": presetId = "custom-openai"
+            case "mlx": presetId = "mlx"
+            default: presetId = "anthropic"
+            }
+        }
         baseURL = try values.decodeIfPresent(String.self, forKey: .baseURL) ?? ""
-        model = try values.decodeIfPresent(String.self, forKey: .model) ?? "claude-sonnet-5"
+        model = try values.decodeIfPresent(String.self, forKey: .model) ?? ""
         searchEndpoint = try values.decodeIfPresent(String.self, forKey: .searchEndpoint) ?? ""
         localModelId = try values.decodeIfPresent(String.self, forKey: .localModelId) ?? LocalModel.defaultId
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(presetId, forKey: .presetId)
+        try container.encode(baseURL, forKey: .baseURL)
+        try container.encode(model, forKey: .model)
+        try container.encode(searchEndpoint, forKey: .searchEndpoint)
+        try container.encode(localModelId, forKey: .localModelId)
     }
 
     static func load() -> ProviderSettings {
@@ -70,19 +75,22 @@ struct ProviderSettings: Codable, Equatable {
 
     var effectiveBaseURL: String {
         if !baseURL.isEmpty { return baseURL }
-        switch kind {
-        case .anthropic: return "https://api.anthropic.com"
-        case .openAICompatible: return "https://api.openai.com/v1"
-        case .mlx: return ""
-        }
+        return preset.defaultBaseURL
     }
 
+    var effectiveModel: String {
+        if !model.isEmpty { return model }
+        return preset.defaultModel
+    }
+
+    var keychainAccount: String { "api-key-\(presetId)" }
+
     func makeProvider(apiKey: String) -> LLMProvider {
-        switch kind {
+        switch preset.dialect {
         case .anthropic:
-            return AnthropicProvider(baseURL: effectiveBaseURL, apiKey: apiKey, model: model)
-        case .openAICompatible:
-            return OpenAICompatibleProvider(baseURL: effectiveBaseURL, apiKey: apiKey, model: model)
+            return AnthropicProvider(baseURL: effectiveBaseURL, apiKey: apiKey, model: effectiveModel)
+        case .openai:
+            return OpenAICompatibleProvider(baseURL: effectiveBaseURL, apiKey: apiKey, model: effectiveModel)
         case .mlx:
             return MLXProvider(modelId: localModelId)
         }

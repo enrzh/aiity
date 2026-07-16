@@ -36,9 +36,18 @@ final class ChatSession: ObservableObject {
     - Single file: all CSS and JS inline. No external resources (no CDNs, fonts, images from the network) — the runtime blocks them.
     - Set a short app name in <title> and start the document with <!-- emoji: X --> where X is one fitting emoji.
     - Persist data with the bridge: `await miniapp.storage.get(key)` / `await miniapp.storage.set(key, value)` (JSON values). `miniapp.haptic()` triggers a light haptic tap.
-    - Design mobile-first for an iPhone viewport, respect safe areas, support dark mode via prefers-color-scheme.
 
-    You have web tools (web_search, fetch_url) — use them to research facts, APIs, formulas or current information before answering or building.
+    # Quality bar — every mini-app must feel like a real iOS app
+    - COMPLETE functionality: no TODOs, no placeholders, no dead buttons. Every visible control works.
+    - Load persisted state on start, save on every change (miniapp.storage). The app must survive being closed and reopened with all user data intact.
+    - Mobile-first for an iPhone viewport: meta viewport, safe areas via env(safe-area-inset-*), no horizontal scrolling, touch targets of at least 44px.
+    - Full dark mode: CSS custom properties for every color, switched via @media (prefers-color-scheme: dark).
+    - Polished visuals: -apple-system font stack, consistent spacing scale, rounded cards, subtle transitions (150-250ms), pressed states on buttons.
+    - Handle edge cases: empty states with a friendly hint, input validation with inline feedback, division-by-zero etc.
+    - Use miniapp.haptic() on meaningful actions (add, complete, error).
+    - Prefer more thorough, feature-complete apps over minimal sketches — include the 2-3 features a user would obviously expect next (edit, delete, undo, totals …).
+
+    You have web tools (web_search, fetch_url) — use them to research facts, APIs, formulas or current information before answering or building. If the app depends on real-world data (prices, formulas, rules), research first and bake verified values in.
     Answer in the language the user writes in.
     """
 
@@ -48,6 +57,10 @@ final class ChatSession: ObservableObject {
         errorMessage = nil
         if messages.isEmpty {
             var system = Self.systemPrompt
+            let skillInstructions = SkillStore.enabledInstructions()
+            if !skillInstructions.isEmpty {
+                system += "\n\n# Installed skills — follow them when relevant\n\(skillInstructions)"
+            }
             if let context = editingContext {
                 system += "\n\nThe user is editing the existing mini-app \"\(context.name)\". Its current source:\n```html\n\(context.html)\n```\nWhen asked for changes, output the FULL updated document."
             }
@@ -57,7 +70,7 @@ final class ChatSession: ObservableObject {
         persist()
         busy = true
 
-        let provider = settings.makeProvider(apiKey: Keychain.get("api-key-\(settings.kind.rawValue)"))
+        let provider = settings.makeProvider(apiKey: Keychain.get(settings.keychainAccount))
         let tools = ToolRegistry.makeTools(settings: settings)
 
         Task {

@@ -11,7 +11,11 @@ struct AnthropicProvider: LLMProvider {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    guard !apiKey.isEmpty else { throw ProviderError.missingKey }
+                    // Self-hosted Anthropic-dialect servers may run keyless;
+                    // only the hosted API clearly requires one.
+                    if apiKey.isEmpty && baseURL.contains("api.anthropic.com") {
+                        throw ProviderError.missingKey
+                    }
                     var request = URLRequest(url: URL(string: "\(baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/")))/v1/messages")!)
                     request.httpMethod = "POST"
                     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
