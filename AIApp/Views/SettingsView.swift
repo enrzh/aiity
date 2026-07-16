@@ -3,12 +3,12 @@ import SwiftUI
 struct SettingsView: View {
     @State private var settings = ProviderSettings.load()
     @State private var apiKey = ""
-    @State private var oauthClientId = ""
     @State private var oauthConnected = false
     @State private var availableModels: [String] = []
     @State private var modelsError: String?
     @State private var fetchingModels = false
     @State private var oauthError: String?
+    @State private var pendingPaste: OAuthService.PendingPaste?
     @StateObject private var modelStore = LocalModelStore()
     @StateObject private var oauth = OAuthService()
 
@@ -38,7 +38,14 @@ struct SettingsView: View {
                 // stored OAuth credential.
                 if !oauthConnected { Keychain.set(apiKey, for: settings.keychainAccount) }
             }
-            .onChange(of: oauthClientId) { AuthStore.setClientId(oauthClientId, for: settings.presetId) }
+            .sheet(item: $pendingPaste) { pending in
+                PasteCodeSheet(
+                    providerLabel: settings.preset.label,
+                    busy: oauth.busy,
+                    onCancel: { pendingPaste = nil },
+                    onSubmit: { completePasteFlow(pending, code: $0) }
+                )
+            }
         }
     }
 
@@ -72,12 +79,7 @@ struct SettingsView: View {
                     }
                 } else {
                     SecureField(settings.preset.needsKey ? "API-Key" : "API-Key (optional)", text: $apiKey)
-                    if let config = settings.preset.oauth {
-                        if config.needsClientId {
-                            TextField("OAuth-Client-ID (aus der App-Registrierung)", text: $oauthClientId)
-                                .autocorrectionDisabled()
-                                .textInputAutocapitalization(.never)
-                        }
+                    if settings.preset.oauth != nil {
                         Button {
                             signInWithOAuth()
                         } label: {
@@ -87,7 +89,7 @@ struct SettingsView: View {
                                 Label("Mit \(settings.preset.label.components(separatedBy: " ")[0]) anmelden", systemImage: "person.crop.circle.badge.checkmark")
                             }
                         }
-                        .disabled(oauth.busy || (config.needsClientId && oauthClientId.trimmingCharacters(in: .whitespaces).isEmpty))
+                        .disabled(oauth.busy)
                     }
                 }
                 if let oauthError {
@@ -106,13 +108,13 @@ struct SettingsView: View {
         case "mlx":
             return "Modelle laufen komplett auf dem Gerät (Apple MLX) — offline, privat, kostenlos. Download einmalig über WLAN empfohlen. Im Simulator nicht verfügbar."
         case "anthropic":
-            return "„Sign in with Claude“ nutzt dein Claude-Abo (Abrechnung über Extra-Usage-Credits deines Kontos). Dafür einmalig eine App bei Anthropic registrieren und die Client-ID hier eintragen — Redirect-URI: aiapp://oauth/anthropic. Alternativ klassisch per API-Key."
+            return "„Mit Anthropic anmelden“ nutzt dein Claude-Abo per CLI-OAuth (Claude-Code-Flow): Browser öffnet sich, du autorisierst, kopierst den angezeigten Code zurück. Alternativ klassisch per API-Key."
         case "openrouter":
             return "Anmelden per OAuth holt automatisch einen API-Key — oder eigenen Key einfügen. Keys liegen nur im Geräte-Keychain."
         case "openai":
-            return "OpenAI bietet „Sign in with ChatGPT“ Dritt-Apps bis heute nicht für Modell-Nutzung an — es gibt keinen OAuth-Endpoint, der einen Key auf dein Abo bucht (nur SSO + GPT-Actions). Daher API-Key oder GPT-Modelle per OpenRouter-Login."
+            return "„Mit OpenAI anmelden“ nutzt dein ChatGPT-Abo per Codex-CLI-OAuth (Code kopieren). Hinweis: Abo-Tokens laufen über die Codex-/Responses-Schnittstelle — Chat funktioniert evtl. nicht mit jedem Modell. Sicher: API-Key oder GPT per OpenRouter."
         case "xai":
-            return "Grok hat seit 05/2026 einen Abo-Login (SuperGrok / X Premium+) per Device-Code gegen accounts.x.ai — den nutzen Partner-Apps mit eigener Client-ID. Eine öffentliche Registrierung für beliebige Apps gibt es nicht, deshalb hier API-Key oder Grok per OpenRouter-Login."
+            return "„Mit xAI anmelden“ nutzt dein SuperGrok / X-Premium+-Abo per grok-cli-OAuth (Code kopieren) — läuft über den Grok-CLI-Proxy. Alternativ API-Key oder Grok per OpenRouter."
         case "sub2api":
             return "Base-URL deiner eigenen sub2api-Instanz eintragen (OpenAI-kompatibel, z. B. https://ki.meine-domain.de/v1) — so nutzt du Abo-Konten über dein selbst gehostetes Gateway."
         default:
@@ -125,18 +127,36 @@ struct SettingsView: View {
 
     private func signInWithOAuth() {
         oauthError = nil
-        let preset = settings.preset
-        let clientId = oauthClientId.trimmingCharacters(in: .whitespaces)
+        guard let config = settings.preset.oauth else { return }
+        if config.flow == .openRouterKeyExchange {
+            let preset = settings.preset
+            Task {
+                do {
+                    if case .apiKey(let key) = try await oauth.signInOpenRouter(preset: preset) {
+                        Keychain.set(key, for: settings.keychainAccount)
+                        apiKey = key
+                    }
+                } catch {
+                    oauthError = error.localizedDescription
+                }
+            }
+            return
+        }
+        // Paste-code CLI flow: open the browser, then collect the code.
+        guard let pending = oauth.startPasteFlow(preset: settings.preset) else { return }
+        UIApplication.shared.open(pending.authorizeURL)
+        pendingPaste = pending
+    }
+
+    private func completePasteFlow(_ pending: OAuthService.PendingPaste, code: String) {
+        oauthError = nil
         Task {
             do {
-                switch try await oauth.signIn(preset: preset, clientId: clientId) {
-                case .apiKey(let key):
-                    Keychain.set(key, for: settings.keychainAccount)
-                    apiKey = key
-                case .credential(let credential):
+                if case .credential(let credential) = try await oauth.completePasteFlow(pending, pasted: code) {
                     AuthStore.save(credential, account: settings.keychainAccount)
                     oauthConnected = true
                     apiKey = ""
+                    pendingPaste = nil
                 }
             } catch {
                 oauthError = error.localizedDescription
@@ -274,8 +294,58 @@ struct SettingsView: View {
     }
 
     private func reloadKey() {
-        oauthConnected = AuthStore.storedOAuthCredential(account: settings.keychainAccount) != nil
+        oauthConnected = AuthStore.isOAuthConnected(account: settings.keychainAccount)
         apiKey = oauthConnected ? "" : Keychain.get(settings.keychainAccount)
-        oauthClientId = AuthStore.clientId(for: settings.presetId)
+    }
+}
+
+/// Collects the authorization code after the provider's browser flow. The
+/// user copies the code (Claude) or the whole localhost redirect URL
+/// (OpenAI/Grok) shown after approving, and pastes it here.
+private struct PasteCodeSheet: View {
+    let providerLabel: String
+    let busy: Bool
+    let onCancel: () -> Void
+    let onSubmit: (String) -> Void
+
+    @State private var code = ""
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text("Im Browser hast du \(providerLabel) autorisiert. Kopiere den angezeigten Code — oder die ganze Weiterleitungs-URL (localhost) aus der Adresszeile — und füge ihn hier ein.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Section("Code oder Weiterleitungs-URL") {
+                    TextField("Code einfügen", text: $code, axis: .vertical)
+                        .lineLimit(1...4)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                    Button {
+                        if let clip = UIPasteboard.general.string { code = clip }
+                    } label: {
+                        Label("Aus Zwischenablage einfügen", systemImage: "doc.on.clipboard")
+                    }
+                }
+            }
+            .navigationTitle("Anmeldung abschließen")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Abbrechen", action: onCancel)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    if busy {
+                        ProgressView()
+                    } else {
+                        Button("Verbinden") { onSubmit(code) }
+                            .disabled(code.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
     }
 }

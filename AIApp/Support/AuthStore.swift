@@ -27,12 +27,8 @@ enum AuthStore {
         }
     }
 
-    static func clientId(for presetId: String) -> String {
-        UserDefaults.standard.string(forKey: "oauth-client-id-\(presetId)") ?? ""
-    }
-
-    static func setClientId(_ value: String, for presetId: String) {
-        UserDefaults.standard.set(value.trimmingCharacters(in: .whitespacesAndNewlines), forKey: "oauth-client-id-\(presetId)")
+    static func isOAuthConnected(account: String) -> Bool {
+        storedOAuthCredential(account: account) != nil
     }
 
     /// The value providers receive: a plain API key as-is, an OAuth token as
@@ -45,12 +41,8 @@ enum AuthStore {
         if let expiresAt = credential.expiresAt,
            expiresAt < Date().addingTimeInterval(120),
            let refreshToken = credential.refreshToken,
-           let config = settings.preset.oauth, config.flow == .standardPKCE {
-            if let refreshed = try? await OAuthService.refresh(
-                config: config,
-                clientId: clientId(for: settings.presetId),
-                refreshToken: refreshToken
-            ) {
+           let config = settings.preset.oauth {
+            if let refreshed = try? await OAuthService.refresh(config: config, refreshToken: refreshToken) {
                 credential = refreshed
                 save(credential, account: account)
             }

@@ -1,31 +1,38 @@
 import XCTest
 @testable import AIApp
 
+@MainActor
 final class OAuthServiceTests: XCTestCase {
 
-    func testStandardPKCEAuthorizeURL() {
-        let config = ProviderPreset.preset(for: "anthropic").oauth!
-        let url = OAuthService.buildAuthorizeURL(config: config, clientId: "client-123", state: "st4te", verifier: "v3rifier")
-        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)!.queryItems!
-        func value(_ name: String) -> String? { items.first(where: { $0.name == name })?.value }
-        XCTAssertEqual(url.host, "claude.ai")
+    func testPasteFlowAuthorizeURLForClaude() {
+        let pending = OAuthService().startPasteFlow(preset: ProviderPreset.preset(for: "anthropic"))!
+        let components = URLComponents(url: pending.authorizeURL, resolvingAgainstBaseURL: false)!
+        func value(_ name: String) -> String? { components.queryItems?.first(where: { $0.name == name })?.value }
+        XCTAssertEqual(components.host, "claude.ai")
         XCTAssertEqual(value("response_type"), "code")
-        XCTAssertEqual(value("client_id"), "client-123")
-        XCTAssertEqual(value("redirect_uri"), "aiapp://oauth/anthropic")
-        XCTAssertEqual(value("state"), "st4te")
+        XCTAssertEqual(value("client_id"), "9d1c250a-e61b-44d9-88ed-5944d1962f5e")
+        XCTAssertEqual(value("redirect_uri"), "https://platform.claude.com/oauth/code/callback")
         XCTAssertEqual(value("code_challenge_method"), "S256")
-        XCTAssertEqual(value("code_challenge"), OAuthService.s256Challenge(of: "v3rifier"))
-        XCTAssertNotNil(value("scope"))
+        XCTAssertEqual(value("code"), "true")
+        XCTAssertNotNil(value("code_challenge"))
     }
 
-    func testOpenRouterAuthorizeURL() {
-        let config = ProviderPreset.preset(for: "openrouter").oauth!
-        let url = OAuthService.buildAuthorizeURL(config: config, clientId: "", state: "s", verifier: "v")
-        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)!.queryItems!
-        XCTAssertEqual(url.host, "openrouter.ai")
-        XCTAssertEqual(items.first(where: { $0.name == "callback_url" })?.value, "aiapp://oauth/openrouter")
-        XCTAssertNil(items.first(where: { $0.name == "client_id" }))
-        XCTAssertEqual(items.first(where: { $0.name == "code_challenge_method" })?.value, "S256")
+    func testPasteFlowAuthorizeURLForOpenAICodex() {
+        let pending = OAuthService().startPasteFlow(preset: ProviderPreset.preset(for: "openai"))!
+        let url = pending.authorizeURL.absoluteString
+        XCTAssertTrue(url.hasPrefix("https://auth.openai.com/oauth/authorize"))
+        XCTAssertTrue(url.contains("client_id=app_EMoamEEZ73f0CkXaXp7hrann"))
+        XCTAssertTrue(url.contains("codex_cli_simplified_flow=true"))
+        XCTAssertTrue(url.contains("id_token_add_organizations=true"))
+    }
+
+    func testPasteFlowAuthorizeURLForGrokUsesNonceAndPlan() {
+        let pending = OAuthService().startPasteFlow(preset: ProviderPreset.preset(for: "xai"))!
+        let url = pending.authorizeURL.absoluteString
+        XCTAssertTrue(url.hasPrefix("https://auth.x.ai/oauth2/authorize"))
+        XCTAssertTrue(url.contains("client_id=b1a00492-073a-47ea-816f-4c329264a828"))
+        XCTAssertTrue(url.contains("nonce="))
+        XCTAssertTrue(url.contains("plan=generic"))
     }
 
     func testPKCEChallengeIsStableSHA256() {
@@ -34,17 +41,21 @@ final class OAuthServiceTests: XCTestCase {
         XCTAssertEqual(OAuthService.s256Challenge(of: verifier), "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
     }
 
-    func testProvidersWithoutOAuthHaveNoConfig() {
-        XCTAssertNil(ProviderPreset.preset(for: "openai").oauth)
-        XCTAssertNil(ProviderPreset.preset(for: "xai").oauth)
+    func testProviderOAuthConfiguration() {
+        XCTAssertEqual(ProviderPreset.preset(for: "anthropic").oauth?.flow, .pasteCode)
+        XCTAssertEqual(ProviderPreset.preset(for: "openai").oauth?.flow, .pasteCode)
+        XCTAssertEqual(ProviderPreset.preset(for: "xai").oauth?.flow, .pasteCode)
+        XCTAssertEqual(ProviderPreset.preset(for: "openrouter").oauth?.flow, .openRouterKeyExchange)
         XCTAssertNil(ProviderPreset.preset(for: "gemini").oauth)
-        XCTAssertNotNil(ProviderPreset.preset(for: "anthropic").oauth)
-        XCTAssertNotNil(ProviderPreset.preset(for: "openrouter").oauth)
+        // Grok routes OAuth traffic through the CLI proxy.
+        XCTAssertEqual(ProviderPreset.preset(for: "xai").oauth?.inferenceBaseURL, "https://cli-chat-proxy.grok.com/v1")
     }
 
-    func testAnthropicOAuthNeedsClientIdOpenRouterDoesNot() {
-        XCTAssertTrue(ProviderPreset.preset(for: "anthropic").oauth!.needsClientId)
-        XCTAssertFalse(ProviderPreset.preset(for: "openrouter").oauth!.needsClientId)
+    func testGrokOAuthBaseURLOverrideOnlyForOAuthToken() {
+        var settings = ProviderSettings()
+        settings.presetId = "xai"
+        XCTAssertEqual(settings.baseURL(forKey: "sk-plainkey"), "https://api.x.ai/v1")
+        XCTAssertEqual(settings.baseURL(forKey: "oauth:tok123"), "https://cli-chat-proxy.grok.com/v1")
     }
 
     func testOAuthCredentialRoundtripsThroughDecoder() {

@@ -78,6 +78,16 @@ struct ProviderSettings: Codable, Equatable {
         return preset.defaultBaseURL
     }
 
+    /// Base URL to use for a given credential. OAuth subscription tokens may
+    /// need a different endpoint than API keys (Grok's CLI proxy).
+    func baseURL(forKey apiKey: String) -> String {
+        if apiKey.hasPrefix(AuthStore.oauthMarker), baseURL.isEmpty,
+           let override = preset.oauth?.inferenceBaseURL {
+            return override
+        }
+        return effectiveBaseURL
+    }
+
     var effectiveModel: String {
         if !model.isEmpty { return model }
         return preset.defaultModel
@@ -88,9 +98,9 @@ struct ProviderSettings: Codable, Equatable {
     func makeProvider(apiKey: String) -> LLMProvider {
         switch preset.dialect {
         case .anthropic:
-            return AnthropicProvider(baseURL: effectiveBaseURL, apiKey: apiKey, model: effectiveModel)
+            return AnthropicProvider(baseURL: baseURL(forKey: apiKey), apiKey: apiKey, model: effectiveModel)
         case .openai:
-            return OpenAICompatibleProvider(baseURL: effectiveBaseURL, apiKey: apiKey, model: effectiveModel)
+            return OpenAICompatibleProvider(baseURL: baseURL(forKey: apiKey), apiKey: apiKey, model: effectiveModel)
         case .mlx:
             return MLXProvider(modelId: localModelId)
         }

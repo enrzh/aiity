@@ -55,6 +55,24 @@ final class ToolCallParsingTests: XCTestCase {
         XCTAssertEqual(ChatView.strippingHTMLFence(from: streaming), "Hier deine App:")
     }
 
+    func testParseAuthorizationInputBareCode() {
+        let (code, state) = OAuthService.parseAuthorizationInput("  abc123  ")
+        XCTAssertEqual(code, "abc123")
+        XCTAssertNil(state)
+    }
+
+    func testParseAuthorizationInputClaudeCodeHashState() {
+        let (code, state) = OAuthService.parseAuthorizationInput("theCode#theState")
+        XCTAssertEqual(code, "theCode")
+        XCTAssertEqual(state, "theState")
+    }
+
+    func testParseAuthorizationInputLocalhostRedirectURL() {
+        let (code, state) = OAuthService.parseAuthorizationInput("http://localhost:1455/auth/callback?code=xyz789&state=st42")
+        XCTAssertEqual(code, "xyz789")
+        XCTAssertEqual(state, "st42")
+    }
+
     func testMiniAppDraftExtraction() {
         let text = """
         Fertig!

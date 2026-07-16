@@ -24,16 +24,14 @@ final class SettingsTourUITests: XCTestCase {
         XCTAssertTrue(oauthButton.waitForExistence(timeout: 10), "OAuth sign-in button should appear for OpenRouter")
         attach(app, name: "settings-openrouter")
 
-        // Anthropic: "Sign in with Claude" + client-id field (standard PKCE).
+        // xAI (Grok) and OpenAI now expose the subscription OAuth button too.
         providerRow.tap()
-        let anthropicOption = app.buttons["Anthropic (Claude)"]
-        XCTAssertTrue(anthropicOption.waitForExistence(timeout: 10), "picker should list Anthropic")
-        anthropicOption.tap()
+        let xaiOption = app.buttons["xAI (Grok)"]
+        XCTAssertTrue(xaiOption.waitForExistence(timeout: 10), "picker should list xAI")
+        xaiOption.tap()
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS 'anmelden'")).firstMatch.waitForExistence(timeout: 10),
-                      "Sign in with Claude button should appear for Anthropic")
-        XCTAssertTrue(app.textFields.matching(NSPredicate(format: "value CONTAINS 'Client-ID' OR placeholderValue CONTAINS 'Client-ID'")).firstMatch.exists,
-                      "Anthropic OAuth should expose the client-id field")
-        attach(app, name: "settings-anthropic")
+                      "Sign in button should appear for Grok")
+        attach(app, name: "settings-xai")
 
         // Skills tab lists the built-ins.
         app.tabBars.buttons["Skills"].tap()
