@@ -4,7 +4,7 @@ enum ChatRole: String, Codable {
     case system, user, assistant, tool
 }
 
-struct ToolCallData: Identifiable, Equatable {
+struct ToolCallData: Identifiable, Equatable, Codable {
     var id: String
     var name: String
     var argumentsJSON: String
@@ -13,7 +13,7 @@ struct ToolCallData: Identifiable, Equatable {
 /// One message in the conversation the agent loop maintains. Assistant
 /// messages may carry tool calls; `tool` messages carry the result for a
 /// specific `toolCallId`.
-struct ChatMessage: Identifiable, Equatable {
+struct ChatMessage: Identifiable, Equatable, Codable {
     var id = UUID()
     var role: ChatRole
     var text: String

@@ -27,6 +27,13 @@ struct ProviderSettings: Codable, Equatable {
     static let storageKey = "provider-settings-v1"
 
     static func load() -> ProviderSettings {
+        // Plain-JSON override for UI tests and debugging. Passed as an
+        // environment variable — launch-argument values go through
+        // UserDefaults' plist parsing, which mangles JSON braces.
+        if let json = ProcessInfo.processInfo.environment["PROVIDER_SETTINGS_JSON"],
+           let settings = try? JSONDecoder().decode(ProviderSettings.self, from: Data(json.utf8)) {
+            return settings
+        }
         guard let data = UserDefaults.standard.data(forKey: storageKey),
               let settings = try? JSONDecoder().decode(ProviderSettings.self, from: data) else {
             return ProviderSettings()

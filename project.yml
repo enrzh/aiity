@@ -17,6 +17,9 @@ targets:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         ITSAppUsesNonExemptEncryption: false
+        # Ollama/LM Studio on the user's own machine speak plain http.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: de.dongfang.aiapp
@@ -24,3 +27,24 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         CURRENT_PROJECT_VERSION: 1
         MARKETING_VERSION: 0.1.0
+  AIAppUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [AIAppUITests]
+    dependencies:
+      - target: AIApp
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: de.dongfang.aiapp.uitests
+        SWIFT_VERSION: "5.9"
+schemes:
+  AIApp:
+    build:
+      targets:
+        AIApp: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - AIAppUITests

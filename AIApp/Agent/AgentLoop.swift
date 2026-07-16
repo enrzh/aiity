@@ -2,7 +2,8 @@ import Foundation
 
 /// Drives one user turn: stream the model's answer, execute requested tools,
 /// feed results back, repeat (bounded), and extract a generated mini-app from
-/// the final answer if one is present.
+/// the final answer if one is present. The session is app-wide (injected as
+/// an EnvironmentObject) and persists itself across app restarts.
 @MainActor
 final class ChatSession: ObservableObject {
     @Published var messages: [ChatMessage] = []
@@ -10,11 +11,23 @@ final class ChatSession: ObservableObject {
     @Published var statusLine: String?
     @Published var errorMessage: String?
     @Published var draftMiniApp: MiniAppDraft?
+    /// Tab selection lives here so the library can hand a mini-app to the chat.
+    @Published var activeTab = 0
 
     /// Set when the chat continues work on a saved mini-app.
-    var editingContext: (id: UUID, name: String, html: String)?
+    var editingContext: EditingContext?
+
+    struct EditingContext: Codable {
+        var id: UUID
+        var name: String
+        var html: String
+    }
 
     private static let maxToolRounds = 6
+
+    init() {
+        restore()
+    }
 
     static let systemPrompt = """
     You are AI App, an assistant that chats normally AND can build small apps ("mini-apps") on request.
@@ -41,6 +54,7 @@ final class ChatSession: ObservableObject {
             messages.append(ChatMessage(role: .system, text: system))
         }
         messages.append(ChatMessage(role: .user, text: text))
+        persist()
         busy = true
 
         let provider = settings.makeProvider(apiKey: Keychain.get("api-key-\(settings.kind.rawValue)"))
@@ -50,6 +64,7 @@ final class ChatSession: ObservableObject {
             await runTurn(provider: provider, tools: tools)
             busy = false
             statusLine = nil
+            persist()
         }
     }
 
@@ -110,6 +125,45 @@ final class ChatSession: ObservableObject {
         draftMiniApp = nil
         errorMessage = nil
         editingContext = nil
+        persist()
+    }
+
+    /// Entry point from the library: continue a saved mini-app in the chat.
+    func startEditing(id: UUID, name: String, html: String) {
+        reset()
+        editingContext = EditingContext(id: id, name: name, html: html)
+        activeTab = 0
+        persist()
+    }
+
+    // MARK: - Persistence
+
+    private struct Snapshot: Codable {
+        var messages: [ChatMessage]
+        var editingContext: EditingContext?
+    }
+
+    private static let storeURL: URL = {
+        let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory.appendingPathComponent("chat-session.json")
+    }()
+
+    private func persist() {
+        let snapshot = Snapshot(messages: messages, editingContext: editingContext)
+        if let data = try? JSONEncoder().encode(snapshot) {
+            try? data.write(to: Self.storeURL, options: .atomic)
+        }
+    }
+
+    private func restore() {
+        guard let data = try? Data(contentsOf: Self.storeURL),
+              let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data) else { return }
+        messages = snapshot.messages
+        editingContext = snapshot.editingContext
+        if let lastAssistant = messages.last(where: { $0.role == .assistant }) {
+            draftMiniApp = MiniAppDraft.extract(from: lastAssistant.text)
+        }
     }
 }
 

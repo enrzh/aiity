@@ -2,13 +2,28 @@ import SwiftUI
 import SwiftData
 
 struct ChatView: View {
-    @StateObject private var session = ChatSession()
+    @EnvironmentObject private var session: ChatSession
     @State private var input = ""
     @State private var previewDraft: MiniAppDraft?
     @Environment(\.modelContext) private var modelContext
 
     private var visibleMessages: [ChatMessage] {
-        session.messages.filter { $0.role == .user || ($0.role == .assistant && !$0.text.isEmpty) }
+        session.messages.filter {
+            $0.role == .user || ($0.role == .assistant && !ChatView.strippingHTMLFence(from: $0.text).isEmpty)
+        }
+    }
+
+    /// Chat bubbles show only the prose — the mini-app source stays hidden
+    /// behind the card. Also truncates a fence that is still streaming in.
+    static func strippingHTMLFence(from text: String) -> String {
+        guard let fenceStart = text.range(of: "```html") else {
+            return text.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        var result = String(text[..<fenceStart.lowerBound])
+        if let fenceEnd = text.range(of: "```", range: fenceStart.upperBound..<text.endIndex) {
+            result += text[fenceEnd.upperBound...]
+        }
+        return result.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     var body: some View {
@@ -35,6 +50,7 @@ struct ChatView: View {
                                     onPreview: { previewDraft = draft },
                                     onKeep: { keep(draft) }
                                 )
+                                .id("mini-app-card")
                             }
                             if let error = session.errorMessage {
                                 Text(error)
@@ -49,6 +65,12 @@ struct ChatView: View {
                             proxy.scrollTo(lastId, anchor: .bottom)
                         }
                     }
+                    .onChange(of: session.draftMiniApp) {
+                        if session.draftMiniApp != nil {
+                            proxy.scrollTo("mini-app-card", anchor: .bottom)
+                        }
+                    }
+                    .scrollDismissesKeyboard(.immediately)
                 }
                 inputBar
             }
@@ -88,11 +110,13 @@ struct ChatView: View {
                 .padding(.vertical, 8)
                 .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18))
                 .onSubmit(send)
+                .accessibilityIdentifier("chat-input")
             Button(action: send) {
                 Image(systemName: session.busy ? "hourglass" : "arrow.up.circle.fill")
                     .font(.system(size: 28))
             }
             .disabled(session.busy || input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .accessibilityIdentifier("chat-send")
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
@@ -105,7 +129,7 @@ struct ChatView: View {
 
     private func keep(_ draft: MiniAppDraft) {
         if let context = session.editingContext {
-            let targetId = context.id
+            let targetId: UUID = context.id
             let descriptor = FetchDescriptor<MiniApp>(predicate: #Predicate { $0.id == targetId })
             if let existing = try? modelContext.fetch(descriptor).first {
                 existing.html = draft.html
@@ -132,7 +156,7 @@ private struct MessageBubble: View {
     var body: some View {
         HStack {
             if message.role == .user { Spacer(minLength: 40) }
-            Text(message.text)
+            Text(message.role == .assistant ? ChatView.strippingHTMLFence(from: message.text) : message.text)
                 .textSelection(.enabled)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
@@ -163,8 +187,10 @@ private struct MiniAppCard: View {
             HStack {
                 Button("Vorschau", action: onPreview)
                     .buttonStyle(.bordered)
+                    .accessibilityIdentifier("preview-app")
                 Button("Behalten", action: onKeep)
                     .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("keep-app")
             }
         }
         .padding()

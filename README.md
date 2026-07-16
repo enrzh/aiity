@@ -26,6 +26,19 @@ DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer \
   -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO
 ```
 
+## End-to-End-Test (hermetisch, ohne API-Key)
+
+`tools/stub_llm_server.py` ist ein OpenAI-kompatibler Stub (Port 8555) mit geskriptetem Agent-Verhalten (Websuche-Runde → Mini-App → Editier-Version) und SearXNG-Endpoint. Der UI-Test `AIAppUITests/FullFlowUITests` fährt den kompletten Flow: Frage mit Websuche → Mini-App behalten → in der Bibliothek öffnen → per Chat iterieren → Neustart-Persistenz.
+
+```sh
+python3 tools/stub_llm_server.py &
+DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer \
+  xcodebuild -project AIApp.xcodeproj -scheme AIApp \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test CODE_SIGNING_ALLOWED=NO
+```
+
+Die Provider-Settings lassen sich für Tests/Debugging per Env-Variable `PROVIDER_SETTINGS_JSON` überschreiben (Launch-Argumente scheitern an UserDefaults' Plist-Parsing von JSON-Braces).
+
 ## Roadmap
 
 - **v1 (dieses Gerüst):** Chat + Streaming, Mini-App-Generierung, Sandbox-Runner mit Bridge, Bibliothek, BYO-Key-Settings, Web-Tools.

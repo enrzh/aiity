@@ -5,6 +5,7 @@ import SwiftData
 struct LibraryView: View {
     @Query(sort: \MiniApp.updatedAt, order: .reverse) private var apps: [MiniApp]
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var session: ChatSession
     @State private var openApp: MiniApp?
 
     private let columns = [GridItem(.adaptive(minimum: 96), spacing: 16)]
@@ -37,7 +38,13 @@ struct LibraryView: View {
                                     }
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityIdentifier("library-app")
                                 .contextMenu {
+                                    Button {
+                                        session.startEditing(id: app.id, name: app.name, html: app.html)
+                                    } label: {
+                                        Label("Im Chat bearbeiten", systemImage: "bubble.left.and.text.bubble.right")
+                                    }
                                     Button(role: .destructive) {
                                         modelContext.delete(app)
                                     } label: {
