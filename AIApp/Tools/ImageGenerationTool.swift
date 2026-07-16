@@ -38,20 +38,22 @@ struct ImageGenerationTool: AgentTool {
         let token = bearerToken(from: apiKey)
         if !token.isEmpty { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
         request.timeoutInterval = 120
+        // Note: gpt-image-1 rejects `response_format` (400) and always returns
+        // b64_json; dall-e returns a url. So we don't send it and accept both.
         request.httpBody = jsonData([
             "model": settings.imageModel,
             "prompt": prompt,
             "n": 1,
             "size": size,
-            "response_format": "b64_json",
         ])
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse, http.statusCode == 200,
-                  let object = jsonObject(data),
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            guard status == 200, let object = jsonObject(data),
                   let first = (object["data"] as? [[String: Any]])?.first else {
-                return ToolRunResult("Bildgenerierung fehlgeschlagen: \(String(decoding: data.prefix(200), as: UTF8.self))")
+                let detail = String(decoding: data.prefix(300), as: UTF8.self)
+                return ToolRunResult("Bildgenerierung fehlgeschlagen (HTTP \(status), Modell '\(settings.imageModel)'): \(detail)")
             }
             // Providers return either inline base64 or a URL.
             var pngData: Data?

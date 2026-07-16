@@ -143,6 +143,11 @@ final class ChatSession: ObservableObject {
                 let result = await toolsByName[call.name]?.run(argumentsJSON: call.argumentsJSON)
                     ?? ToolRunResult("Error: unknown tool \(call.name)")
                 pendingMediaIds.append(contentsOf: result.mediaIds)
+                // A generation tool that produced no media failed — surface the
+                // reason in the chat instead of letting the model bury it.
+                if ["generate_image", "generate_video"].contains(call.name), result.mediaIds.isEmpty {
+                    errorMessage = result.text
+                }
                 messages.append(ChatMessage(role: .tool, text: result.text, toolCallId: call.id, toolName: call.name))
             }
             statusLine = nil
