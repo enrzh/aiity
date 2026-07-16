@@ -318,6 +318,9 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					2161A59F8D3596C65FB50F10 = {
+						ProvisioningStyle = Automatic;
+					};
 					C810CCA688BB8E6D86460DA0 = {
 						TestTargetID = 2161A59F8D3596C65FB50F10;
 					};
@@ -425,6 +428,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = AIApp/AIApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				INFOPLIST_FILE = AIApp/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -518,6 +522,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = AIApp/AIApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				INFOPLIST_FILE = AIApp/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

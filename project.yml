@@ -42,8 +42,9 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         CURRENT_PROJECT_VERSION: 1
         MARKETING_VERSION: 0.2.0
-        # Local models need more RAM than the default per-app limit.
         CODE_SIGN_ENTITLEMENTS: AIApp/AIApp.entitlements
+        # Device install: Xcode auto-creates the profile once a team is picked.
+        CODE_SIGN_STYLE: Automatic
   AIAppTests:
     type: bundle.unit-test
     platform: iOS
