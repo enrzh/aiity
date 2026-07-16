@@ -17,15 +17,6 @@ final class OAuthServiceTests: XCTestCase {
         XCTAssertNotNil(value("code_challenge"))
     }
 
-    func testPasteFlowAuthorizeURLForOpenAICodex() {
-        let pending = OAuthService().startPasteFlow(preset: ProviderPreset.preset(for: "openai"))!
-        let url = pending.authorizeURL.absoluteString
-        XCTAssertTrue(url.hasPrefix("https://auth.openai.com/oauth/authorize"))
-        XCTAssertTrue(url.contains("client_id=app_EMoamEEZ73f0CkXaXp7hrann"))
-        XCTAssertTrue(url.contains("codex_cli_simplified_flow=true"))
-        XCTAssertTrue(url.contains("id_token_add_organizations=true"))
-    }
-
     func testPasteFlowAuthorizeURLForGrokUsesNonceAndPlan() {
         let pending = OAuthService().startPasteFlow(preset: ProviderPreset.preset(for: "xai"))!
         let url = pending.authorizeURL.absoluteString
@@ -43,10 +34,12 @@ final class OAuthServiceTests: XCTestCase {
 
     func testProviderOAuthConfiguration() {
         XCTAssertEqual(ProviderPreset.preset(for: "anthropic").oauth?.flow, .pasteCode)
-        XCTAssertEqual(ProviderPreset.preset(for: "openai").oauth?.flow, .pasteCode)
         XCTAssertEqual(ProviderPreset.preset(for: "xai").oauth?.flow, .pasteCode)
         XCTAssertEqual(ProviderPreset.preset(for: "openrouter").oauth?.flow, .openRouterKeyExchange)
         XCTAssertNil(ProviderPreset.preset(for: "gemini").oauth)
+        // OpenAI has no in-app OAuth: subscription inference needs the Codex
+        // backend / a sub2api gateway, not a direct token.
+        XCTAssertNil(ProviderPreset.preset(for: "openai").oauth)
         // Grok routes OAuth traffic through the CLI proxy.
         XCTAssertEqual(ProviderPreset.preset(for: "xai").oauth?.inferenceBaseURL, "https://cli-chat-proxy.grok.com/v1")
     }

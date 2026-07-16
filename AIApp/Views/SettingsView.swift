@@ -112,7 +112,7 @@ struct SettingsView: View {
         case "openrouter":
             return "Anmelden per OAuth holt automatisch einen API-Key — oder eigenen Key einfügen. Keys liegen nur im Geräte-Keychain."
         case "openai":
-            return "„Mit OpenAI anmelden“ nutzt dein ChatGPT-Abo per Codex-CLI-OAuth (Code kopieren). Hinweis: Abo-Tokens laufen über die Codex-/Responses-Schnittstelle — Chat funktioniert evtl. nicht mit jedem Modell. Sicher: API-Key oder GPT per OpenRouter."
+            return "ChatGPT-Abo-Login geht nur über OpenAIs privaten Codex-Backend (die App müsste sich komplett als Codex-CLI ausgeben) — deshalb hier bewusst nicht direkt. Für Abo-Nutzung: deine sub2api-Instanz (macht genau das serverseitig), sonst API-Key oder GPT per OpenRouter."
         case "xai":
             return "„Mit xAI anmelden“ nutzt dein SuperGrok / X-Premium+-Abo per grok-cli-OAuth (Code kopieren) — läuft über den Grok-CLI-Proxy. Alternativ API-Key oder Grok per OpenRouter."
         case "sub2api":
