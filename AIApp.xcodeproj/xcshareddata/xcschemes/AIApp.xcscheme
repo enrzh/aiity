@@ -44,6 +44,17 @@
             parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
+               BlueprintIdentifier = "E9B596F272ED0D7AA191D480"
+               BuildableName = "AIAppTests.xctest"
+               BlueprintName = "AIAppTests"
+               ReferencedContainer = "container:AIApp.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
                BlueprintIdentifier = "C810CCA688BB8E6D86460DA0"
                BuildableName = "AIAppUITests.xctest"
                BlueprintName = "AIAppUITests"

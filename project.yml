@@ -4,11 +4,20 @@ options:
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
+packages:
+  MLXSwiftLM:
+    url: https://github.com/ml-explore/mlx-swift-lm
+    # 3.x switched to a macro-based HubClient API; 2.31.x is the stable
+    # loadContainer(hub:configuration:) generation this code targets.
+    exactVersion: 2.31.3
 targets:
   AIApp:
     type: application
     platform: iOS
     sources: [AIApp]
+    dependencies:
+      - package: MLXSwiftLM
+        products: [MLXLLM, MLXLMCommon]
     info:
       path: AIApp/Info.plist
       properties:
@@ -26,7 +35,19 @@ targets:
         SWIFT_VERSION: "5.9"
         TARGETED_DEVICE_FAMILY: "1"
         CURRENT_PROJECT_VERSION: 1
-        MARKETING_VERSION: 0.1.0
+        MARKETING_VERSION: 0.2.0
+        # Local models need more RAM than the default per-app limit.
+        CODE_SIGN_ENTITLEMENTS: AIApp/AIApp.entitlements
+  AIAppTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [AIAppTests]
+    dependencies:
+      - target: AIApp
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: de.dongfang.aiapp.tests
+        SWIFT_VERSION: "5.9"
   AIAppUITests:
     type: bundle.ui-testing
     platform: iOS
@@ -47,4 +68,5 @@ schemes:
     test:
       config: Debug
       targets:
+        - AIAppTests
         - AIAppUITests

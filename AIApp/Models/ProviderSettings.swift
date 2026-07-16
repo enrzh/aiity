@@ -3,6 +3,7 @@ import Foundation
 enum ProviderKind: String, CaseIterable, Identifiable, Codable {
     case anthropic
     case openAICompatible
+    case mlx
 
     var id: String { rawValue }
 
@@ -10,6 +11,7 @@ enum ProviderKind: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .anthropic: return "Anthropic (Claude)"
         case .openAICompatible: return "OpenAI-kompatibel (OpenAI, OpenRouter, Ollama, LM Studio …)"
+        case .mlx: return "Lokal auf dem Gerät (MLX)"
         }
     }
 }
@@ -23,8 +25,27 @@ struct ProviderSettings: Codable, Equatable {
     /// Optional search endpoint (SearXNG instance or similar). Empty = use
     /// the built-in DuckDuckGo HTML fallback.
     var searchEndpoint: String = ""
+    /// Hub id of the selected on-device model (kind == .mlx).
+    var localModelId: String = LocalModel.defaultId
 
     static let storageKey = "provider-settings-v1"
+
+    // Manual decoding: every field is optional in stored/injected JSON so
+    // settings survive schema growth (and tests can pass partial configs).
+    private enum CodingKeys: String, CodingKey {
+        case kind, baseURL, model, searchEndpoint, localModelId
+    }
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        kind = try values.decodeIfPresent(ProviderKind.self, forKey: .kind) ?? .anthropic
+        baseURL = try values.decodeIfPresent(String.self, forKey: .baseURL) ?? ""
+        model = try values.decodeIfPresent(String.self, forKey: .model) ?? "claude-sonnet-5"
+        searchEndpoint = try values.decodeIfPresent(String.self, forKey: .searchEndpoint) ?? ""
+        localModelId = try values.decodeIfPresent(String.self, forKey: .localModelId) ?? LocalModel.defaultId
+    }
 
     static func load() -> ProviderSettings {
         // Plain-JSON override for UI tests and debugging. Passed as an
@@ -52,6 +73,7 @@ struct ProviderSettings: Codable, Equatable {
         switch kind {
         case .anthropic: return "https://api.anthropic.com"
         case .openAICompatible: return "https://api.openai.com/v1"
+        case .mlx: return ""
         }
     }
 
@@ -61,6 +83,8 @@ struct ProviderSettings: Codable, Equatable {
             return AnthropicProvider(baseURL: effectiveBaseURL, apiKey: apiKey, model: model)
         case .openAICompatible:
             return OpenAICompatibleProvider(baseURL: effectiveBaseURL, apiKey: apiKey, model: model)
+        case .mlx:
+            return MLXProvider(modelId: localModelId)
         }
     }
 }
