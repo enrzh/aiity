@@ -1,0 +1,26 @@
+name: AIApp
+options:
+  bundleIdPrefix: de.dongfang
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+targets:
+  AIApp:
+    type: application
+    platform: iOS
+    sources: [AIApp]
+    info:
+      path: AIApp/Info.plist
+      properties:
+        CFBundleDisplayName: AI App
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: de.dongfang.aiapp
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1"
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: 0.1.0
