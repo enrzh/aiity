@@ -75,7 +75,7 @@ struct ChatView: View {
                 }
                 inputBar
             }
-            .navigationTitle(session.activeThreadTitle.isEmpty ? "AI App" : session.activeThreadTitle)
+            .navigationTitle(session.activeThreadTitle.isEmpty ? "aiity" : session.activeThreadTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {

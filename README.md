@@ -1,6 +1,8 @@
-# AI App
+# aiity
 
-Native iOS-App (SwiftUI): Du chattest mit einem KI-Agenten — er beantwortet Fragen, recherchiert im Web und **baut dir auf Zuruf Mini-Apps**, die als eigene Seite in der App wohnen.
+**aiity** — „AI it yourself" (von *do it yourself*). Native iOS-App (SwiftUI): Du chattest mit einem KI-Agenten — er beantwortet Fragen, recherchiert im Web und **baut dir auf Zuruf Mini-Apps**, die als eigene Seite in der App wohnen.
+
+> Interne Bezeichner (Xcode-Target `AIApp`, Bundle-ID `de.dongfang.aiapp`, URL-Scheme `aiapp://`) bleiben unverändert — nur der sichtbare Name ist „aiity".
 
 ## Architektur
 

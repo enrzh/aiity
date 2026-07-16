@@ -21,7 +21,7 @@ targets:
     info:
       path: AIApp/Info.plist
       properties:
-        CFBundleDisplayName: AI App
+        CFBundleDisplayName: aiity
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
