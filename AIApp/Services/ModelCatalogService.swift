@@ -3,6 +3,11 @@ import Foundation
 /// Fetches the live model list of the configured provider so the user picks
 /// from real models instead of typing ids.
 enum ModelCatalogService {
+    /// Unwraps AuthStore's "oauth:<token>" marker to the bare token.
+    private static func bearerToken(from key: String) -> String {
+        key.hasPrefix(AuthStore.oauthMarker) ? String(key.dropFirst(AuthStore.oauthMarker.count)) : key
+    }
+
     static func fetchModels(settings: ProviderSettings, apiKey: String) async throws -> [String] {
         switch settings.preset.dialect {
         case .mlx:
@@ -11,13 +16,19 @@ enum ModelCatalogService {
             let base = settings.effectiveBaseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             guard !base.isEmpty else { return [] }
             var request = URLRequest(url: URL(string: "\(base)/models")!)
-            if !apiKey.isEmpty { request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization") }
+            let token = bearerToken(from: apiKey)
+            if !token.isEmpty { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
             return try await requestIds(request)
         case .anthropic:
             let base = settings.effectiveBaseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             guard !base.isEmpty else { return [] }
             var request = URLRequest(url: URL(string: "\(base)/v1/models?limit=100")!)
-            request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+            if apiKey.hasPrefix(AuthStore.oauthMarker) {
+                request.setValue("Bearer \(bearerToken(from: apiKey))", forHTTPHeaderField: "Authorization")
+                request.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
+            } else {
+                request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+            }
             request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
             return try await requestIds(request)
         }

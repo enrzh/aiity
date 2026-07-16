@@ -86,10 +86,11 @@ final class ChatSession: ObservableObject {
         persist()
         busy = true
 
-        let provider = settings.makeProvider(apiKey: Keychain.get(settings.keychainAccount))
         let tools = ToolRegistry.makeTools(settings: settings)
 
         Task {
+            // OAuth credentials refresh themselves here when close to expiry.
+            let provider = settings.makeProvider(apiKey: await AuthStore.effectiveKey(for: settings))
             await runTurn(provider: provider, tools: tools)
             busy = false
             statusLine = nil

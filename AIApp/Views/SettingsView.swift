@@ -3,6 +3,8 @@ import SwiftUI
 struct SettingsView: View {
     @State private var settings = ProviderSettings.load()
     @State private var apiKey = ""
+    @State private var oauthClientId = ""
+    @State private var oauthConnected = false
     @State private var availableModels: [String] = []
     @State private var modelsError: String?
     @State private var fetchingModels = false
@@ -31,7 +33,12 @@ struct SettingsView: View {
                 reloadKey()
             }
             .onChange(of: settings) { settings.save() }
-            .onChange(of: apiKey) { Keychain.set(apiKey, for: settings.keychainAccount) }
+            .onChange(of: apiKey) {
+                // Never let the (programmatically cleared) key field wipe a
+                // stored OAuth credential.
+                if !oauthConnected { Keychain.set(apiKey, for: settings.keychainAccount) }
+            }
+            .onChange(of: oauthClientId) { AuthStore.setClientId(oauthClientId, for: settings.presetId) }
         }
     }
 
@@ -56,18 +63,32 @@ struct SettingsView: View {
                 .keyboardType(.URL)
             }
             if settings.preset.dialect != .mlx {
-                SecureField(settings.preset.needsKey ? "API-Key" : "API-Key (optional)", text: $apiKey)
-                if settings.preset.oauthAvailable {
-                    Button {
-                        signInWithOAuth()
-                    } label: {
-                        if oauth.busy {
-                            ProgressView()
-                        } else {
-                            Label("Mit \(settings.preset.label.components(separatedBy: " ")[0]) anmelden", systemImage: "person.crop.circle.badge.checkmark")
-                        }
+                if oauthConnected {
+                    HStack {
+                        Label("Per OAuth verbunden", systemImage: "checkmark.seal.fill")
+                            .foregroundStyle(.green)
+                        Spacer()
+                        Button("Abmelden", role: .destructive) { disconnectOAuth() }
                     }
-                    .disabled(oauth.busy)
+                } else {
+                    SecureField(settings.preset.needsKey ? "API-Key" : "API-Key (optional)", text: $apiKey)
+                    if let config = settings.preset.oauth {
+                        if config.needsClientId {
+                            TextField("OAuth-Client-ID (aus der App-Registrierung)", text: $oauthClientId)
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
+                        }
+                        Button {
+                            signInWithOAuth()
+                        } label: {
+                            if oauth.busy {
+                                ProgressView()
+                            } else {
+                                Label("Mit \(settings.preset.label.components(separatedBy: " ")[0]) anmelden", systemImage: "person.crop.circle.badge.checkmark")
+                            }
+                        }
+                        .disabled(oauth.busy || (config.needsClientId && oauthClientId.trimmingCharacters(in: .whitespaces).isEmpty))
+                    }
                 }
                 if let oauthError {
                     Text(oauthError).font(.caption).foregroundStyle(.red)
@@ -81,16 +102,23 @@ struct SettingsView: View {
     }
 
     private var providerFooter: String {
-        switch settings.preset.dialect {
-        case .mlx:
+        switch settings.presetId {
+        case "mlx":
             return "Modelle laufen komplett auf dem Gerät (Apple MLX) — offline, privat, kostenlos. Download einmalig über WLAN empfohlen. Im Simulator nicht verfügbar."
-        case .openai where settings.preset.oauthAvailable:
+        case "anthropic":
+            return "„Sign in with Claude“ nutzt dein Claude-Abo (Abrechnung über Extra-Usage-Credits deines Kontos). Dafür einmalig eine App bei Anthropic registrieren und die Client-ID hier eintragen — Redirect-URI: aiapp://oauth/anthropic. Alternativ klassisch per API-Key."
+        case "openrouter":
             return "Anmelden per OAuth holt automatisch einen API-Key — oder eigenen Key einfügen. Keys liegen nur im Geräte-Keychain."
-        case .openai where settings.preset.editableBaseURL:
-            return "Für eigene Server: Base-URL des OpenAI-kompatiblen Endpoints eintragen (Ollama, LM Studio, LocalAI, vLLM, LiteLLM …). Keys liegen nur im Geräte-Keychain."
-        case .anthropic where settings.preset.editableBaseURL:
-            return "Für eigene Server, die die Anthropic Messages API sprechen. Keys liegen nur im Geräte-Keychain."
+        case "openai":
+            return "OpenAI bietet „Sign in with ChatGPT“ Dritt-Apps bisher nicht für Modell-Nutzung an (Stand 04/2026, nur Codex-Tooling) — daher API-Key. Tipp: GPT-Modelle gehen auch per OpenRouter-Login."
+        case "xai":
+            return "xAI bietet keinen Abo-Login für Dritt-Apps an — API-Key aus der xAI-Konsole. Grok-Modelle gehen auch per OpenRouter-Login."
+        case "sub2api":
+            return "Base-URL deiner eigenen sub2api-Instanz eintragen (OpenAI-kompatibel, z. B. https://ki.meine-domain.de/v1) — so nutzt du Abo-Konten über dein selbst gehostetes Gateway."
         default:
+            if settings.preset.editableBaseURL {
+                return "Für eigene Server: Base-URL des kompatiblen Endpoints eintragen (Ollama, LM Studio, LocalAI, vLLM, LiteLLM …). Keys liegen nur im Geräte-Keychain."
+            }
             return "Der API-Key wird nur im Geräte-Keychain gespeichert. Abo-Login (OAuth) bietet dieser Anbieter Dritt-Apps aktuell nicht öffentlich an."
         }
     }
@@ -98,15 +126,28 @@ struct SettingsView: View {
     private func signInWithOAuth() {
         oauthError = nil
         let preset = settings.preset
+        let clientId = oauthClientId.trimmingCharacters(in: .whitespaces)
         Task {
             do {
-                let key = try await oauth.signIn(preset: preset)
-                apiKey = key
-                Keychain.set(key, for: settings.keychainAccount)
+                switch try await oauth.signIn(preset: preset, clientId: clientId) {
+                case .apiKey(let key):
+                    Keychain.set(key, for: settings.keychainAccount)
+                    apiKey = key
+                case .credential(let credential):
+                    AuthStore.save(credential, account: settings.keychainAccount)
+                    oauthConnected = true
+                    apiKey = ""
+                }
             } catch {
                 oauthError = error.localizedDescription
             }
         }
+    }
+
+    private func disconnectOAuth() {
+        Keychain.set("", for: settings.keychainAccount)
+        oauthConnected = false
+        apiKey = ""
     }
 
     // MARK: Model selection
@@ -153,9 +194,9 @@ struct SettingsView: View {
         fetchingModels = true
         modelsError = nil
         let snapshot = settings
-        let key = apiKey
         Task {
             do {
+                let key = await AuthStore.effectiveKey(for: snapshot)
                 let models = try await ModelCatalogService.fetchModels(settings: snapshot, apiKey: key)
                 availableModels = models
                 if models.isEmpty { modelsError = "Keine Modelle gemeldet." }
@@ -233,6 +274,8 @@ struct SettingsView: View {
     }
 
     private func reloadKey() {
-        apiKey = Keychain.get(settings.keychainAccount)
+        oauthConnected = AuthStore.storedOAuthCredential(account: settings.keychainAccount) != nil
+        apiKey = oauthConnected ? "" : Keychain.get(settings.keychainAccount)
+        oauthClientId = AuthStore.clientId(for: settings.presetId)
     }
 }

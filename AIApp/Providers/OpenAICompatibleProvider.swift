@@ -15,7 +15,9 @@ struct OpenAICompatibleProvider: LLMProvider {
                     var request = URLRequest(url: URL(string: "\(baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/")))/chat/completions")!)
                     request.httpMethod = "POST"
                     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                    if !apiKey.isEmpty {
+                    if apiKey.hasPrefix(AuthStore.oauthMarker) {
+                        request.setValue("Bearer \(String(apiKey.dropFirst(AuthStore.oauthMarker.count)))", forHTTPHeaderField: "Authorization")
+                    } else if !apiKey.isEmpty {
                         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
                     }
                     var body: [String: Any] = [

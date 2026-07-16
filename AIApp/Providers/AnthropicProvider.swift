@@ -19,7 +19,13 @@ struct AnthropicProvider: LLMProvider {
                     var request = URLRequest(url: URL(string: "\(baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/")))/v1/messages")!)
                     request.httpMethod = "POST"
                     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                    request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+                    if apiKey.hasPrefix(AuthStore.oauthMarker) {
+                        // "Sign in with Claude" bearer token instead of a key.
+                        request.setValue("Bearer \(String(apiKey.dropFirst(AuthStore.oauthMarker.count)))", forHTTPHeaderField: "Authorization")
+                        request.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
+                    } else {
+                        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+                    }
                     request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
 
                     let system = messages.first(where: { $0.role == .system })?.text
