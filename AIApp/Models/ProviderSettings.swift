@@ -74,8 +74,26 @@ struct ProviderSettings: Codable, Equatable {
     }
 
     var effectiveBaseURL: String {
-        if !baseURL.isEmpty { return baseURL }
-        return preset.defaultBaseURL
+        let raw = baseURL.isEmpty ? preset.defaultBaseURL : baseURL
+        return ProviderSettings.normalizeBaseURL(raw, dialect: preset.dialect)
+    }
+
+    /// Makes a user-typed endpoint forgiving: adds https:// when the scheme is
+    /// missing, drops trailing slashes, and appends the OpenAI-compatible
+    /// version path when the user pasted only a bare host (so "ki.domain.de"
+    /// works for a sub2api / self-hosted gateway).
+    static func normalizeBaseURL(_ raw: String, dialect: ProviderDialect) -> String {
+        var value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return value }
+        if !value.contains("://") { value = "https://" + value }
+        while value.hasSuffix("/") { value.removeLast() }
+        // Only the OpenAI dialect wants a "/v1" suffix; Anthropic callers add
+        // their own "/v1/messages" path. Leave an already-pathed URL alone.
+        if dialect == .openai, let components = URLComponents(string: value),
+           components.path.isEmpty {
+            value += "/v1"
+        }
+        return value
     }
 
     /// Base URL to use for a given credential. OAuth subscription tokens may

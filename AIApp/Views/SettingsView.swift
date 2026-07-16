@@ -61,13 +61,18 @@ struct SettingsView: View {
             if settings.preset.editableBaseURL {
                 TextField(
                     settings.preset.defaultBaseURL.isEmpty
-                        ? "Base-URL (z. B. https://ki.meine-domain.de/v1)"
+                        ? "Server-Adresse (z. B. ki.meine-domain.de)"
                         : "Base-URL (Standard: \(settings.preset.defaultBaseURL))",
                     text: $settings.baseURL
                 )
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
                 .keyboardType(.URL)
+                if !settings.baseURL.isEmpty, settings.effectiveBaseURL != settings.baseURL {
+                    Text("→ \(settings.effectiveBaseURL)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
             if settings.preset.dialect != .mlx {
                 if oauthConnected {
@@ -116,7 +121,7 @@ struct SettingsView: View {
         case "xai":
             return "„Mit xAI anmelden“ nutzt dein SuperGrok / X-Premium+-Abo per grok-cli-OAuth (Code kopieren) — läuft über den Grok-CLI-Proxy. Alternativ API-Key oder Grok per OpenRouter."
         case "sub2api":
-            return "Base-URL deiner eigenen sub2api-Instanz eintragen (OpenAI-kompatibel, z. B. https://ki.meine-domain.de/v1) — so nutzt du Abo-Konten über dein selbst gehostetes Gateway."
+            return "Server-Adresse deiner sub2api-Instanz eintragen (nur der Host reicht, „/v1“ wird ergänzt) und den sub2api-Key als API-Key. So laufen ChatGPT-, Claude- und Grok-Abos alle über dein eigenes Gateway. Danach „Modelle laden“ tippen."
         default:
             if settings.preset.editableBaseURL {
                 return "Für eigene Server: Base-URL des kompatiblen Endpoints eintragen (Ollama, LM Studio, LocalAI, vLLM, LiteLLM …). Keys liegen nur im Geräte-Keychain."

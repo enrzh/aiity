@@ -73,6 +73,32 @@ final class ToolCallParsingTests: XCTestCase {
         XCTAssertEqual(state, "st42")
     }
 
+    func testNormalizeBaseURLAddsSchemeAndVersion() {
+        XCTAssertEqual(ProviderSettings.normalizeBaseURL("ki.meine-domain.de", dialect: .openai),
+                       "https://ki.meine-domain.de/v1")
+    }
+
+    func testNormalizeBaseURLKeepsExistingPathAndTrimsSlash() {
+        XCTAssertEqual(ProviderSettings.normalizeBaseURL("https://host/api/v3/", dialect: .openai),
+                       "https://host/api/v3")
+        XCTAssertEqual(ProviderSettings.normalizeBaseURL("http://localhost:11434/v1", dialect: .openai),
+                       "http://localhost:11434/v1")
+    }
+
+    func testNormalizeBaseURLAnthropicKeepsBareHost() {
+        // Anthropic callers append their own /v1/messages path.
+        XCTAssertEqual(ProviderSettings.normalizeBaseURL("meine-domain.de", dialect: .anthropic),
+                       "https://meine-domain.de")
+    }
+
+    func testSub2apiBareDomainBecomesUsableEndpoint() {
+        var settings = ProviderSettings()
+        settings.presetId = "sub2api"
+        settings.baseURL = "ki.dong-fang.de"
+        XCTAssertEqual(settings.effectiveBaseURL, "https://ki.dong-fang.de/v1")
+        XCTAssertEqual(settings.baseURL(forKey: "sk-abc"), "https://ki.dong-fang.de/v1")
+    }
+
     func testMiniAppDraftExtraction() {
         let text = """
         Fertig!
