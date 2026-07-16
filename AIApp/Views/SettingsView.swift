@@ -110,9 +110,9 @@ struct SettingsView: View {
         case "openrouter":
             return "Anmelden per OAuth holt automatisch einen API-Key — oder eigenen Key einfügen. Keys liegen nur im Geräte-Keychain."
         case "openai":
-            return "OpenAI bietet „Sign in with ChatGPT“ Dritt-Apps bisher nicht für Modell-Nutzung an (Stand 04/2026, nur Codex-Tooling) — daher API-Key. Tipp: GPT-Modelle gehen auch per OpenRouter-Login."
+            return "OpenAI bietet „Sign in with ChatGPT“ Dritt-Apps bis heute nicht für Modell-Nutzung an — es gibt keinen OAuth-Endpoint, der einen Key auf dein Abo bucht (nur SSO + GPT-Actions). Daher API-Key oder GPT-Modelle per OpenRouter-Login."
         case "xai":
-            return "xAI bietet keinen Abo-Login für Dritt-Apps an — API-Key aus der xAI-Konsole. Grok-Modelle gehen auch per OpenRouter-Login."
+            return "Grok hat seit 05/2026 einen Abo-Login (SuperGrok / X Premium+) per Device-Code gegen accounts.x.ai — den nutzen Partner-Apps mit eigener Client-ID. Eine öffentliche Registrierung für beliebige Apps gibt es nicht, deshalb hier API-Key oder Grok per OpenRouter-Login."
         case "sub2api":
             return "Base-URL deiner eigenen sub2api-Instanz eintragen (OpenAI-kompatibel, z. B. https://ki.meine-domain.de/v1) — so nutzt du Abo-Konten über dein selbst gehostetes Gateway."
         default:
