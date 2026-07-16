@@ -22,9 +22,12 @@ struct RootView: View {
             LibraryView()
                 .tabItem { Label("Apps", systemImage: "square.grid.2x2") }
                 .tag(1)
+            SkillsView()
+                .tabItem { Label("Skills", systemImage: "puzzlepiece.extension") }
+                .tag(2)
             SettingsView()
                 .tabItem { Label("Einstellungen", systemImage: "gearshape") }
-                .tag(2)
+                .tag(3)
         }
         .environmentObject(session)
     }

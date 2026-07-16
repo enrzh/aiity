@@ -9,6 +9,12 @@ struct SkillsView: View {
     @State private var importing = false
 
     var body: some View {
+        NavigationStack {
+            content
+        }
+    }
+
+    private var content: some View {
         List {
             Section {
                 ForEach(store.skills) { skill in

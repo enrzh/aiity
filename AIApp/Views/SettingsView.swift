@@ -19,7 +19,6 @@ struct SettingsView: View {
                 } else {
                     modelSection
                 }
-                skillsSection
                 searchSection
             }
             .navigationTitle("Einstellungen")
@@ -167,20 +166,6 @@ struct SettingsView: View {
                 modelsError = error.localizedDescription
             }
             fetchingModels = false
-        }
-    }
-
-    // MARK: Skills
-
-    private var skillsSection: some View {
-        Section {
-            NavigationLink {
-                SkillsView()
-            } label: {
-                Label("Agent-Skills", systemImage: "puzzlepiece.extension")
-            }
-        } footer: {
-            Text("Skills sind installierbare Anleitungen, die den Agenten spezialisieren — z. B. besseres UI-Design, Spiele oder Diagramme.")
         }
     }
 
