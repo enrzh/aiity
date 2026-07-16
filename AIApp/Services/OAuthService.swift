@@ -203,8 +203,24 @@ final class OAuthService: NSObject, ObservableObject {
         return OAuthCredential(
             accessToken: accessToken,
             refreshToken: object["refresh_token"] as? String,
-            expiresAt: expiresAt
+            expiresAt: expiresAt,
+            accountId: (object["id_token"] as? String).flatMap(chatGPTAccountId(fromIDToken:))
         )
+    }
+
+    /// OpenAI nests `chatgpt_account_id` in the id_token JWT under the
+    /// "https://api.openai.com/auth" claim — needed by the Codex backend.
+    nonisolated static func chatGPTAccountId(fromIDToken idToken: String) -> String? {
+        let parts = idToken.split(separator: ".")
+        guard parts.count >= 2 else { return nil }
+        var payload = String(parts[1])
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        while payload.count % 4 != 0 { payload += "=" }
+        guard let data = Data(base64Encoded: payload),
+              let claims = jsonObject(data),
+              let auth = claims["https://api.openai.com/auth"] as? [String: Any] else { return nil }
+        return auth["chatgpt_account_id"] as? String
     }
 
     // MARK: - Browser + PKCE

@@ -20,8 +20,8 @@ final class SettingsTourUITests: XCTestCase {
         let openRouterOption = app.buttons["OpenRouter (alle Modelle)"]
         XCTAssertTrue(openRouterOption.waitForExistence(timeout: 10), "picker should list OpenRouter")
         openRouterOption.tap()
-        let oauthButton = app.buttons.matching(NSPredicate(format: "label CONTAINS 'anmelden'")).firstMatch
-        XCTAssertTrue(oauthButton.waitForExistence(timeout: 10), "OAuth sign-in button should appear for OpenRouter")
+        let oauthButton = app.buttons.matching(NSPredicate(format: "label CONTAINS 'hinzufügen'")).firstMatch
+        XCTAssertTrue(oauthButton.waitForExistence(timeout: 10), "OAuth add-account button should appear for OpenRouter")
         attach(app, name: "settings-openrouter")
 
         // xAI (Grok) and OpenAI now expose the subscription OAuth button too.
@@ -29,8 +29,8 @@ final class SettingsTourUITests: XCTestCase {
         let xaiOption = app.buttons["xAI (Grok)"]
         XCTAssertTrue(xaiOption.waitForExistence(timeout: 10), "picker should list xAI")
         xaiOption.tap()
-        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS 'anmelden'")).firstMatch.waitForExistence(timeout: 10),
-                      "Sign in button should appear for Grok")
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS 'hinzufügen'")).firstMatch.waitForExistence(timeout: 10),
+                      "OAuth add-account button should appear for Grok")
         attach(app, name: "settings-xai")
 
         // Skills tab lists the built-ins.

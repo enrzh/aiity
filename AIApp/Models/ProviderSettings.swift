@@ -111,9 +111,17 @@ struct ProviderSettings: Codable, Equatable {
         return preset.defaultModel
     }
 
-    var keychainAccount: String { "api-key-\(presetId)" }
-
     func makeProvider(apiKey: String) -> LLMProvider {
+        let isOAuthToken = apiKey.hasPrefix(AuthStore.oauthMarker)
+        // A ChatGPT-subscription OAuth token must go through the Codex backend,
+        // not the plain chat-completions endpoint.
+        if presetId == "openai", isOAuthToken {
+            return OpenAICodexProvider(
+                accessToken: String(apiKey.dropFirst(AuthStore.oauthMarker.count)),
+                accountId: AuthStore.activeAccountChatGPTId(for: presetId),
+                model: effectiveModel
+            )
+        }
         switch preset.dialect {
         case .anthropic:
             return AnthropicProvider(baseURL: baseURL(forKey: apiKey), apiKey: apiKey, model: effectiveModel)

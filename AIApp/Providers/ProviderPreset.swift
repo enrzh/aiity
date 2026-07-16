@@ -92,16 +92,26 @@ struct ProviderPreset: Identifiable, Equatable {
                            tokenBody: .json,
                            extraAuthParams: ["code": "true"]
                        )),
-        // OpenAI deliberately has NO in-app OAuth: a ChatGPT-subscription
-        // token only works through chatgpt.com's private Codex responses
-        // backend, which requires fully impersonating the official Codex CLI
-        // (user-agent, originator, mandatory Codex system prompt) and can't
-        // be verified here. For subscription inference, route through the
-        // user's own sub2api gateway (which does exactly that, server-side),
-        // or use an API key / OpenRouter.
+        // ChatGPT-subscription OAuth (Codex CLI flow). The token works only
+        // against chatgpt.com's Codex responses backend, so OpenAICodexProvider
+        // impersonates the Codex CLI (UA/originator/instructions) — see there.
         ProviderPreset(id: "openai", label: "OpenAI (ChatGPT)", dialect: .openai,
                        defaultBaseURL: "https://api.openai.com/v1", needsKey: true,
-                       editableBaseURL: false, defaultModel: "gpt-5.2"),
+                       editableBaseURL: false, defaultModel: "gpt-5.2",
+                       oauth: OAuthProviderConfig(
+                           flow: .pasteCode,
+                           clientId: "app_EMoamEEZ73f0CkXaXp7hrann",
+                           authorizeURL: "https://auth.openai.com/oauth/authorize",
+                           tokenURL: "https://auth.openai.com/oauth/token",
+                           redirectURI: "http://localhost:1455/auth/callback",
+                           scope: "openid profile email offline_access",
+                           tokenBody: .form,
+                           extraAuthParams: [
+                               "id_token_add_organizations": "true",
+                               "codex_cli_simplified_flow": "true",
+                           ],
+                           inferenceBaseURL: "https://chatgpt.com/backend-api/codex"
+                       )),
         ProviderPreset(id: "openrouter", label: "OpenRouter (alle Modelle)", dialect: .openai,
                        defaultBaseURL: "https://openrouter.ai/api/v1", needsKey: true,
                        editableBaseURL: false, defaultModel: "anthropic/claude-sonnet-5",

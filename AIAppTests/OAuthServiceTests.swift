@@ -35,13 +35,26 @@ final class OAuthServiceTests: XCTestCase {
     func testProviderOAuthConfiguration() {
         XCTAssertEqual(ProviderPreset.preset(for: "anthropic").oauth?.flow, .pasteCode)
         XCTAssertEqual(ProviderPreset.preset(for: "xai").oauth?.flow, .pasteCode)
+        XCTAssertEqual(ProviderPreset.preset(for: "openai").oauth?.flow, .pasteCode)
         XCTAssertEqual(ProviderPreset.preset(for: "openrouter").oauth?.flow, .openRouterKeyExchange)
         XCTAssertNil(ProviderPreset.preset(for: "gemini").oauth)
-        // OpenAI has no in-app OAuth: subscription inference needs the Codex
-        // backend / a sub2api gateway, not a direct token.
-        XCTAssertNil(ProviderPreset.preset(for: "openai").oauth)
         // Grok routes OAuth traffic through the CLI proxy.
         XCTAssertEqual(ProviderPreset.preset(for: "xai").oauth?.inferenceBaseURL, "https://cli-chat-proxy.grok.com/v1")
+    }
+
+    func testChatGPTAccountIdFromIDToken() {
+        // Build a fake JWT whose payload nests chatgpt_account_id under the
+        // OpenAI auth claim.
+        func b64url(_ s: String) -> String {
+            Data(s.utf8).base64EncodedString()
+                .replacingOccurrences(of: "+", with: "-")
+                .replacingOccurrences(of: "/", with: "_")
+                .replacingOccurrences(of: "=", with: "")
+        }
+        let payload = #"{"https://api.openai.com/auth":{"chatgpt_account_id":"acct-123"}}"#
+        let jwt = "\(b64url("{}")).\(b64url(payload)).sig"
+        XCTAssertEqual(OAuthService.chatGPTAccountId(fromIDToken: jwt), "acct-123")
+        XCTAssertNil(OAuthService.chatGPTAccountId(fromIDToken: "not-a-jwt"))
     }
 
     func testGrokOAuthBaseURLOverrideOnlyForOAuthToken() {

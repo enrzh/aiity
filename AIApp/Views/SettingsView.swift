@@ -2,20 +2,27 @@ import SwiftUI
 
 struct SettingsView: View {
     @State private var settings = ProviderSettings.load()
-    @State private var apiKey = ""
-    @State private var oauthConnected = false
+    @State private var newKey = ""
+    @State private var newLabel = ""
     @State private var availableModels: [String] = []
     @State private var modelsError: String?
     @State private var fetchingModels = false
-    @State private var oauthError: String?
+    @State private var authError: String?
     @State private var pendingPaste: OAuthService.PendingPaste?
+    @StateObject private var accountStore = AccountStore()
     @StateObject private var modelStore = LocalModelStore()
     @StateObject private var oauth = OAuthService()
+
+    private var providerAccounts: [Account] { accountStore.accounts(for: settings.presetId) }
+    private var activeAccount: Account? { accountStore.activeAccount(for: settings.presetId) }
 
     var body: some View {
         NavigationStack {
             Form {
                 providerSection
+                if settings.preset.dialect != .mlx {
+                    accountsSection
+                }
                 if settings.preset.dialect == .mlx {
                     Section("Lokale Modelle") { localModelRows }
                 } else {
@@ -24,20 +31,14 @@ struct SettingsView: View {
                 searchSection
             }
             .navigationTitle("Einstellungen")
-            .onAppear { reloadKey() }
             .onChange(of: settings.presetId) {
                 settings.baseURL = ""
                 settings.model = ""
                 availableModels = []
                 modelsError = nil
-                reloadKey()
+                authError = nil
             }
             .onChange(of: settings) { settings.save() }
-            .onChange(of: apiKey) {
-                // Never let the (programmatically cleared) key field wipe a
-                // stored OAuth credential.
-                if !oauthConnected { Keychain.set(apiKey, for: settings.keychainAccount) }
-            }
             .sheet(item: $pendingPaste) { pending in
                 PasteCodeSheet(
                     providerLabel: settings.preset.label,
@@ -49,7 +50,7 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: Provider + Auth
+    // MARK: Provider
 
     private var providerSection: some View {
         Section {
@@ -74,37 +75,75 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            if settings.preset.dialect != .mlx {
-                if oauthConnected {
-                    HStack {
-                        Label("Per OAuth verbunden", systemImage: "checkmark.seal.fill")
-                            .foregroundStyle(.green)
-                        Spacer()
-                        Button("Abmelden", role: .destructive) { disconnectOAuth() }
-                    }
-                } else {
-                    SecureField(settings.preset.needsKey ? "API-Key" : "API-Key (optional)", text: $apiKey)
-                    if settings.preset.oauth != nil {
-                        Button {
-                            signInWithOAuth()
-                        } label: {
-                            if oauth.busy {
-                                ProgressView()
-                            } else {
-                                Label("Mit \(settings.preset.label.components(separatedBy: " ")[0]) anmelden", systemImage: "person.crop.circle.badge.checkmark")
-                            }
-                        }
-                        .disabled(oauth.busy)
-                    }
-                }
-                if let oauthError {
-                    Text(oauthError).font(.caption).foregroundStyle(.red)
-                }
-            }
         } header: {
             Text("KI-Anbieter")
         } footer: {
             Text(providerFooter)
+        }
+    }
+
+    // MARK: Accounts (multi)
+
+    private var accountsSection: some View {
+        Section {
+            ForEach(providerAccounts) { account in
+                Button {
+                    accountStore.setActive(account)
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: account.id == activeAccount?.id ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(account.id == activeAccount?.id ? Color.accentColor : Color.secondary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(account.label)
+                            Text(account.isOAuth ? "Abo-Login (OAuth)" : "API-Key")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+                .swipeActions {
+                    Button(role: .destructive) { accountStore.delete(account) } label: {
+                        Label("Löschen", systemImage: "trash")
+                    }
+                }
+            }
+
+            // Add an account.
+            if settings.preset.needsKey || settings.preset.editableBaseURL {
+                SecureField("Neuer API-Key", text: $newKey)
+                if !newKey.isEmpty {
+                    TextField("Bezeichnung (optional, z. B. „Privat“)", text: $newLabel)
+                        .autocorrectionDisabled()
+                    Button {
+                        accountStore.addKeyAccount(presetId: settings.presetId, label: newLabel, key: newKey)
+                        newKey = ""; newLabel = ""
+                    } label: {
+                        Label("Key als Konto hinzufügen", systemImage: "plus.circle")
+                    }
+                }
+            }
+            if settings.preset.oauth != nil {
+                Button {
+                    signInWithOAuth()
+                } label: {
+                    if oauth.busy {
+                        ProgressView()
+                    } else {
+                        Label("Konto per \(settings.preset.label.components(separatedBy: " ")[0]) hinzufügen", systemImage: "person.crop.circle.badge.plus")
+                    }
+                }
+                .disabled(oauth.busy)
+            }
+            if let authError {
+                Text(authError).font(.caption).foregroundStyle(.red)
+            }
+        } header: {
+            Text("Konten")
+        } footer: {
+            Text(providerAccounts.isEmpty
+                 ? "Noch kein Konto — Key eintragen oder per Abo-Login anmelden."
+                 : "Mehrere Konten möglich; das angehakte wird verwendet.")
         }
     }
 
@@ -113,66 +152,58 @@ struct SettingsView: View {
         case "mlx":
             return "Modelle laufen komplett auf dem Gerät (Apple MLX) — offline, privat, kostenlos. Download einmalig über WLAN empfohlen. Im Simulator nicht verfügbar."
         case "anthropic":
-            return "„Mit Anthropic anmelden“ nutzt dein Claude-Abo per CLI-OAuth (Claude-Code-Flow): Browser öffnet sich, du autorisierst, kopierst den angezeigten Code zurück. Alternativ klassisch per API-Key."
+            return "Abo-Login nutzt dein Claude-Abo per CLI-OAuth (Claude-Code-Flow): Browser öffnet sich, du autorisierst, kopierst den angezeigten Code zurück. Alternativ API-Key."
         case "openrouter":
-            return "Anmelden per OAuth holt automatisch einen API-Key — oder eigenen Key einfügen. Keys liegen nur im Geräte-Keychain."
+            return "Abo-Login per OAuth holt automatisch einen API-Key — oder eigenen Key einfügen."
         case "openai":
-            return "ChatGPT-Abo-Login geht nur über OpenAIs privaten Codex-Backend (die App müsste sich komplett als Codex-CLI ausgeben) — deshalb hier bewusst nicht direkt. Für Abo-Nutzung: deine sub2api-Instanz (macht genau das serverseitig), sonst API-Key oder GPT per OpenRouter."
+            return "Abo-Login nutzt dein ChatGPT-Abo per Codex-CLI-OAuth (Code kopieren). Läuft über OpenAIs Codex-Backend — die App verhält sich dabei wie die Codex-CLI. Alternativ API-Key oder GPT per OpenRouter."
         case "xai":
-            return "„Mit xAI anmelden“ nutzt dein SuperGrok / X-Premium+-Abo per grok-cli-OAuth (Code kopieren) — läuft über den Grok-CLI-Proxy. Alternativ API-Key oder Grok per OpenRouter."
+            return "Abo-Login nutzt dein SuperGrok / X-Premium+-Abo per grok-cli-OAuth (Code kopieren) — läuft über den Grok-CLI-Proxy. Alternativ API-Key oder Grok per OpenRouter."
         case "sub2api":
-            return "Server-Adresse deiner sub2api-Instanz eintragen (nur der Host reicht, „/v1“ wird ergänzt) und den sub2api-Key als API-Key. So laufen ChatGPT-, Claude- und Grok-Abos alle über dein eigenes Gateway. Danach „Modelle laden“ tippen."
+            return "Server-Adresse deiner sub2api-Instanz eintragen (nur der Host reicht, „/v1“ wird ergänzt) und den sub2api-Key als API-Key. Danach „Modelle laden“ tippen."
         default:
             if settings.preset.editableBaseURL {
-                return "Für eigene Server: Base-URL des kompatiblen Endpoints eintragen (Ollama, LM Studio, LocalAI, vLLM, LiteLLM …). Keys liegen nur im Geräte-Keychain."
+                return "Für eigene Server: Base-URL des kompatiblen Endpoints eintragen (Ollama, LM Studio, LocalAI, vLLM, LiteLLM …)."
             }
-            return "Der API-Key wird nur im Geräte-Keychain gespeichert. Abo-Login (OAuth) bietet dieser Anbieter Dritt-Apps aktuell nicht öffentlich an."
+            return "Der API-Key wird nur im Geräte-Keychain gespeichert."
         }
     }
 
     private func signInWithOAuth() {
-        oauthError = nil
+        authError = nil
         guard let config = settings.preset.oauth else { return }
         if config.flow == .openRouterKeyExchange {
             let preset = settings.preset
             Task {
                 do {
                     if case .apiKey(let key) = try await oauth.signInOpenRouter(preset: preset) {
-                        Keychain.set(key, for: settings.keychainAccount)
-                        apiKey = key
+                        accountStore.addKeyAccount(presetId: preset.id, label: "OpenRouter", key: key)
                     }
                 } catch {
-                    oauthError = error.localizedDescription
+                    authError = error.localizedDescription
                 }
             }
             return
         }
-        // Paste-code CLI flow: open the browser, then collect the code.
         guard let pending = oauth.startPasteFlow(preset: settings.preset) else { return }
         UIApplication.shared.open(pending.authorizeURL)
         pendingPaste = pending
     }
 
     private func completePasteFlow(_ pending: OAuthService.PendingPaste, code: String) {
-        oauthError = nil
+        authError = nil
+        let presetId = settings.presetId
+        let label = settings.preset.label.components(separatedBy: " ")[0]
         Task {
             do {
                 if case .credential(let credential) = try await oauth.completePasteFlow(pending, pasted: code) {
-                    AuthStore.save(credential, account: settings.keychainAccount)
-                    oauthConnected = true
-                    apiKey = ""
+                    accountStore.addOAuthAccount(presetId: presetId, label: label, credential: credential)
                     pendingPaste = nil
                 }
             } catch {
-                oauthError = error.localizedDescription
+                authError = error.localizedDescription
             }
         }
-    }
-
-    private func disconnectOAuth() {
-        Keychain.set("", for: settings.keychainAccount)
-        oauthConnected = false
-        apiKey = ""
     }
 
     // MARK: Model selection
@@ -296,11 +327,6 @@ struct SettingsView: View {
                 .font(.caption)
                 .foregroundStyle(.red)
         }
-    }
-
-    private func reloadKey() {
-        oauthConnected = AuthStore.isOAuthConnected(account: settings.keychainAccount)
-        apiKey = oauthConnected ? "" : Keychain.get(settings.keychainAccount)
     }
 }
 
