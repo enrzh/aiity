@@ -19,10 +19,10 @@ struct FetchURLTool: AgentTool {
         )
     }
 
-    func run(argumentsJSON: String) async -> String {
+    func run(argumentsJSON: String) async -> ToolRunResult {
         let urlString = toolArguments(argumentsJSON)["url"] as? String ?? ""
         guard let url = URL(string: urlString), ["http", "https"].contains(url.scheme ?? "") else {
-            return "Error: invalid URL"
+            return ToolRunResult("Error: invalid URL")
         }
         do {
             var request = URLRequest(url: url)
@@ -32,9 +32,9 @@ struct FetchURLTool: AgentTool {
             let contentType = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Type") ?? ""
             let raw = String(decoding: data.prefix(600_000), as: UTF8.self)
             let text = contentType.contains("html") ? Self.extractText(fromHTML: raw) : raw
-            return String(text.prefix(Self.maxCharacters))
+            return ToolRunResult(String(text.prefix(Self.maxCharacters)))
         } catch {
-            return "Fetch failed: \(error.localizedDescription)"
+            return ToolRunResult("Fetch failed: \(error.localizedDescription)")
         }
     }
 

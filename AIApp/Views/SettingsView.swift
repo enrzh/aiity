@@ -241,8 +241,16 @@ struct SettingsView: View {
             if let modelsError {
                 Text(modelsError).font(.caption).foregroundStyle(.red)
             }
+            TextField("Bild-Modell (generate_image)", text: $settings.imageModel)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+            TextField("Video-Modell (generate_video)", text: $settings.videoModel)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
         } header: {
             Text("Modell")
+        } footer: {
+            Text("Chat-Modell oben. Bild/Video nutzen die OpenAI-kompatiblen Endpoints /images/generations bzw. /videos des Anbieters.")
         }
     }
 

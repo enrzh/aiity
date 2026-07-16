@@ -80,25 +80,53 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", "0")
             self.end_headers()
 
+    # 1x1 transparent PNG.
+    TINY_PNG_B64 = ("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAA"
+                    "C0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
+
     def do_POST(self):
+        length = int(self.headers.get("Content-Length", 0))
+        raw = self.rfile.read(length) or b"{}"
+
+        if self.path.endswith("/images/generations"):
+            body = json.dumps({"data": [{"b64_json": self.TINY_PNG_B64}]}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
         if not self.path.endswith("/chat/completions"):
             self.send_response(404)
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
-        length = int(self.headers.get("Content-Length", 0))
-        request = json.loads(self.rfile.read(length) or b"{}")
+
+        request = json.loads(raw)
         messages = request.get("messages", [])
         system = next((m.get("content", "") for m in messages if m.get("role") == "system"), "")
-        has_tool_result = any(m.get("role") == "tool" for m in messages)
+        tool_texts = [m.get("content", "") for m in messages if m.get("role") == "tool"]
+        last_user = next((m.get("content", "") for m in reversed(messages) if m.get("role") == "user"), "")
         editing = "editing the existing mini-app" in (system or "")
+        wants_image = "bild" in last_user.lower()
+        image_done = any("Bild erstellt" in (t or "") for t in tool_texts)
 
         self._send_sse_headers()
-        if editing:
+        if image_done:
+            self.wfile.write(sse_chunk({"content": "Hier ist dein Bild."}))
+        elif wants_image and not tool_texts:
+            self.wfile.write(sse_chunk({
+                "tool_calls": [{
+                    "index": 0, "id": "call_img_1",
+                    "function": {"name": "generate_image", "arguments": json.dumps({"prompt": "eine rote Katze"})},
+                }]
+            }))
+        elif editing:
             for part in ("Klar — ", "hier die Version mit blauem Hintergrund:\n\n",
                          "```html\n" + NOTES_APP_BLUE + "\n```"):
                 self.wfile.write(sse_chunk({"content": part}))
-        elif has_tool_result:
+        elif tool_texts:
             for part in ("Laut Recherche speichern gute Notiz-Apps lokal. ",
                          "Hier ist deine Mini-App:\n\n",
                          "```html\n" + NOTES_APP + "\n```"):

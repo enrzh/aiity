@@ -42,7 +42,12 @@ final class ChatSession: ObservableObject {
     }
 
     static let systemPrompt = """
-    You are aiity ("AI it yourself"), an assistant that chats normally AND can build small apps ("mini-apps") on request.
+    You are aiity ("AI it yourself"). You are first a normal, helpful chat assistant — answer questions, discuss, explain, write. Only build a "mini-app" when the user actually asks for an app/tool; otherwise just reply in plain conversation. Never emit a mini-app for a normal question.
+
+    You can also generate media with tools:
+    - generate_image(prompt, size?) — creates a picture and shows it to the user inline. Use when they ask for an image/illustration/logo/artwork.
+    - generate_video(prompt) — creates a short video (slow, provider-dependent). Only on an explicit video request.
+    After a generation tool runs, briefly tell the user what you made; the media is attached to your message automatically — do not paste base64 or URLs.
 
     When the user asks you to create or change an app, answer with a short explanation plus ONE complete, self-contained HTML document in a ```html code fence. Rules for mini-apps:
     - Single file: all CSS and JS inline. No external resources (no CDNs, fonts, images from the network) — the runtime blocks them.
@@ -86,11 +91,11 @@ final class ChatSession: ObservableObject {
         persist()
         busy = true
 
-        let tools = ToolRegistry.makeTools(settings: settings)
-
         Task {
             // OAuth credentials refresh themselves here when close to expiry.
-            let provider = settings.makeProvider(apiKey: await AuthStore.effectiveKey(for: settings))
+            let apiKey = await AuthStore.effectiveKey(for: settings)
+            let provider = settings.makeProvider(apiKey: apiKey)
+            let tools = ToolRegistry.makeTools(settings: settings, apiKey: apiKey)
             await runTurn(provider: provider, tools: tools)
             busy = false
             statusLine = nil
@@ -101,6 +106,8 @@ final class ChatSession: ObservableObject {
     private func runTurn(provider: LLMProvider, tools: [AgentTool]) async {
         let specs = tools.map(\.spec)
         let toolsByName = Dictionary(uniqueKeysWithValues: tools.map { ($0.spec.name, $0) })
+        // Media generated during this turn is shown on the closing answer.
+        var pendingMediaIds: [String] = []
 
         for _ in 0..<Self.maxToolRounds {
             messages.append(ChatMessage(role: .assistant, text: ""))
@@ -126,6 +133,7 @@ final class ChatSession: ObservableObject {
 
             messages[assistantIndex].toolCalls = requestedCalls
             if requestedCalls.isEmpty {
+                messages[assistantIndex].mediaIds = pendingMediaIds
                 draftMiniApp = MiniAppDraft.extract(from: messages[assistantIndex].text)
                 return
             }
@@ -133,8 +141,9 @@ final class ChatSession: ObservableObject {
             for call in requestedCalls {
                 statusLine = Self.statusText(for: call)
                 let result = await toolsByName[call.name]?.run(argumentsJSON: call.argumentsJSON)
-                    ?? "Error: unknown tool \(call.name)"
-                messages.append(ChatMessage(role: .tool, text: result, toolCallId: call.id, toolName: call.name))
+                    ?? ToolRunResult("Error: unknown tool \(call.name)")
+                pendingMediaIds.append(contentsOf: result.mediaIds)
+                messages.append(ChatMessage(role: .tool, text: result.text, toolCallId: call.id, toolName: call.name))
             }
             statusLine = nil
         }
@@ -146,6 +155,8 @@ final class ChatSession: ObservableObject {
         switch call.name {
         case "web_search": return "Sucht im Web: \(arguments["query"] as? String ?? "…")"
         case "fetch_url": return "Liest \(arguments["url"] as? String ?? "Seite")…"
+        case "generate_image": return "Erstellt Bild…"
+        case "generate_video": return "Erstellt Video (dauert etwas)…"
         default: return "Führt \(call.name) aus…"
         }
     }

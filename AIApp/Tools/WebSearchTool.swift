@@ -20,16 +20,16 @@ struct WebSearchTool: AgentTool {
         )
     }
 
-    func run(argumentsJSON: String) async -> String {
+    func run(argumentsJSON: String) async -> ToolRunResult {
         let query = toolArguments(argumentsJSON)["query"] as? String ?? ""
-        guard !query.isEmpty else { return "Error: empty query" }
+        guard !query.isEmpty else { return ToolRunResult("Error: empty query") }
         do {
             if !searchEndpoint.isEmpty {
-                return try await searchViaSearxng(query)
+                return ToolRunResult(try await searchViaSearxng(query))
             }
-            return try await searchViaDuckDuckGo(query)
+            return ToolRunResult(try await searchViaDuckDuckGo(query))
         } catch {
-            return "Search failed: \(error.localizedDescription)"
+            return ToolRunResult("Search failed: \(error.localizedDescription)")
         }
     }
 

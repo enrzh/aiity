@@ -74,6 +74,18 @@ final class FullFlowUITests: XCTestCase {
         XCTAssertTrue(restoredMessage.waitForExistence(timeout: 10), "switching back should restore the old conversation")
     }
 
+    /// Image generation: the stub scripts a generate_image tool call for a
+    /// "Bild" request; the tool posts to /v1/images/generations, stores the
+    /// PNG, and the chat shows it inline.
+    func testImageGenerationShowsInlineImage() {
+        app.launch()
+        sendChatMessage("Mach mir ein Bild von einer roten Katze")
+        let answer = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Hier ist dein Bild'")).firstMatch
+        XCTAssertTrue(answer.waitForExistence(timeout: 25), "assistant should confirm the generated image")
+        let image = app.images["generated-image"]
+        XCTAssertTrue(image.waitForExistence(timeout: 10), "the generated image should render inline in the chat")
+    }
+
     private func sendChatMessage(_ text: String) {
         let input = app.descendants(matching: .any)["chat-input"].firstMatch
         XCTAssertTrue(input.waitForExistence(timeout: 15), "chat input should exist")

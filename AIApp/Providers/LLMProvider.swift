@@ -20,6 +20,8 @@ struct ChatMessage: Identifiable, Equatable, Codable {
     var toolCalls: [ToolCallData] = []
     var toolCallId: String?
     var toolName: String?
+    /// Generated media (image/video) attached to this message, by MediaStore id.
+    var mediaIds: [String] = []
 }
 
 struct ToolSpec {

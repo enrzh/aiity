@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct ChatView: View {
     @EnvironmentObject private var session: ChatSession
@@ -10,7 +11,9 @@ struct ChatView: View {
 
     private var visibleMessages: [ChatMessage] {
         session.messages.filter {
-            $0.role == .user || ($0.role == .assistant && !ChatView.strippingHTMLFence(from: $0.text).isEmpty)
+            $0.role == .user
+                || ($0.role == .assistant
+                    && (!ChatView.strippingHTMLFence(from: $0.text).isEmpty || !$0.mediaIds.isEmpty))
         }
     }
 
@@ -221,19 +224,59 @@ struct ThreadsSheet: View {
 private struct MessageBubble: View {
     let message: ChatMessage
 
+    private var bubbleText: String {
+        message.role == .assistant ? ChatView.strippingHTMLFence(from: message.text) : message.text
+    }
+
     var body: some View {
         HStack {
             if message.role == .user { Spacer(minLength: 40) }
-            Text(message.role == .assistant ? ChatView.strippingHTMLFence(from: message.text) : message.text)
-                .textSelection(.enabled)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(
-                    message.role == .user ? Color.accentColor.opacity(0.9) : Color(.secondarySystemBackground),
-                    in: RoundedRectangle(cornerRadius: 16)
-                )
-                .foregroundStyle(message.role == .user ? Color.white : Color.primary)
+            VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 8) {
+                if !bubbleText.isEmpty {
+                    Text(bubbleText)
+                        .textSelection(.enabled)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(
+                            message.role == .user ? Color.accentColor.opacity(0.9) : Color(.secondarySystemBackground),
+                            in: RoundedRectangle(cornerRadius: 16)
+                        )
+                        .foregroundStyle(message.role == .user ? Color.white : Color.primary)
+                }
+                ForEach(message.mediaIds, id: \.self) { mediaId in
+                    GeneratedMediaView(mediaId: mediaId)
+                }
+            }
             if message.role == .assistant { Spacer(minLength: 40) }
+        }
+    }
+}
+
+/// Renders one generated media item: an image inline, a video as a tappable
+/// link (videos may be large remote files, so we don't auto-download them).
+private struct GeneratedMediaView: View {
+    let mediaId: String
+
+    var body: some View {
+        switch MediaStore.kind(of: mediaId) {
+        case .image:
+            if let data = MediaStore.imageData(for: mediaId), let image = UIImage(data: data) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: 280)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .accessibilityIdentifier("generated-image")
+            }
+        case .videoURL:
+            if let url = MediaStore.videoURL(for: mediaId) {
+                Link(destination: url) {
+                    Label("Video ansehen", systemImage: "play.rectangle.fill")
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+                }
+            }
         }
     }
 }

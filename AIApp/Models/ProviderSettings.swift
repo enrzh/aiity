@@ -12,6 +12,9 @@ struct ProviderSettings: Codable, Equatable {
     var searchEndpoint: String = ""
     /// Hub id of the selected on-device model (preset "mlx").
     var localModelId: String = LocalModel.defaultId
+    /// Models used by the generate_image / generate_video tools.
+    var imageModel: String = "gpt-image-1"
+    var videoModel: String = "sora-2"
 
     static let storageKey = "provider-settings-v1"
 
@@ -21,7 +24,7 @@ struct ProviderSettings: Codable, Equatable {
     // settings survive schema growth, and the legacy `kind` field (v1/v2
     // storage and existing test configs) still maps onto a preset.
     private enum CodingKeys: String, CodingKey {
-        case presetId, kind, baseURL, model, searchEndpoint, localModelId
+        case presetId, kind, baseURL, model, searchEndpoint, localModelId, imageModel, videoModel
     }
 
     init() {}
@@ -41,6 +44,8 @@ struct ProviderSettings: Codable, Equatable {
         model = try values.decodeIfPresent(String.self, forKey: .model) ?? ""
         searchEndpoint = try values.decodeIfPresent(String.self, forKey: .searchEndpoint) ?? ""
         localModelId = try values.decodeIfPresent(String.self, forKey: .localModelId) ?? LocalModel.defaultId
+        imageModel = try values.decodeIfPresent(String.self, forKey: .imageModel) ?? "gpt-image-1"
+        videoModel = try values.decodeIfPresent(String.self, forKey: .videoModel) ?? "sora-2"
     }
 
     func encode(to encoder: Encoder) throws {
@@ -50,6 +55,8 @@ struct ProviderSettings: Codable, Equatable {
         try container.encode(model, forKey: .model)
         try container.encode(searchEndpoint, forKey: .searchEndpoint)
         try container.encode(localModelId, forKey: .localModelId)
+        try container.encode(imageModel, forKey: .imageModel)
+        try container.encode(videoModel, forKey: .videoModel)
     }
 
     static func load() -> ProviderSettings {
