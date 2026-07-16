@@ -59,6 +59,19 @@ final class FullFlowUITests: XCTestCase {
         app.launch()
         let restoredMessage = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Hintergrund blau'")).firstMatch
         XCTAssertTrue(restoredMessage.waitForExistence(timeout: 15), "chat history should be restored after relaunch")
+
+        // 6. Threads: a new chat starts empty, the old one stays reachable.
+        app.buttons["chat-new"].tap()
+        let emptyState = app.staticTexts["Was soll ich bauen?"]
+        XCTAssertTrue(emptyState.waitForExistence(timeout: 10), "new thread should show the empty state")
+        app.buttons["chat-threads"].tap()
+        let threadRows = app.buttons.matching(identifier: "thread-row")
+        XCTAssertTrue(threadRows.firstMatch.waitForExistence(timeout: 10), "threads list should show rows")
+        XCTAssertGreaterThanOrEqual(threadRows.count, 2, "old and new thread should both be listed")
+        let oldThread = app.buttons.matching(NSPredicate(format: "identifier == 'thread-row' AND label CONTAINS 'Notizen'")).firstMatch
+        XCTAssertTrue(oldThread.waitForExistence(timeout: 10), "the editing thread should be listed by its title")
+        oldThread.tap()
+        XCTAssertTrue(restoredMessage.waitForExistence(timeout: 10), "switching back should restore the old conversation")
     }
 
     private func sendChatMessage(_ text: String) {

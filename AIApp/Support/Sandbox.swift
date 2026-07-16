@@ -38,6 +38,10 @@ enum Sandbox {
           set: (key, value) => call('storage.set', { key, value }),
         },
         haptic: () => { call('haptic', {}); },
+        notify: (title, body, inSeconds) => call('notify.schedule', { title, body, inSeconds }),
+        health: {
+          query: (type, days) => call('health.query', { type, days }),
+        },
         _resolve: (id, value) => {
           const resolver = pending.get(id);
           if (resolver) { pending.delete(id); resolver(value); }

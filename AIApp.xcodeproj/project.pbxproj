@@ -32,6 +32,7 @@
 		C3D0A39A19C380D5BE46DF50 /* MiniAppRunnerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CB909ED9CD414C11FD42797 /* MiniAppRunnerView.swift */; };
 		C87AB0E41867A2E3C24F981B /* SkillStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57538B3B72D740B8C83CD481 /* SkillStore.swift */; };
 		D31DECDB34565EF98BA3E315 /* AIAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D8C4C9C0DF446132CF6E371 /* AIAppApp.swift */; };
+		D817671B08A9EFCFAA46BF12 /* MiniAppServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5A7EBC99589ED208D3D8121 /* MiniAppServices.swift */; };
 		DEFB0E361D6D325BB82B0C31 /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = B87EE1D71C2386865E3FE7A7 /* MLXLMCommon */; };
 		EE87BB72426368F4AD0BA5DB /* ModelCatalogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C60F49D56B0F41AE9A20553C /* ModelCatalogService.swift */; };
 /* End PBXBuildFile section */
@@ -73,6 +74,7 @@
 		8ABB510FA42777974274E004 /* OAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthService.swift; sourceTree = "<group>"; };
 		8DD7D24371D8F94E84498FBA /* LocalModelStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalModelStore.swift; sourceTree = "<group>"; };
 		930330240594778A07B89596 /* Sandbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sandbox.swift; sourceTree = "<group>"; };
+		A5A7EBC99589ED208D3D8121 /* MiniAppServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniAppServices.swift; sourceTree = "<group>"; };
 		A7C1FFA7A0EB23A72FF72EE4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		A882592F7EDEA35B2140BDDF /* AIAppUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = AIAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A975EBF864E2BEE8E87024DB /* AIApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AIApp.entitlements; sourceTree = "<group>"; };
@@ -206,6 +208,7 @@
 			isa = PBXGroup;
 			children = (
 				0F3FDEE8823CCA1871942F2F /* Keychain.swift */,
+				A5A7EBC99589ED208D3D8121 /* MiniAppServices.swift */,
 				930330240594778A07B89596 /* Sandbox.swift */,
 			);
 			path = Support;
@@ -346,6 +349,7 @@
 				38434083D764126E44AD8061 /* MLXProvider.swift in Sources */,
 				3FD8544EC1E625846282E75D /* MiniApp.swift in Sources */,
 				C3D0A39A19C380D5BE46DF50 /* MiniAppRunnerView.swift in Sources */,
+				D817671B08A9EFCFAA46BF12 /* MiniAppServices.swift in Sources */,
 				EE87BB72426368F4AD0BA5DB /* ModelCatalogService.swift in Sources */,
 				7638D9B8308E1A606793ADA7 /* OAuthService.swift in Sources */,
 				8D23EA1119A363739C148D1A /* OpenAICompatibleProvider.swift in Sources */,

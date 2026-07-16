@@ -33,6 +33,8 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: de.dongfang.aiapp
             CFBundleURLSchemes: [aiapp]
+        NSHealthShareUsageDescription: Mini-Apps können auf Wunsch Gesundheitsdaten (Schritte, Aktivität, Puls) anzeigen. Der Zugriff wird nur nach deiner Freigabe gelesen.
+        NSHealthUpdateUsageDescription: Diese App schreibt keine Gesundheitsdaten.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: de.dongfang.aiapp

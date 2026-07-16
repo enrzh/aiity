@@ -1,9 +1,19 @@
 import Foundation
 
+/// One conversation. The session keeps the active thread's messages live in
+/// `messages` and mirrors them back into `threads` on every persist.
+struct ChatThread: Codable, Identifiable, Equatable {
+    var id = UUID()
+    var title = ""
+    var messages: [ChatMessage] = []
+    var editingContext: ChatSession.EditingContext?
+    var updatedAt = Date()
+}
+
 /// Drives one user turn: stream the model's answer, execute requested tools,
 /// feed results back, repeat (bounded), and extract a generated mini-app from
-/// the final answer if one is present. The session is app-wide (injected as
-/// an EnvironmentObject) and persists itself across app restarts.
+/// the final answer if one is present. App-wide object (EnvironmentObject);
+/// all threads persist across app restarts.
 @MainActor
 final class ChatSession: ObservableObject {
     @Published var messages: [ChatMessage] = []
@@ -13,11 +23,13 @@ final class ChatSession: ObservableObject {
     @Published var draftMiniApp: MiniAppDraft?
     /// Tab selection lives here so the library can hand a mini-app to the chat.
     @Published var activeTab = 0
+    @Published private(set) var threads: [ChatThread] = []
+    private var activeThreadId = UUID()
 
     /// Set when the chat continues work on a saved mini-app.
     var editingContext: EditingContext?
 
-    struct EditingContext: Codable {
+    struct EditingContext: Codable, Equatable {
         var id: UUID
         var name: String
         var html: String
@@ -35,7 +47,11 @@ final class ChatSession: ObservableObject {
     When the user asks you to create or change an app, answer with a short explanation plus ONE complete, self-contained HTML document in a ```html code fence. Rules for mini-apps:
     - Single file: all CSS and JS inline. No external resources (no CDNs, fonts, images from the network) — the runtime blocks them.
     - Set a short app name in <title> and start the document with <!-- emoji: X --> where X is one fitting emoji.
-    - Persist data with the bridge: `await miniapp.storage.get(key)` / `await miniapp.storage.set(key, value)` (JSON values). `miniapp.haptic()` triggers a light haptic tap.
+    - Bridge APIs available inside mini-apps:
+      * `await miniapp.storage.get(key)` / `await miniapp.storage.set(key, value)` — persistent JSON storage, namespaced per app.
+      * `miniapp.haptic()` — light haptic tap.
+      * `await miniapp.notify(title, body, inSeconds)` — schedules a local notification (asks permission on first use; returns {ok, id?, error?}). Great for timers and reminders.
+      * `await miniapp.health.query(type, days)` — reads Apple Health; type is "steps", "activeEnergy" or "heartRate"; returns {ok, data: [{date: "YYYY-MM-DD", value}]}. Asks permission on first use; data may be empty if denied — always handle that gracefully.
 
     # Quality bar — every mini-app must feel like a real iOS app
     - COMPLETE functionality: no TODOs, no placeholders, no dead buttons. Every visible control works.
@@ -133,25 +149,99 @@ final class ChatSession: ObservableObject {
         }
     }
 
-    func reset() {
-        messages = []
-        draftMiniApp = nil
-        errorMessage = nil
-        editingContext = nil
+    // MARK: - Threads
+
+    func newThread() {
+        guard !busy else { return }
+        syncActiveIntoThreads()
+        let thread = ChatThread()
+        threads.insert(thread, at: 0)
+        activeThreadId = thread.id
+        loadActiveThread()
         persist()
     }
 
-    /// Entry point from the library: continue a saved mini-app in the chat.
+    func switchTo(threadId: UUID) {
+        guard !busy, threadId != activeThreadId,
+              threads.contains(where: { $0.id == threadId }) else { return }
+        syncActiveIntoThreads()
+        activeThreadId = threadId
+        loadActiveThread()
+        persist()
+    }
+
+    func deleteThread(_ threadId: UUID) {
+        guard !busy else { return }
+        threads.removeAll { $0.id == threadId }
+        if threadId == activeThreadId {
+            if let next = threads.max(by: { $0.updatedAt < $1.updatedAt }) {
+                activeThreadId = next.id
+            } else {
+                let fresh = ChatThread()
+                threads = [fresh]
+                activeThreadId = fresh.id
+            }
+            loadActiveThread()
+        }
+        persist()
+    }
+
+    var activeThreadTitle: String {
+        threads.first(where: { $0.id == activeThreadId })?.title ?? ""
+    }
+
+    /// Entry point from the library: continue a saved mini-app in a new thread.
     func startEditing(id: UUID, name: String, html: String) {
-        reset()
+        newThread()
         editingContext = EditingContext(id: id, name: name, html: html)
         activeTab = 0
         persist()
     }
 
+    private func loadActiveThread() {
+        let thread = threads.first(where: { $0.id == activeThreadId }) ?? ChatThread()
+        messages = thread.messages
+        editingContext = thread.editingContext
+        errorMessage = nil
+        statusLine = nil
+        draftMiniApp = messages.last(where: { $0.role == .assistant }).flatMap { MiniAppDraft.extract(from: $0.text) }
+    }
+
+    private func syncActiveIntoThreads() {
+        guard let index = threads.firstIndex(where: { $0.id == activeThreadId }) else {
+            if !messages.isEmpty {
+                threads.insert(currentSnapshotThread(), at: 0)
+            }
+            return
+        }
+        threads[index] = currentSnapshotThread(existing: threads[index])
+    }
+
+    private func currentSnapshotThread(existing: ChatThread? = nil) -> ChatThread {
+        var thread = existing ?? ChatThread(id: activeThreadId)
+        thread.id = activeThreadId
+        thread.messages = messages
+        thread.editingContext = editingContext
+        if !messages.isEmpty { thread.updatedAt = .now }
+        if thread.title.isEmpty {
+            if let context = editingContext {
+                thread.title = "✏️ \(context.name)"
+            } else if let firstUser = messages.first(where: { $0.role == .user }) {
+                thread.title = String(firstUser.text.prefix(48))
+            }
+        }
+        return thread
+    }
+
     // MARK: - Persistence
 
     private struct Snapshot: Codable {
+        var threads: [ChatThread]
+        var activeThreadId: UUID
+    }
+
+    /// v1 single-conversation format, migrated on first launch.
+    private struct LegacySnapshot: Codable {
         var messages: [ChatMessage]
         var editingContext: EditingContext?
     }
@@ -159,24 +249,46 @@ final class ChatSession: ObservableObject {
     private static let storeURL: URL = {
         let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        return directory.appendingPathComponent("chat-session.json")
+        return directory.appendingPathComponent("chat-threads.json")
+    }()
+
+    private static let legacyStoreURL: URL = {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("chat-session.json")
     }()
 
     private func persist() {
-        let snapshot = Snapshot(messages: messages, editingContext: editingContext)
+        syncActiveIntoThreads()
+        let snapshot = Snapshot(threads: threads, activeThreadId: activeThreadId)
         if let data = try? JSONEncoder().encode(snapshot) {
             try? data.write(to: Self.storeURL, options: .atomic)
         }
     }
 
     private func restore() {
-        guard let data = try? Data(contentsOf: Self.storeURL),
-              let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data) else { return }
-        messages = snapshot.messages
-        editingContext = snapshot.editingContext
-        if let lastAssistant = messages.last(where: { $0.role == .assistant }) {
-            draftMiniApp = MiniAppDraft.extract(from: lastAssistant.text)
+        if let data = try? Data(contentsOf: Self.storeURL),
+           let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data),
+           !snapshot.threads.isEmpty {
+            threads = snapshot.threads
+            activeThreadId = snapshot.threads.contains(where: { $0.id == snapshot.activeThreadId })
+                ? snapshot.activeThreadId
+                : snapshot.threads[0].id
+        } else if let data = try? Data(contentsOf: Self.legacyStoreURL),
+                  let legacy = try? JSONDecoder().decode(LegacySnapshot.self, from: data),
+                  !legacy.messages.isEmpty {
+            var thread = ChatThread(messages: legacy.messages, editingContext: legacy.editingContext)
+            if let firstUser = legacy.messages.first(where: { $0.role == .user }) {
+                thread.title = String(firstUser.text.prefix(48))
+            }
+            threads = [thread]
+            activeThreadId = thread.id
+            try? FileManager.default.removeItem(at: Self.legacyStoreURL)
+        } else {
+            let fresh = ChatThread()
+            threads = [fresh]
+            activeThreadId = fresh.id
         }
+        loadActiveThread()
     }
 }
 

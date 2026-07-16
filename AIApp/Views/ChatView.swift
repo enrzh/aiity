@@ -5,6 +5,7 @@ struct ChatView: View {
     @EnvironmentObject private var session: ChatSession
     @State private var input = ""
     @State private var previewDraft: MiniAppDraft?
+    @State private var showThreads = false
     @Environment(\.modelContext) private var modelContext
 
     private var visibleMessages: [ChatMessage] {
@@ -74,19 +75,33 @@ struct ChatView: View {
                 }
                 inputBar
             }
-            .navigationTitle("AI App")
+            .navigationTitle(session.activeThreadTitle.isEmpty ? "AI App" : session.activeThreadTitle)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showThreads = true
+                    } label: {
+                        Image(systemName: "list.bullet")
+                    }
+                    .disabled(session.busy)
+                    .accessibilityIdentifier("chat-threads")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        session.reset()
+                        session.newThread()
                     } label: {
                         Image(systemName: "square.and.pencil")
                     }
                     .disabled(session.busy)
+                    .accessibilityIdentifier("chat-new")
                 }
             }
             .sheet(item: $previewDraft) { draft in
                 MiniAppSheet(appId: "preview", name: draft.name, html: draft.html)
+            }
+            .sheet(isPresented: $showThreads) {
+                ThreadsSheet()
             }
         }
     }
@@ -148,6 +163,59 @@ struct ChatView: View {
 
 extension MiniAppDraft: Identifiable {
     var id: String { name + String(html.hashValue) }
+}
+
+/// All conversations, newest first — tap to switch, swipe to delete.
+struct ThreadsSheet: View {
+    @EnvironmentObject private var session: ChatSession
+    @Environment(\.dismiss) private var dismiss
+
+    private var sortedThreads: [ChatThread] {
+        session.threads.sorted { $0.updatedAt > $1.updatedAt }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                ForEach(sortedThreads) { thread in
+                    Button {
+                        session.switchTo(threadId: thread.id)
+                        dismiss()
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(thread.title.isEmpty ? "Neuer Chat" : thread.title)
+                                .lineLimit(1)
+                                .foregroundStyle(.primary)
+                            Text(thread.updatedAt.formatted(.relative(presentation: .named)))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .accessibilityIdentifier("thread-row")
+                    .swipeActions {
+                        Button(role: .destructive) {
+                            session.deleteThread(thread.id)
+                        } label: {
+                            Label("Löschen", systemImage: "trash")
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Chats")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        session.newThread()
+                        dismiss()
+                    } label: {
+                        Image(systemName: "square.and.pencil")
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
 }
 
 private struct MessageBubble: View {

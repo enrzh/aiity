@@ -49,36 +49,57 @@ struct MiniAppRunnerView: UIViewRepresentable {
                   let action = body["action"] as? String else { return }
             let payload = body["payload"] as? [String: Any] ?? [:]
 
-            var result: Any = NSNull()
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let result = await self.handle(action: action, payload: payload)
+                let resultJSON: String
+                if let data = try? JSONSerialization.data(withJSONObject: result, options: [.fragmentsAllowed]) {
+                    resultJSON = String(decoding: data, as: UTF8.self)
+                } else {
+                    resultJSON = "null"
+                }
+                // Fire-and-forget on the DispatchQueue API — the async
+                // overload would make this call throwing for no benefit.
+                self.webView?.evaluateJavaScript("window.miniapp._resolve(\(callId), \(resultJSON));", completionHandler: nil)
+            }
+        }
+
+        @MainActor
+        private func handle(action: String, payload: [String: Any]) async -> Any {
             switch action {
             case "storage.get":
                 if let key = payload["key"] as? String,
                    let stored = UserDefaults.standard.string(forKey: storageKeyPrefix + key),
                    let parsed = try? JSONSerialization.jsonObject(with: Data(stored.utf8), options: [.fragmentsAllowed]) {
-                    result = parsed
+                    return parsed
                 }
+                return NSNull()
             case "storage.set":
                 if let key = payload["key"] as? String {
                     let value = payload["value"] ?? NSNull()
                     if let data = try? JSONSerialization.data(withJSONObject: value, options: [.fragmentsAllowed]) {
                         UserDefaults.standard.set(String(decoding: data, as: UTF8.self), forKey: storageKeyPrefix + key)
-                        result = true
+                        return true
                     }
                 }
+                return NSNull()
             case "haptic":
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                result = true
+                return true
+            case "notify.schedule":
+                return await MiniAppNotificationService.schedule(
+                    title: payload["title"] as? String ?? "",
+                    body: payload["body"] as? String ?? "",
+                    inSeconds: (payload["inSeconds"] as? NSNumber)?.doubleValue ?? 1
+                )
+            case "health.query":
+                return await MiniAppHealthService.query(
+                    type: payload["type"] as? String ?? "",
+                    days: (payload["days"] as? NSNumber)?.intValue ?? 7
+                )
             default:
-                break
+                return NSNull()
             }
-
-            let resultJSON: String
-            if let data = try? JSONSerialization.data(withJSONObject: result, options: [.fragmentsAllowed]) {
-                resultJSON = String(decoding: data, as: UTF8.self)
-            } else {
-                resultJSON = "null"
-            }
-            webView?.evaluateJavaScript("window.miniapp._resolve(\(callId), \(resultJSON));")
         }
     }
 }
