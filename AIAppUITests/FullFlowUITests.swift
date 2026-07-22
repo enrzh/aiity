@@ -1,9 +1,9 @@
 import XCTest
 
 /// Hermetic end-to-end flow against tools/stub_llm_server.py (port 8555):
-/// ask a question (agent does a web_search round), receive a mini-app, keep
-/// it, open it from the library, edit it via chat, and verify the chat
-/// history survives an app restart.
+/// open the chat (now a first-class app on the Apps page), ask a question
+/// (agent does a web_search round), receive a mini-app, keep it, open it from
+/// the library, edit it via chat, and verify history survives an app restart.
 final class FullFlowUITests: XCTestCase {
 
     private var app: XCUIApplication!
@@ -20,6 +20,8 @@ final class FullFlowUITests: XCTestCase {
 
     func testFullMiniAppFlow() {
         app.launch()
+        openChat()
+        startFreshThread()
 
         // 1. Ask for an app — the stub first requests a web_search round.
         sendChatMessage("Recherchier kurz und bau mir eine Notiz-App")
@@ -31,9 +33,8 @@ final class FullFlowUITests: XCTestCase {
         XCTAssertTrue(keepButton.waitForExistence(timeout: 10), "mini-app card should appear")
         keepButton.tap()
 
-        // 3. Open it from the library (swipe first: the keyboard covers the tab bar).
-        app.swipeDown()
-        app.tabBars.buttons["Apps"].tap()
+        // 3. Close the chat cover and open the kept app from the library behind it.
+        app.buttons["chat-close"].tap()
         let libraryItem = app.buttons["library-app"].firstMatch
         XCTAssertTrue(libraryItem.waitForExistence(timeout: 10), "kept app should show up in the library")
         libraryItem.tap()
@@ -41,7 +42,7 @@ final class FullFlowUITests: XCTestCase {
         XCTAssertTrue(runner.waitForExistence(timeout: 15), "mini-app web view should load")
         app.buttons["Fertig"].tap()
 
-        // 4. Continue the mini-app in the chat (context menu -> edit).
+        // 4. Continue the mini-app in the chat (context menu -> edit reopens chat).
         libraryItem.press(forDuration: 1.2)
         let editAction = app.buttons["Im Chat bearbeiten"]
         XCTAssertTrue(editAction.waitForExistence(timeout: 10), "context menu should offer editing")
@@ -54,9 +55,10 @@ final class FullFlowUITests: XCTestCase {
         XCTAssertTrue(keepEdited.waitForExistence(timeout: 10))
         keepEdited.tap()
 
-        // 5. Chat history must survive a restart.
+        // 5. Chat history must survive a restart (reopen the chat after relaunch).
         app.terminate()
         app.launch()
+        openChat()
         let restoredMessage = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Hintergrund blau'")).firstMatch
         XCTAssertTrue(restoredMessage.waitForExistence(timeout: 15), "chat history should be restored after relaunch")
 
@@ -79,11 +81,29 @@ final class FullFlowUITests: XCTestCase {
     /// PNG, and the chat shows it inline.
     func testImageGenerationShowsInlineImage() {
         app.launch()
+        openChat()
+        startFreshThread()
         sendChatMessage("Mach mir ein Bild von einer roten Katze")
         let answer = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Hier ist dein Bild'")).firstMatch
         XCTAssertTrue(answer.waitForExistence(timeout: 25), "assistant should confirm the generated image")
         let image = app.images["generated-image"]
         XCTAssertTrue(image.waitForExistence(timeout: 10), "the generated image should render inline in the chat")
+    }
+
+    /// Chat is now opened from the Apps page (a permanent "Chat" app), not a tab.
+    private func openChat() {
+        let chat = app.buttons["open-chat"]
+        XCTAssertTrue(chat.waitForExistence(timeout: 15), "Chat card should exist on the Apps page")
+        chat.tap()
+    }
+
+    /// Threads persist in the simulator across test runs; stale tool results
+    /// in a restored thread would derail the stub's content-based script. Each
+    /// test therefore begins in a brand-new conversation.
+    private func startFreshThread() {
+        let newButton = app.buttons["chat-new"]
+        XCTAssertTrue(newButton.waitForExistence(timeout: 15), "new-thread button should exist")
+        newButton.tap()
     }
 
     private func sendChatMessage(_ text: String) {

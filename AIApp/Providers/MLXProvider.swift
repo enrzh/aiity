@@ -81,31 +81,30 @@ struct MLXProvider: LLMProvider {
                         throw ProviderError.badResponse(0, "Modell nicht heruntergeladen — bitte in den Einstellungen laden.")
                     }
                     let container = try await MLXRuntime.shared.container(for: modelId)
-                    let chat = Self.buildChat(messages: messages, tools: tools)
+                    // No tool schemas for on-device models — they invent fake tool_calls and ramble.
+                    let chat = Self.buildChat(messages: messages, tools: [])
 
                     let fullText: String = try await container.perform { context in
-                        var emitter = ToolCallStreamEmitter()
                         let input = try await context.processor.prepare(input: UserInput(chat: chat))
-                        let parameters = GenerateParameters(maxTokens: 8192, temperature: 0.7)
+                        let parameters = GenerateParameters(
+                            maxTokens: LocalRuntimePolicy.maxTokens,
+                            temperature: Float(LocalRuntimePolicy.temperature)
+                        )
                         var accumulated = ""
                         let stream = try MLXLMCommon.generate(input: input, parameters: parameters, context: context)
                         for await generation in stream {
                             if Task.isCancelled { break }
                             if case .chunk(let piece) = generation {
                                 accumulated += piece
-                                if let safe = emitter.consume(accumulated: accumulated) {
+                                // Strip accidental tool_call spam if the model still emits it.
+                                if let safe = ToolCallStreamEmitter.sanitizeVisible(piece, accumulated: accumulated) {
                                     continuation.yield(.textDelta(safe))
                                 }
                             }
                         }
-                        if let tail = emitter.finish(accumulated: accumulated) {
-                            continuation.yield(.textDelta(tail))
-                        }
                         return accumulated
                     }
-                    for call in Self.extractToolCalls(from: fullText) {
-                        continuation.yield(.toolCall(call))
-                    }
+                    _ = fullText
                     continuation.yield(.done)
                     continuation.finish()
                 } catch {
@@ -212,12 +211,33 @@ struct ToolCallStreamEmitter {
         return String(accumulated[start..<end])
     }
 
+    /// Drop tool_call spans from a chunk when not using tools (local MLX path).
+    static func sanitizeVisible(_ piece: String, accumulated: String) -> String? {
+        if accumulated.contains(openTag) {
+            // Once a tool tag starts, stop showing further junk.
+            if let range = accumulated.range(of: openTag) {
+                let before = String(accumulated[..<range.lowerBound])
+                // Only emit if this piece still contributes pre-tag text — simplify: strip tags from piece
+            }
+            var cleaned = piece
+            if let r = cleaned.range(of: openTag) {
+                cleaned = String(cleaned[..<r.lowerBound])
+            }
+            cleaned = cleaned.replacingOccurrences(
+                of: #"<tool_call>[\s\S]*?</tool_call>"#,
+                with: "",
+                options: .regularExpression
+            )
+            return cleaned.isEmpty ? nil : cleaned
+        }
+        return piece
+    }
+
     private static func visibleEnd(of text: String, holdTail: Bool) -> Int {
         if let tagRange = text.range(of: openTag) {
             return text.distance(from: text.startIndex, to: tagRange.lowerBound)
         }
         guard holdTail else { return text.count }
-        // No complete tag yet — hold back a tail that could be a partial one.
         return max(0, text.count - (openTag.count - 1))
     }
 }

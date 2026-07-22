@@ -1,6 +1,6 @@
 name: AIApp
 options:
-  bundleIdPrefix: de.dongfang
+  bundleIdPrefix: com.aiity
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
@@ -14,10 +14,16 @@ targets:
   AIApp:
     type: application
     platform: iOS
-    sources: [AIApp]
+    sources:
+      - path: AIApp
+        excludes:
+          - Resources/**
+    resources:
+      - path: AIApp/Resources
     dependencies:
       - package: MLXSwiftLM
         products: [MLXLLM, MLXLMCommon]
+      - target: AIAppLiveActivity
     info:
       path: AIApp/Info.plist
       properties:
@@ -26,25 +32,54 @@ targets:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         ITSAppUsesNonExemptEncryption: false
+        # Live Activity for chat/build progress on Lock Screen + Dynamic Island.
+        NSSupportsLiveActivities: true
         # Ollama/LM Studio on the user's own machine speak plain http.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
-        # OAuth (PKCE) callback, e.g. aiapp://oauth/openrouter
+        # OAuth callbacks: aiity:// primary; aiapp:// kept for OpenRouter redirect.
         CFBundleURLTypes:
-          - CFBundleURLName: de.dongfang.aiapp
-            CFBundleURLSchemes: [aiapp]
+          - CFBundleURLName: com.aiity.app
+            CFBundleURLSchemes: [aiity, aiapp]
         NSHealthShareUsageDescription: Mini-Apps können auf Wunsch Gesundheitsdaten (Schritte, Aktivität, Puls) anzeigen. Der Zugriff wird nur nach deiner Freigabe gelesen.
         NSHealthUpdateUsageDescription: Diese App schreibt keine Gesundheitsdaten.
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: de.dongfang.aiapp
+        PRODUCT_BUNDLE_IDENTIFIER: com.aiity.app
         SWIFT_VERSION: "5.9"
         TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CURRENT_PROJECT_VERSION: 1
         MARKETING_VERSION: 0.2.0
         CODE_SIGN_ENTITLEMENTS: AIApp/AIApp.entitlements
         # Device install: Xcode auto-creates the profile once a team is picked.
         CODE_SIGN_STYLE: Automatic
+        # Personal team (added here so `xcodegen generate` keeps device signing).
+        DEVELOPMENT_TEAM: H8FW6W6K2D
+  AIAppLiveActivity:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: AIAppLiveActivity
+      - path: AIApp/Services/AgentActivityAttributes.swift
+    info:
+      path: AIAppLiveActivity/Info.plist
+      properties:
+        CFBundleDisplayName: aiity
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+        NSSupportsLiveActivities: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.aiity.app.AgentActivity
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1"
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: 0.2.0
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: H8FW6W6K2D
+        SKIP_INSTALL: true
+        LD_RUNPATH_SEARCH_PATHS: ["$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks"]
   AIAppTests:
     type: bundle.unit-test
     platform: iOS
@@ -53,7 +88,7 @@ targets:
       - target: AIApp
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: de.dongfang.aiapp.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.aiity.app.tests
         SWIFT_VERSION: "5.9"
   AIAppUITests:
     type: bundle.ui-testing
@@ -63,7 +98,7 @@ targets:
       - target: AIApp
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: de.dongfang.aiapp.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: com.aiity.app.uitests
         SWIFT_VERSION: "5.9"
 schemes:
   AIApp:

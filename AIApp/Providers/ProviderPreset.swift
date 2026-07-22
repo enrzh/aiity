@@ -34,11 +34,15 @@ struct OAuthProviderConfig: Equatable {
     /// Base URL to talk to once authenticated with the OAuth token, when it
     /// differs from the API-key base URL (Grok's CLI proxy).
     let inferenceBaseURL: String?
+    /// Send `state` in the token-exchange body. Standard OAuth does NOT (state
+    /// is only the authorize/callback CSRF check) — only Claude's flow echoes
+    /// code#state and wants it back. Sending it to OpenAI/Grok breaks the swap.
+    let stateInTokenExchange: Bool
 
     init(flow: Flow, clientId: String, authorizeURL: String, tokenURL: String,
          redirectURI: String, scope: String, tokenBody: TokenBody = .form,
          usesNonce: Bool = false, extraAuthParams: [String: String] = [:],
-         inferenceBaseURL: String? = nil) {
+         inferenceBaseURL: String? = nil, stateInTokenExchange: Bool = false) {
         self.flow = flow
         self.clientId = clientId
         self.authorizeURL = authorizeURL
@@ -49,6 +53,7 @@ struct OAuthProviderConfig: Equatable {
         self.usesNonce = usesNonce
         self.extraAuthParams = extraAuthParams
         self.inferenceBaseURL = inferenceBaseURL
+        self.stateInTokenExchange = stateInTokenExchange
     }
 }
 
@@ -81,7 +86,7 @@ struct ProviderPreset: Identifiable, Equatable {
     static let catalog: [ProviderPreset] = [
         ProviderPreset(id: "anthropic", label: "Anthropic (Claude)", dialect: .anthropic,
                        defaultBaseURL: "https://api.anthropic.com", needsKey: true,
-                       editableBaseURL: false, defaultModel: "claude-sonnet-5",
+                       editableBaseURL: false, defaultModel: "claude-sonnet-4-5",
                        oauth: OAuthProviderConfig(
                            flow: .pasteCode,
                            clientId: "9d1c250a-e61b-44d9-88ed-5944d1962f5e",
@@ -90,31 +95,33 @@ struct ProviderPreset: Identifiable, Equatable {
                            redirectURI: "https://platform.claude.com/oauth/code/callback",
                            scope: "org:create_api_key user:profile user:inference",
                            tokenBody: .json,
-                           extraAuthParams: ["code": "true"]
+                           extraAuthParams: ["code": "true"],
+                           stateInTokenExchange: true
                        )),
         // ChatGPT-subscription OAuth (Codex CLI flow). The token works only
         // against chatgpt.com's Codex responses backend, so OpenAICodexProvider
         // impersonates the Codex CLI (UA/originator/instructions) — see there.
         ProviderPreset(id: "openai", label: "OpenAI (ChatGPT)", dialect: .openai,
                        defaultBaseURL: "https://api.openai.com/v1", needsKey: true,
-                       editableBaseURL: false, defaultModel: "gpt-5.2",
+                       editableBaseURL: false, defaultModel: "gpt-4.1",
                        oauth: OAuthProviderConfig(
                            flow: .pasteCode,
                            clientId: "app_EMoamEEZ73f0CkXaXp7hrann",
                            authorizeURL: "https://auth.openai.com/oauth/authorize",
                            tokenURL: "https://auth.openai.com/oauth/token",
                            redirectURI: "http://localhost:1455/auth/callback",
-                           scope: "openid profile email offline_access",
+                           scope: "openid profile email offline_access api.connectors.read api.connectors.invoke",
                            tokenBody: .form,
                            extraAuthParams: [
                                "id_token_add_organizations": "true",
                                "codex_cli_simplified_flow": "true",
+                               "originator": "codex_cli_rs",
                            ],
                            inferenceBaseURL: "https://chatgpt.com/backend-api/codex"
                        )),
         ProviderPreset(id: "openrouter", label: "OpenRouter (alle Modelle)", dialect: .openai,
                        defaultBaseURL: "https://openrouter.ai/api/v1", needsKey: true,
-                       editableBaseURL: false, defaultModel: "anthropic/claude-sonnet-5",
+                       editableBaseURL: false, defaultModel: "openai/gpt-4o-mini",
                        oauth: OAuthProviderConfig(
                            flow: .openRouterKeyExchange,
                            clientId: "",
@@ -125,10 +132,10 @@ struct ProviderPreset: Identifiable, Equatable {
                        )),
         ProviderPreset(id: "gemini", label: "Google Gemini", dialect: .openai,
                        defaultBaseURL: "https://generativelanguage.googleapis.com/v1beta/openai", needsKey: true,
-                       editableBaseURL: false, defaultModel: "gemini-2.5-pro"),
+                       editableBaseURL: false, defaultModel: "gemini-2.0-flash"),
         ProviderPreset(id: "mistral", label: "Mistral", dialect: .openai,
                        defaultBaseURL: "https://api.mistral.ai/v1", needsKey: true,
-                       editableBaseURL: false, defaultModel: "mistral-large-latest"),
+                       editableBaseURL: false, defaultModel: "mistral-small-latest"),
         ProviderPreset(id: "groq", label: "Groq", dialect: .openai,
                        defaultBaseURL: "https://api.groq.com/openai/v1", needsKey: true,
                        editableBaseURL: false, defaultModel: "llama-3.3-70b-versatile"),
@@ -137,7 +144,7 @@ struct ProviderPreset: Identifiable, Equatable {
                        editableBaseURL: false, defaultModel: "deepseek-chat"),
         ProviderPreset(id: "xai", label: "xAI (Grok)", dialect: .openai,
                        defaultBaseURL: "https://api.x.ai/v1", needsKey: true,
-                       editableBaseURL: false, defaultModel: "grok-4",
+                       editableBaseURL: false, defaultModel: "grok-3",
                        oauth: OAuthProviderConfig(
                            flow: .pasteCode,
                            clientId: "b1a00492-073a-47ea-816f-4c329264a828",
@@ -165,8 +172,8 @@ struct ProviderPreset: Identifiable, Equatable {
         ProviderPreset(id: "sub2api", label: "sub2api (Abo-Gateway, self-hosted)", dialect: .openai,
                        defaultBaseURL: "", needsKey: false,
                        editableBaseURL: true, defaultModel: ""),
-        ProviderPreset(id: "custom-openai", label: "Eigener Server (OpenAI-kompatibel)", dialect: .openai,
-                       defaultBaseURL: "", needsKey: false,
+        ProviderPreset(id: "custom-openai", label: "Beliebige OpenAI-API (URL + Key)", dialect: .openai,
+                       defaultBaseURL: "", needsKey: true,
                        editableBaseURL: true, defaultModel: ""),
         ProviderPreset(id: "custom-anthropic", label: "Eigener Server (Anthropic-kompatibel)", dialect: .anthropic,
                        defaultBaseURL: "", needsKey: false,

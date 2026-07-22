@@ -2,10 +2,10 @@ import Foundation
 
 /// Generates an image via the provider's OpenAI-compatible images endpoint
 /// (`{base}/images/generations`) — works with OpenAI, Gemini-compat, Grok,
-/// sub2api and other gateways. The PNG is stored and shown inline in the chat.
+/// sub2api and other gateways. Uses the **image** modality slot, not the chat
+/// provider. The PNG is stored and shown inline in the chat.
 struct ImageGenerationTool: AgentTool {
-    var settings: ProviderSettings
-    var apiKey: String
+    var route: MediaRoute
 
     var spec: ToolSpec {
         ToolSpec(
@@ -28,20 +28,20 @@ struct ImageGenerationTool: AgentTool {
         guard !prompt.isEmpty else { return ToolRunResult("Error: empty prompt") }
         let size = args["size"] as? String ?? "1024x1024"
 
-        let base = settings.effectiveBaseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let base = route.baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         guard !base.isEmpty, let url = URL(string: "\(base)/images/generations") else {
-            return ToolRunResult("Error: no image endpoint configured for this provider")
+            return ToolRunResult("Error: no image endpoint configured — set an image provider under Connections → Bild")
         }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        let token = bearerToken(from: apiKey)
+        let token = bearerToken(from: route.apiKey)
         if !token.isEmpty { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
         request.timeoutInterval = 120
         // Note: gpt-image-1 rejects `response_format` (400) and always returns
         // b64_json; dall-e returns a url. So we don't send it and accept both.
         request.httpBody = jsonData([
-            "model": settings.imageModel,
+            "model": route.model,
             "prompt": prompt,
             "n": 1,
             "size": size,
@@ -53,7 +53,7 @@ struct ImageGenerationTool: AgentTool {
             guard status == 200, let object = jsonObject(data),
                   let first = (object["data"] as? [[String: Any]])?.first else {
                 let detail = String(decoding: data.prefix(300), as: UTF8.self)
-                return ToolRunResult("Bildgenerierung fehlgeschlagen (HTTP \(status), Modell '\(settings.imageModel)'): \(detail)")
+                return ToolRunResult("Bildgenerierung fehlgeschlagen (HTTP \(status), Modell '\(route.model)'): \(detail)")
             }
             // Providers return either inline base64 or a URL.
             var pngData: Data?

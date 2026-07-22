@@ -52,12 +52,12 @@ enum AuthStore {
         guard var credential = storedOAuthCredential(account: key) else {
             return Keychain.get(key)
         }
+        // Refresh when expired or about to expire (2 min buffer).
         if let expiresAt = credential.expiresAt,
            expiresAt < Date().addingTimeInterval(120),
            let refreshToken = credential.refreshToken,
            let config = oauthConfig {
             if let refreshed = try? await OAuthService.refresh(config: config, refreshToken: refreshToken) {
-                // Preserve the account id across refreshes (it isn't re-issued).
                 var updated = refreshed
                 updated.accountId = updated.accountId ?? credential.accountId
                 credential = updated

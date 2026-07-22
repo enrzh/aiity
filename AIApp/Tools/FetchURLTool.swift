@@ -26,7 +26,7 @@ struct FetchURLTool: AgentTool {
         }
         do {
             var request = URLRequest(url: url)
-            request.setValue("Mozilla/5.0 (iPhone) AIApp/0.1", forHTTPHeaderField: "User-Agent")
+            request.setValue(WebSearchTool.browserUA, forHTTPHeaderField: "User-Agent")
             request.timeoutInterval = 20
             let (data, response) = try await URLSession.shared.data(for: request)
             let contentType = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Type") ?? ""

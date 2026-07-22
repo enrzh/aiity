@@ -1,12 +1,11 @@
 import Foundation
 
 /// Generates a video via the provider's OpenAI-style video jobs endpoint
-/// (`{base}/videos` → poll `{base}/videos/{id}` until complete). Returns a
-/// tappable link in the chat. Provider support for video varies and this path
-/// could not be verified against a live backend — treat as best-effort.
+/// (`{base}/videos` → poll `{base}/videos/{id}` until complete). Uses the
+/// **video** modality slot, not the chat provider. Returns a tappable link in
+/// the chat. Provider support varies — treat as best-effort.
 struct VideoGenerationTool: AgentTool {
-    var settings: ProviderSettings
-    var apiKey: String
+    var route: MediaRoute
 
     private static let maxPolls = 60
     private static let pollInterval: UInt64 = 5_000_000_000 // 5s
@@ -28,18 +27,18 @@ struct VideoGenerationTool: AgentTool {
     func run(argumentsJSON: String) async -> ToolRunResult {
         let prompt = (toolArguments(argumentsJSON)["prompt"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         guard !prompt.isEmpty else { return ToolRunResult("Error: empty prompt") }
-        let base = settings.effectiveBaseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let base = route.baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         guard !base.isEmpty, let createURL = URL(string: "\(base)/videos") else {
-            return ToolRunResult("Error: no video endpoint configured for this provider")
+            return ToolRunResult("Error: no video endpoint configured — set a video provider under Connections → Video")
         }
-        let token = bearerToken(from: apiKey)
+        let token = bearerToken(from: route.apiKey)
 
         do {
             var create = URLRequest(url: createURL)
             create.httpMethod = "POST"
             create.setValue("application/json", forHTTPHeaderField: "Content-Type")
             if !token.isEmpty { create.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
-            create.httpBody = jsonData(["model": settings.videoModel, "prompt": prompt])
+            create.httpBody = jsonData(["model": route.model, "prompt": prompt])
             let (data, response) = try await URLSession.shared.data(for: create)
             guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
                   var job = jsonObject(data), let jobId = job["id"] as? String else {

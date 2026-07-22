@@ -41,11 +41,13 @@ struct OpenAICodexProvider: LLMProvider {
                     }
                     request.httpBody = jsonData(Self.buildBody(messages: messages, tools: tools, model: model))
 
-                    let (bytes, response) = try await URLSession.shared.bytes(for: request)
+                    request.timeoutInterval = 600
+                    let (bytes, response) = try await ProviderHTTP.streaming.bytes(for: request)
                     guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                         var errorBody = ""
                         for try await line in bytes.lines { errorBody += line; if errorBody.count > 600 { break } }
-                        throw ProviderError.badResponse((response as? HTTPURLResponse)?.statusCode ?? 0, errorBody)
+                        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                        throw ProviderError.fromHTTP(status: status, body: errorBody)
                     }
 
                     for try await line in bytes.lines {
@@ -57,7 +59,13 @@ struct OpenAICodexProvider: LLMProvider {
                     continuation.yield(.done)
                     continuation.finish()
                 } catch {
-                    continuation.finish(throwing: error)
+                    if NetworkErrorFriendly.isTransient(error) {
+                        continuation.finish(throwing: ProviderError.badResponse(
+                            0, NetworkErrorFriendly.message(for: error)
+                        ))
+                    } else {
+                        continuation.finish(throwing: error)
+                    }
                 }
             }
             continuation.onTermination = { _ in task.cancel() }

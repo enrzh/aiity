@@ -47,8 +47,15 @@ enum ProviderError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .badResponse(let status, let body):
-            return "API-Fehler \(status): \(String(body.prefix(300)))"
+        case .badResponse(_, let body):
+            // `body` is often already a friendly German string from ProviderRequestSupport.
+            let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.hasPrefix("API-Fehler") || trimmed.hasPrefix("Modell") || trimmed.hasPrefix("Auth")
+                || trimmed.hasPrefix("Dieses Modell") || trimmed.hasPrefix("Kein Modell")
+                || trimmed.hasPrefix("Ungültige") || trimmed.hasPrefix("Leere") {
+                return String(trimmed.prefix(500))
+            }
+            return "API-Fehler: \(String(trimmed.prefix(400)))"
         case .missingKey:
             return "Kein API-Key hinterlegt — bitte in den Einstellungen eintragen."
         }

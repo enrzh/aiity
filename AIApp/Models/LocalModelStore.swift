@@ -1,31 +1,202 @@
 import Foundation
 
-/// Curated on-device models: small enough for iPhone RAM, instruction-tuned,
-/// and known to handle the <tool_call> convention well.
+/// On-device models (Apple MLX, mostly 4-bit). Full list is shown regardless of
+/// device RAM — user chooses; larger downloads may fail or OOM on small phones.
 struct LocalModel: Identifiable, Equatable {
     let id: String
     let displayName: String
     let details: String
+    /// Rough download size for UI only.
+    var sizeHint: String = ""
 
     static let catalog: [LocalModel] = [
+        // —— Ultra light ——
         LocalModel(
-            id: "mlx-community/Qwen3-4B-Instruct-2507-4bit",
-            displayName: "Qwen3 4B",
-            details: "Standard — gutes Allround-Modell, ~2,3 GB"
+            id: "mlx-community/Llama-3.2-1B-Instruct-4bit",
+            displayName: "Llama 3.2 1B",
+            details: "Ultraleicht, ~0,7 GB",
+            sizeHint: "0.7 GB"
         ),
+        LocalModel(
+            id: "mlx-community/gemma-3-1b-it-4bit",
+            displayName: "Gemma 3 1B",
+            details: "Google, ultraleicht, ~0,8 GB",
+            sizeHint: "0.8 GB"
+        ),
+        LocalModel(
+            id: "mlx-community/Qwen2.5-0.5B-Instruct-4bit",
+            displayName: "Qwen2.5 0.5B",
+            details: "Winzig / schnell, ~0,4 GB",
+            sizeHint: "0.4 GB"
+        ),
+        LocalModel(
+            id: "mlx-community/Qwen2.5-1.5B-Instruct-4bit",
+            displayName: "Qwen2.5 1.5B",
+            details: "Sehr leicht, ~1,0 GB",
+            sizeHint: "1.0 GB"
+        ),
+        LocalModel(
+            id: "mlx-community/SmolLM2-1.7B-Instruct-4bit",
+            displayName: "SmolLM2 1.7B",
+            details: "HuggingFace klein, ~1,1 GB",
+            sizeHint: "1.1 GB"
+        ),
+        // —— Small / mid ——
         LocalModel(
             id: "mlx-community/Llama-3.2-3B-Instruct-4bit",
             displayName: "Llama 3.2 3B",
-            details: "Leichtgewicht, ~1,8 GB"
+            details: "Leichtgewicht, ~1,8 GB",
+            sizeHint: "1.8 GB"
+        ),
+        LocalModel(
+            id: "mlx-community/Phi-3.5-mini-instruct-4bit",
+            displayName: "Phi-3.5 mini",
+            details: "Microsoft, Logik & Code, ~2,1 GB",
+            sizeHint: "2.1 GB"
+        ),
+        LocalModel(
+            id: "mlx-community/Phi-4-mini-instruct-4bit",
+            displayName: "Phi-4 mini",
+            details: "Microsoft neuer, ~2,5 GB",
+            sizeHint: "2.5 GB"
+        ),
+        LocalModel(
+            id: "mlx-community/Qwen3-4B-Instruct-2507-4bit",
+            displayName: "Qwen3 4B",
+            details: "Gutes Allround, ~2,3 GB",
+            sizeHint: "2.3 GB"
+        ),
+        LocalModel(
+            id: "mlx-community/Qwen2.5-3B-Instruct-4bit",
+            displayName: "Qwen2.5 3B",
+            details: "Ausgewogen, ~1,9 GB",
+            sizeHint: "1.9 GB"
+        ),
+        LocalModel(
+            id: "mlx-community/gemma-3-4b-it-4bit",
+            displayName: "Gemma 3 4B",
+            details: "Google, ~3,0 GB",
+            sizeHint: "3.0 GB"
+        ),
+        LocalModel(
+            id: "mlx-community/gemma-2-2b-it-4bit",
+            displayName: "Gemma 2 2B",
+            details: "Google, kompakt, ~1,5 GB",
+            sizeHint: "1.5 GB"
+        ),
+        LocalModel(
+            id: "mlx-community/Mistral-7B-Instruct-v0.3-4bit",
+            displayName: "Mistral 7B Instruct",
+            details: "Klassiker, ~4,0 GB",
+            sizeHint: "4.0 GB"
+        ),
+        // —— Code-focused ——
+        LocalModel(
+            id: "mlx-community/Qwen2.5-Coder-3B-Instruct-4bit",
+            displayName: "Qwen2.5 Coder 3B",
+            details: "Code, leichter, ~1,9 GB",
+            sizeHint: "1.9 GB"
         ),
         LocalModel(
             id: "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
             displayName: "Qwen2.5 Coder 7B",
-            details: "Beste Codequalität, ~4,3 GB — nur Geräte mit 8 GB RAM"
+            details: "Code stark, ~4,3 GB",
+            sizeHint: "4.3 GB"
+        ),
+        LocalModel(
+            id: "mlx-community/Qwen2.5-Coder-14B-Instruct-4bit",
+            displayName: "Qwen2.5 Coder 14B",
+            details: "Code groß, ~8 GB+ RAM empfohlen",
+            sizeHint: "8+ GB"
+        ),
+        LocalModel(
+            id: "mlx-community/deepseek-coder-6.7b-instruct-4bit",
+            displayName: "DeepSeek Coder 6.7B",
+            details: "Code, ~3,8 GB",
+            sizeHint: "3.8 GB"
+        ),
+        // —— Larger general ——
+        LocalModel(
+            id: "mlx-community/Qwen3-8B-4bit",
+            displayName: "Qwen3 8B",
+            details: "Starkes Allround, ~4,5 GB",
+            sizeHint: "4.5 GB"
+        ),
+        LocalModel(
+            id: "mlx-community/Meta-Llama-3.1-8B-Instruct-4bit",
+            displayName: "Llama 3.1 8B",
+            details: "Vielseitig, ~4,5 GB",
+            sizeHint: "4.5 GB"
+        ),
+        LocalModel(
+            id: "mlx-community/Meta-Llama-3.1-8B-Instruct-8bit",
+            displayName: "Llama 3.1 8B (8-bit)",
+            details: "Höhere Qualität, mehr RAM, ~8 GB",
+            sizeHint: "8 GB"
+        ),
+        LocalModel(
+            id: "mlx-community/Llama-3.3-70B-Instruct-4bit",
+            displayName: "Llama 3.3 70B",
+            details: "Sehr groß — nur High-RAM Geräte",
+            sizeHint: "40+ GB"
+        ),
+        LocalModel(
+            id: "mlx-community/Qwen2.5-14B-Instruct-4bit",
+            displayName: "Qwen2.5 14B",
+            details: "Groß, ~8 GB+",
+            sizeHint: "8+ GB"
+        ),
+        LocalModel(
+            id: "mlx-community/Qwen2.5-32B-Instruct-4bit",
+            displayName: "Qwen2.5 32B",
+            details: "Sehr groß — High-RAM",
+            sizeHint: "18+ GB"
+        ),
+        LocalModel(
+            id: "mlx-community/gemma-2-9b-it-4bit",
+            displayName: "Gemma 2 9B",
+            details: "Google groß, ~5 GB",
+            sizeHint: "5 GB"
+        ),
+        LocalModel(
+            id: "mlx-community/gemma-2-27b-it-4bit",
+            displayName: "Gemma 2 27B",
+            details: "Google sehr groß — High-RAM",
+            sizeHint: "15+ GB"
+        ),
+        LocalModel(
+            id: "mlx-community/Mistral-Nemo-Instruct-2407-4bit",
+            displayName: "Mistral Nemo 12B",
+            details: "Mistral 12B-Klasse, ~7 GB",
+            sizeHint: "7 GB"
+        ),
+        LocalModel(
+            id: "mlx-community/Phi-3-mini-4k-instruct-4bit",
+            displayName: "Phi-3 mini 4k",
+            details: "Microsoft klassisch, ~2,2 GB",
+            sizeHint: "2.2 GB"
+        ),
+        LocalModel(
+            id: "mlx-community/OpenELM-3B-Instruct-4bit",
+            displayName: "OpenELM 3B",
+            details: "Apple OpenELM, ~1,8 GB",
+            sizeHint: "1.8 GB"
+        ),
+        LocalModel(
+            id: "mlx-community/stablelm-2-zephyr-1_6b-4bit",
+            displayName: "StableLM 2 Zephyr 1.6B",
+            details: "Leicht / chatty, ~1,0 GB",
+            sizeHint: "1.0 GB"
+        ),
+        LocalModel(
+            id: "mlx-community/internlm2_5-7b-chat-4bit",
+            displayName: "InternLM2.5 7B",
+            details: "Mehrsprachig, ~4 GB",
+            sizeHint: "4 GB"
         ),
     ]
 
-    static let defaultId = catalog[0].id
+    static let defaultId = "mlx-community/Qwen3-4B-Instruct-2507-4bit"
 }
 
 /// Filesystem layout for on-device models — free of actor isolation because
@@ -39,7 +210,6 @@ enum LocalModelLocation {
     }()
 
     static func directory(for modelId: String) -> URL {
-        // Mirrors swift-transformers' Hub layout below our downloadBase.
         baseDirectory.appendingPathComponent("models/\(modelId)", isDirectory: true)
     }
 
@@ -48,9 +218,7 @@ enum LocalModelLocation {
     }
 }
 
-/// Download state and lifecycle for local models. Models live in an
-/// app-controlled directory (Application Support/LocalModels) so we can show
-/// reliable downloaded-state and support deletion.
+/// Download state and lifecycle for local models.
 @MainActor
 final class LocalModelStore: ObservableObject {
     @Published var downloadedIds: Set<String> = []
@@ -78,7 +246,7 @@ final class LocalModelStore: ObservableObject {
                 refresh()
             } catch {
                 progress[modelId] = nil
-                errorMessage = "Download fehlgeschlagen: \(error.localizedDescription)"
+                errorMessage = "Download fehlgeschlagen: \(error.localizedDescription). Großes Modell? Speicher/RAM prüfen — Download trotzdem möglich wenn genug freier Platz."
             }
         }
     }

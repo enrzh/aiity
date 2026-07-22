@@ -14,26 +14,29 @@ struct ToolRunResult {
 
 /// A capability the app executes natively on behalf of the model. Works with
 /// every provider that supports tool calls — including local models behind an
-/// OpenAI-compatible endpoint. This is what makes weak local models useful:
-/// the heavy lifting (search, fetching, image/video generation) happens here.
+/// OpenAI-compatible endpoint.
 protocol AgentTool {
     var spec: ToolSpec { get }
     func run(argumentsJSON: String) async -> ToolRunResult
 }
 
 enum ToolRegistry {
-    /// `apiKey` is the resolved secret for the active account (plain key or
-    /// "oauth:<token>") — image/video tools call the provider with it.
-    static func makeTools(settings: ProviderSettings, apiKey: String) -> [AgentTool] {
+    /// Chat tools always use the chat provider key. Image/video tools resolve
+    /// their own modality slots (possibly a different provider + model).
+    static func makeTools(settings: ProviderSettings, apiKey: String) async -> [AgentTool] {
+        // Local Ollama/LM Studio/MLX: no tools. Tool schemas make small models
+        // invent fake <tool_call>/function JSON and answer nonsense.
+        guard LocalRuntimePolicy.shouldSendTools(settings) else { return [] }
+
         var tools: [AgentTool] = [
-            WebSearchTool(searchEndpoint: settings.searchEndpoint),
+            WebSearchTool(settings: settings),
             FetchURLTool(),
         ]
-        // Generation tools need an OpenAI-compatible image/video endpoint;
-        // on-device MLX has none, so only offer them for hosted providers.
-        if settings.preset.dialect != .mlx {
-            tools.append(ImageGenerationTool(settings: settings, apiKey: apiKey))
-            tools.append(VideoGenerationTool(settings: settings, apiKey: apiKey))
+        if let imageRoute = await MediaRoute.resolve(modality: .image, from: settings) {
+            tools.append(ImageGenerationTool(route: imageRoute))
+        }
+        if let videoRoute = await MediaRoute.resolve(modality: .video, from: settings) {
+            tools.append(VideoGenerationTool(route: videoRoute))
         }
         return tools
     }

@@ -4,21 +4,34 @@ import UIKit
 
 struct ChatView: View {
     @EnvironmentObject private var session: ChatSession
+    @EnvironmentObject private var settingsStore: SettingsStore
+    @EnvironmentObject private var accountStore: AccountStore
+    @Query private var savedApps: [MiniApp]
     @State private var input = ""
     @State private var previewDraft: MiniAppDraft?
     @State private var showThreads = false
+    @State private var showUpgrade = false
+    @State private var showQuickProvider = false
+    @State private var showSkills = false
     @Environment(\.modelContext) private var modelContext
 
     private var visibleMessages: [ChatMessage] {
         session.messages.filter {
-            $0.role == .user
-                || ($0.role == .assistant
-                    && (!ChatView.strippingHTMLFence(from: $0.text).isEmpty || !$0.mediaIds.isEmpty))
+            // Hidden pin: full mini-app HTML for the model only.
+            if ChatSession.isSourcePinMessage($0) { return false }
+            switch $0.role {
+            case .user: return true
+            case .tool: return true
+            case .assistant:
+                return !ChatView.strippingHTMLFence(from: $0.text).isEmpty
+                    || !$0.mediaIds.isEmpty
+                    || !$0.toolCalls.isEmpty
+                    || session.busy
+            case .system: return false
+            }
         }
     }
 
-    /// Chat bubbles show only the prose — the mini-app source stays hidden
-    /// behind the card. Also truncates a fence that is still streaming in.
     static func strippingHTMLFence(from text: String) -> String {
         guard let fenceStart = text.range(of: "```html") else {
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -30,119 +43,346 @@ struct ChatView: View {
         return result.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    private var activeModelLabel: String {
+        let s = settingsStore.settings
+        if s.preset.dialect == .mlx {
+            return "MLX · \(s.localModelId.split(separator: "/").last.map(String.init) ?? s.localModelId)"
+        }
+        let model = s.effectiveModel
+        if model.isEmpty { return "\(s.preset.label) · Modell wählen" }
+        let short = model.count > 24 ? String(model.prefix(22)) + "…" : model
+        return "\(s.preset.label) · \(short)"
+    }
+
+    private var needsSetup: Bool {
+        let s = settingsStore.settings
+        if s.preset.dialect == .mlx { return false }
+        if ConnectionProbe.isLocalStyle(s.presetId) {
+            return s.effectiveBaseURL.isEmpty || s.effectiveModel.isEmpty
+        }
+        return s.effectiveModel.isEmpty
+    }
+
+    private var isEditingApp: Bool { session.editingContext != nil }
+
+    private var skillsChipLabel: String {
+        let n = SkillStore.enabledCount()
+        let imp = SkillStore.enabledImportedCount()
+        if n == 0 { return "Skills: aus" }
+        if imp > 0 { return "Skills: \(imp) importiert · \(n) aktiv" }
+        return "Skills: \(n) aktiv"
+    }
+
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 12) {
-                            if visibleMessages.isEmpty {
-                                emptyState
-                            }
-                            ForEach(visibleMessages) { message in
-                                MessageBubble(message: message)
-                                    .id(message.id)
-                            }
-                            if let status = session.statusLine {
-                                Label(status, systemImage: "globe")
+        VStack(spacing: 0) {
+            Button {
+                showQuickProvider = true
+            } label: {
+                ActiveModelChip(label: activeModelLabel)
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                showSkills = true
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "puzzlepiece.extension.fill")
+                        .font(.caption2)
+                    Text(skillsChipLabel)
+                        .font(.caption)
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+                .foregroundStyle(SkillStore.enabledImportedCount() > 0 ? Color.accentColor : .secondary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 5)
+                .background(Color(.tertiarySystemBackground))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("skills-chip")
+
+            if let ctx = session.editingContext {
+                editingBanner(ctx)
+            }
+
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 14) {
+                        if needsSetup {
+                            setupBanner
+                        }
+                        if visibleMessages.isEmpty {
+                            emptyState
+                        }
+                        ForEach(visibleMessages) { message in
+                            MessageBubble(
+                                message: message,
+                                showTyping: session.busy
+                                    && message.id == visibleMessages.last?.id
+                                    && message.role == .assistant
+                                    && ChatView.strippingHTMLFence(from: message.text).isEmpty
+                                    && message.mediaIds.isEmpty
+                                    && message.toolCalls.isEmpty
+                            )
+                            .id(message.id)
+                        }
+                        if let status = session.statusLine {
+                            HStack(spacing: 8) {
+                                if status != "Gestoppt" {
+                                    ProgressView().controlSize(.small)
+                                }
+                                Text(status)
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
                             }
-                            if let draft = session.draftMiniApp {
-                                MiniAppCard(
-                                    draft: draft,
-                                    onPreview: { previewDraft = draft },
-                                    onKeep: { keep(draft) }
-                                )
-                                .id("mini-app-card")
-                            }
-                            if let error = session.errorMessage {
-                                Text(error)
-                                    .font(.footnote)
-                                    .foregroundStyle(.red)
-                            }
+                            .padding(.horizontal, 4)
+                            .id("status-line")
                         }
-                        .padding()
+                        if let draft = session.draftMiniApp {
+                            MiniAppCard(
+                                draft: draft,
+                                isStreaming: session.busy,
+                                onPreview: { previewDraft = draft },
+                                onKeep: { keep(draft) },
+                                onEditAI: {
+                                    session.startEditingDraft(
+                                        name: draft.name,
+                                        html: draft.html,
+                                        emoji: draft.emoji
+                                    )
+                                }
+                            )
+                            .id("mini-app-card")
+                        }
+                        if let error = session.errorMessage {
+                            VStack(alignment: .leading, spacing: 8) {
+                                BannerView(message: error, kind: .error) {
+                                    session.errorMessage = nil
+                                }
+                                if !session.busy {
+                                    Button {
+                                        retryLastUserMessage()
+                                    } label: {
+                                        Label("Erneut senden", systemImage: "arrow.clockwise")
+                                            .font(.subheadline.weight(.semibold))
+                                    }
+                                    .buttonStyle(.bordered)
+                                }
+                            }
+                            .id("error-banner")
+                        }
                     }
-                    .onChange(of: visibleMessages.last?.text) {
-                        if let lastId = visibleMessages.last?.id {
+                    .padding()
+                }
+                .onChange(of: visibleMessages.last?.text) {
+                    if let lastId = visibleMessages.last?.id {
+                        withAnimation(.easeOut(duration: 0.15)) {
                             proxy.scrollTo(lastId, anchor: .bottom)
                         }
                     }
-                    .onChange(of: session.draftMiniApp) {
-                        if session.draftMiniApp != nil {
-                            proxy.scrollTo("mini-app-card", anchor: .bottom)
-                        }
-                    }
-                    .scrollDismissesKeyboard(.immediately)
                 }
-                inputBar
-            }
-            .navigationTitle(session.activeThreadTitle.isEmpty ? "aiity" : session.activeThreadTitle)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        showThreads = true
-                    } label: {
-                        Image(systemName: "list.bullet")
+                .onChange(of: session.statusLine) {
+                    if session.statusLine != nil {
+                        proxy.scrollTo("status-line", anchor: .bottom)
                     }
-                    .disabled(session.busy)
-                    .accessibilityIdentifier("chat-threads")
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        session.newThread()
-                    } label: {
-                        Image(systemName: "square.and.pencil")
+                .onChange(of: session.draftMiniApp) {
+                    if session.draftMiniApp != nil {
+                        proxy.scrollTo("mini-app-card", anchor: .bottom)
                     }
-                    .disabled(session.busy)
-                    .accessibilityIdentifier("chat-new")
                 }
+                .scrollDismissesKeyboard(.immediately)
             }
-            .sheet(item: $previewDraft) { draft in
-                MiniAppSheet(appId: "preview", name: draft.name, html: draft.html)
+            inputBar
+        }
+        .navigationTitle(session.activeThreadTitle.isEmpty ? "Chat" : session.activeThreadTitle)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    showThreads = true
+                } label: {
+                    Image(systemName: "list.bullet")
+                }
+                .disabled(session.busy)
+                .accessibilityIdentifier("chat-threads")
             }
-            .sheet(isPresented: $showThreads) {
-                ThreadsSheet()
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    session.newThread()
+                } label: {
+                    Image(systemName: "square.and.pencil")
+                }
+                .disabled(session.busy)
+                .accessibilityIdentifier("chat-new")
             }
         }
+        .sheet(item: $previewDraft) { draft in
+            MiniAppSheet(
+                appId: "preview",
+                name: draft.name,
+                html: draft.html,
+                emoji: draft.emoji,
+                iconSymbol: draft.iconSymbol
+            )
+            .environmentObject(session)
+        }
+        .sheet(isPresented: $showThreads) {
+            ThreadsSheet()
+        }
+        .sheet(isPresented: $showUpgrade) {
+            UpgradeModal(
+                title: "Mini-App-Limit",
+                message: FreeTier.miniAppLimitMessage,
+                onDismiss: { showUpgrade = false }
+            )
+        }
+        .sheet(isPresented: $showQuickProvider) {
+            NavigationStack {
+                ConnectionsView()
+            }
+            .environmentObject(settingsStore)
+            .environmentObject(accountStore)
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showSkills) {
+            NavigationStack {
+                SkillsView()
+            }
+            .presentationDetents([.large, .medium])
+            .presentationDragIndicator(.visible)
+        }
+    }
+
+    private func editingBanner(_ ctx: ChatSession.EditingContext) -> some View {
+        let kb = max(1, ctx.html.utf8.count / 1024)
+        return HStack(spacing: 10) {
+            Image(systemName: "sparkles")
+                .foregroundStyle(Color.accentColor)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Bearbeiten: \(ctx.name)")
+                    .font(.subheadline.weight(.semibold))
+                Text("Quellcode an KI übergeben (\(kb) KB) — Änderungen beschreiben, „Behalten“ speichert.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("Ende") {
+                session.editingContext = nil
+                session.persistPublic()
+            }
+            .font(.caption.weight(.semibold))
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(Color.accentColor.opacity(0.1))
+    }
+
+    private var setupBanner: some View {
+        BannerView(
+            message: "Noch kein nutzbares Modell. Tippe oben auf den Anbieter oder öffne Mehr → KI-Anbieter.",
+            kind: .info
+        )
     }
 
     private var emptyState: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Was soll ich bauen?")
+        VStack(alignment: .leading, spacing: 14) {
+            Text(isEditingApp ? "Was soll ich an der App ändern?" : "Was soll ich bauen?")
                 .font(.title2.bold())
-            Text("Beschreib eine kleine App — z. B. „Bau mir einen Trinkgeld-Rechner“ — oder stell einfach eine Frage. Für Recherchen nutze ich das Web.")
+            Text(isEditingApp
+                 ? "Feature, Design, Icon oder z. B. Netzwerk-Fähigkeit beschreiben."
+                 : "Frage stellen oder Mini-App beschreiben. Web-Recherche und Skills laufen im Hintergrund.")
                 .foregroundStyle(.secondary)
+            SuggestionList(suggestions: isEditingApp ? [
+                "Mach das Design dunkler und moderner",
+                "Füge Bearbeiten und Löschen hinzu",
+                "Ändere das Icon und den Titel",
+                "Erlaube Netzwerk (capability: network)",
+            ] : [
+                "Bau mir einen Trinkgeld-Rechner",
+                "Einfache Todo-Liste mit Dark Mode",
+                "Pomodoro-Timer mit Erinnerung",
+                "Was ist heute in den Tech-News?",
+            ]) { suggestion in
+                input = suggestion
+                send()
+            }
         }
-        .padding(.top, 40)
+        .padding(.top, 24)
     }
 
     private var inputBar: some View {
-        HStack(spacing: 8) {
-            TextField("Nachricht", text: $input, axis: .vertical)
-                .lineLimit(1...5)
+        HStack(alignment: .bottom, spacing: 10) {
+            TextField(isEditingApp ? "Änderung beschreiben…" : "Nachricht", text: $input, axis: .vertical)
+                .lineLimit(1...6)
                 .textFieldStyle(.plain)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                 .onSubmit(send)
+                .disabled(session.busy)
                 .accessibilityIdentifier("chat-input")
-            Button(action: send) {
-                Image(systemName: session.busy ? "hourglass" : "arrow.up.circle.fill")
-                    .font(.system(size: 28))
+                .onChange(of: input) { _, newValue in
+                    // Block RTFD / shared-pasteboard path dumps from rich paste.
+                    if PlainPasteboard.looksLikePasteboardArtifact(newValue) {
+                        input = PlainPasteboard.plainText() ?? ""
+                        return
+                    }
+                    if let clean = PlainPasteboard.sanitize(newValue), clean != newValue,
+                       PlainPasteboard.looksLikePasteboardArtifact(newValue) {
+                        input = clean
+                    }
+                }
+            if session.busy {
+                Button { session.stop() } label: {
+                    Image(systemName: "stop.circle.fill")
+                        .font(.system(size: 34))
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(.red)
+                }
+                .accessibilityIdentifier("chat-stop")
+            } else {
+                Button(action: send) {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 34))
+                        .symbolRenderingMode(.hierarchical)
+                }
+                .disabled(sanitizedInput.isEmpty)
+                .accessibilityIdentifier("chat-send")
             }
-            .disabled(session.busy || input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            .accessibilityIdentifier("chat-send")
         }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(.bar)
+    }
+
+    private var sanitizedInput: String {
+        PlainPasteboard.sanitize(input) ?? ""
     }
 
     private func send() {
-        session.send(input, settings: ProviderSettings.load())
+        let text = sanitizedInput
+        guard !text.isEmpty else {
+            if PlainPasteboard.looksLikePasteboardArtifact(input) {
+                session.errorMessage = "Zwischenablage war RTF/RTFD (kein Klartext). Nochmal als Text kopieren."
+                input = ""
+            }
+            return
+        }
+        session.send(text, settings: settingsStore.settings)
         input = ""
+        Analytics.track("chat_send")
+    }
+
+    private func retryLastUserMessage() {
+        guard let last = session.messages.last(where: { $0.role == .user }) else { return }
+        session.errorMessage = nil
+        session.send(last.text, settings: settingsStore.settings)
+        Analytics.track("chat_retry")
     }
 
     private func keep(_ draft: MiniAppDraft) {
@@ -153,14 +393,31 @@ struct ChatView: View {
                 existing.html = draft.html
                 existing.name = draft.name
                 existing.emoji = draft.emoji
+                existing.iconSymbol = draft.iconSymbol
+                existing.filesJSON = draft.filesJSON
                 existing.version += 1
                 existing.updatedAt = .now
+                // Keep the pinned model context in sync for further edits.
+                session.updateEditingSource(html: draft.html, name: draft.name)
                 session.draftMiniApp = nil
+                Analytics.track("miniapp_updated")
                 return
             }
         }
-        modelContext.insert(MiniApp(name: draft.name, emoji: draft.emoji, html: draft.html))
+        guard FreeTier.canSaveMiniApp(currentCount: savedApps.count) else {
+            showUpgrade = true
+            Analytics.track("freemium_gate", ["kind": "miniapp"])
+            return
+        }
+        modelContext.insert(MiniApp(
+            name: draft.name,
+            emoji: draft.emoji,
+            html: draft.html,
+            filesJSON: draft.filesJSON,
+            iconSymbol: draft.iconSymbol
+        ))
         session.draftMiniApp = nil
+        Analytics.track("miniapp_saved")
     }
 }
 
@@ -168,92 +425,137 @@ extension MiniAppDraft: Identifiable {
     var id: String { name + String(html.hashValue) }
 }
 
-/// All conversations, newest first — tap to switch, swipe to delete.
-struct ThreadsSheet: View {
-    @EnvironmentObject private var session: ChatSession
-    @Environment(\.dismiss) private var dismiss
-
-    private var sortedThreads: [ChatThread] {
-        session.threads.sorted { $0.updatedAt > $1.updatedAt }
-    }
-
-    var body: some View {
-        NavigationStack {
-            List {
-                ForEach(sortedThreads) { thread in
-                    Button {
-                        session.switchTo(threadId: thread.id)
-                        dismiss()
-                    } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(thread.title.isEmpty ? "Neuer Chat" : thread.title)
-                                .lineLimit(1)
-                                .foregroundStyle(.primary)
-                            Text(thread.updatedAt.formatted(.relative(presentation: .named)))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .accessibilityIdentifier("thread-row")
-                    .swipeActions {
-                        Button(role: .destructive) {
-                            session.deleteThread(thread.id)
-                        } label: {
-                            Label("Löschen", systemImage: "trash")
-                        }
-                    }
-                }
-            }
-            .navigationTitle("Chats")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        session.newThread()
-                        dismiss()
-                    } label: {
-                        Image(systemName: "square.and.pencil")
-                    }
-                }
-            }
-        }
-        .presentationDetents([.medium, .large])
-    }
-}
+// MARK: - Bubbles
 
 private struct MessageBubble: View {
     let message: ChatMessage
+    var showTyping: Bool = false
 
     private var bubbleText: String {
         message.role == .assistant ? ChatView.strippingHTMLFence(from: message.text) : message.text
     }
 
     var body: some View {
-        HStack {
-            if message.role == .user { Spacer(minLength: 40) }
-            VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 8) {
-                if !bubbleText.isEmpty {
-                    Text(bubbleText)
-                        .textSelection(.enabled)
+        switch message.role {
+        case .tool:
+            ToolChip(name: message.toolName ?? "tool", text: message.text)
+        case .user, .assistant, .system:
+            HStack {
+                if message.role == .user { Spacer(minLength: 48) }
+                VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 8) {
+                    if !message.toolCalls.isEmpty {
+                        ForEach(message.toolCalls) { call in
+                            ToolChip(name: call.name, text: toolSummary(call), pending: showTyping && bubbleText.isEmpty)
+                        }
+                    }
+                    if showTyping {
+                        HStack(spacing: 6) {
+                            ProgressView().controlSize(.small)
+                            Text("Schreibt…").font(.footnote).foregroundStyle(.secondary)
+                        }
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
-                        .background(
-                            message.role == .user ? Color.accentColor.opacity(0.9) : Color(.secondarySystemBackground),
-                            in: RoundedRectangle(cornerRadius: 16)
-                        )
-                        .foregroundStyle(message.role == .user ? Color.white : Color.primary)
+                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    } else if !bubbleText.isEmpty {
+                        markdownText(bubbleText)
+                            .textSelection(.enabled)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(
+                                message.role == .user
+                                    ? Color.accentColor
+                                    : Color(.secondarySystemBackground),
+                                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            )
+                            .foregroundStyle(message.role == .user ? Color.white : Color.primary)
+                    }
+                    ForEach(message.mediaIds, id: \.self) { mediaId in
+                        GeneratedMediaView(mediaId: mediaId)
+                    }
                 }
-                ForEach(message.mediaIds, id: \.self) { mediaId in
-                    GeneratedMediaView(mediaId: mediaId)
-                }
+                if message.role == .assistant { Spacer(minLength: 48) }
             }
-            if message.role == .assistant { Spacer(minLength: 40) }
+        }
+    }
+
+    private func toolSummary(_ call: ToolCallData) -> String {
+        let args = toolArguments(call.argumentsJSON)
+        switch call.name {
+        case "web_search": return args["query"] as? String ?? "Suche"
+        case "fetch_url": return args["url"] as? String ?? "URL"
+        case "generate_image": return args["prompt"] as? String ?? "Bild"
+        case "generate_video": return args["prompt"] as? String ?? "Video"
+        default: return call.name
+        }
+    }
+
+    @ViewBuilder
+    private func markdownText(_ text: String) -> some View {
+        // AttributedString markdown — falls back to plain Text on parse failure.
+        if let attr = try? AttributedString(
+            markdown: text,
+            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        ) {
+            Text(attr)
+        } else {
+            Text(text)
         }
     }
 }
 
-/// Renders one generated media item: an image inline, a video as a tappable
-/// link (videos may be large remote files, so we don't auto-download them).
+private struct ToolChip: View {
+    let name: String
+    let text: String
+    var pending: Bool = false
+
+    private var icon: String {
+        switch name {
+        case "web_search": return "magnifyingglass"
+        case "fetch_url": return "doc.text"
+        case "generate_image": return "photo"
+        case "generate_video": return "video"
+        default: return "wrench.and.screwdriver"
+        }
+    }
+
+    private var label: String {
+        switch name {
+        case "web_search": return "Web"
+        case "fetch_url": return "Seite"
+        case "generate_image": return "Bild"
+        case "generate_video": return "Video"
+        default: return name
+        }
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: icon)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 16)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(label)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(Color.accentColor)
+                    if pending {
+                        ProgressView().controlSize(.mini)
+                    }
+                }
+                Text(text)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(3)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.accentColor.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+}
+
 private struct GeneratedMediaView: View {
     let mediaId: String
 
@@ -265,8 +567,7 @@ private struct GeneratedMediaView: View {
                     .resizable()
                     .scaledToFit()
                     .frame(maxWidth: 280)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .accessibilityIdentifier("generated-image")
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
         case .videoURL:
             if let url = MediaStore.videoURL(for: mediaId) {
@@ -283,29 +584,58 @@ private struct GeneratedMediaView: View {
 
 private struct MiniAppCard: View {
     let draft: MiniAppDraft
+    var isStreaming: Bool = false
     let onPreview: () -> Void
     let onKeep: () -> Void
+    var onEditAI: (() -> Void)? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
-                Text(draft.emoji).font(.largeTitle)
-                VStack(alignment: .leading) {
-                    Text(draft.name).font(.headline)
-                    Text("Generierte Mini-App").font(.caption).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                MiniAppIconView(emoji: draft.emoji, iconSymbol: draft.iconSymbol, size: 48)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(draft.name).font(.headline)
+                        if isStreaming {
+                            ProgressView().controlSize(.mini)
+                            Text("live")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(Color.accentColor)
+                        }
+                    }
+                    HStack(spacing: 6) {
+                        Text(draft.filesJSON == "{}" || draft.filesJSON.isEmpty ? "Mini-App" : "Multi-File")
+                        Text("·")
+                        Text(MiniAppCapability.from(html: draft.html).label)
+                        if isStreaming {
+                            Text("·")
+                            Text("~\(draft.html.count) Zeichen")
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
             }
-            HStack {
+            HStack(spacing: 8) {
                 Button("Vorschau", action: onPreview)
                     .buttonStyle(.bordered)
+                    .disabled(isStreaming && draft.html.count < 200)
                     .accessibilityIdentifier("preview-app")
+                if let onEditAI {
+                    Button(action: onEditAI) {
+                        Label("KI", systemImage: "sparkles")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(isStreaming)
+                }
                 Button("Behalten", action: onKeep)
                     .buttonStyle(.borderedProminent)
+                    .disabled(isStreaming)
                     .accessibilityIdentifier("keep-app")
             }
         }
-        .padding()
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 }

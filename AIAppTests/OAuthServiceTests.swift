@@ -42,6 +42,17 @@ final class OAuthServiceTests: XCTestCase {
         XCTAssertEqual(ProviderPreset.preset(for: "xai").oauth?.inferenceBaseURL, "https://cli-chat-proxy.grok.com/v1")
     }
 
+    func testOpenAICodexAuthorizeMatchesRealCLI() {
+        let openai = ProviderPreset.preset(for: "openai").oauth
+        // The Codex swap must NOT send state in the token exchange (Claude does).
+        XCTAssertEqual(openai?.stateInTokenExchange, false)
+        XCTAssertEqual(ProviderPreset.preset(for: "anthropic").oauth?.stateInTokenExchange, true)
+        // Full Codex scope + originator, per openai/codex build_authorize_url.
+        XCTAssertTrue(openai?.scope.contains("api.connectors.read") ?? false)
+        XCTAssertEqual(openai?.extraAuthParams["originator"], "codex_cli_rs")
+        XCTAssertEqual(openai?.redirectURI, "http://localhost:1455/auth/callback")
+    }
+
     func testChatGPTAccountIdFromIDToken() {
         // Build a fake JWT whose payload nests chatgpt_account_id under the
         // OpenAI auth claim.
@@ -62,6 +73,26 @@ final class OAuthServiceTests: XCTestCase {
         settings.presetId = "xai"
         XCTAssertEqual(settings.baseURL(forKey: "sk-plainkey"), "https://api.x.ai/v1")
         XCTAssertEqual(settings.baseURL(forKey: "oauth:tok123"), "https://cli-chat-proxy.grok.com/v1")
+    }
+
+    func testRejectsPasteboardRTFDPath() {
+        let junk = "/Users/enrico/Library/Group Containers/group.com.apple.coreservices.useractivityd/shared-pasteboard/items/216D7D7D-1AAE-44D0-ABF7-4CA80138FB01/f6249efc86334592d0c38386472e18ea1b4aba54.rtfd"
+        XCTAssertTrue(PlainPasteboard.looksLikePasteboardArtifact(junk))
+        XCTAssertNil(PlainPasteboard.sanitize(junk))
+        let parsed = OAuthService.parseAuthorizationInput(junk)
+        XCTAssertTrue(parsed.code.isEmpty)
+    }
+
+    func testParseOpenAILocalhostCallbackURL() {
+        let raw = "http://localhost:1455/auth/callback?code=abc123xyz&state=st1"
+        let parsed = OAuthService.parseAuthorizationInput(raw)
+        XCTAssertEqual(parsed.code, "abc123xyz")
+        XCTAssertEqual(parsed.state, "st1")
+    }
+
+    func testParseBareQueryString() {
+        let parsed = OAuthService.parseAuthorizationInput("code=tok_hello&state=s")
+        XCTAssertEqual(parsed.code, "tok_hello")
     }
 
     func testOAuthCredentialRoundtripsThroughDecoder() {

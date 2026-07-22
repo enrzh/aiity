@@ -135,6 +135,28 @@ final class ToolCallParsingTests: XCTestCase {
         XCTAssertTrue(OpenAICodexProvider.parseEvent(#"{"type":"response.created"}"#).isEmpty)
     }
 
+    func testParseDuckDuckGoLiteResults() {
+        let html = """
+        <table>
+        <tr><td valign="top">1.&nbsp;</td><td><a rel="nofollow" href="https://www.swift.org/" class='result-link'>Swift.org &amp; docs</a></td></tr>
+        <tr><td>&nbsp;</td><td class='result-snippet'>The Swift programming language.</td></tr>
+        <tr><td valign="top">2.&nbsp;</td><td><a rel="nofollow" href="https://developer.apple.com/swift/" class="result-link">Apple Developer</a></td></tr>
+        </table>
+        """
+        let out = WebSearchTool.parseLiteResults(html)
+        XCTAssertTrue(out.contains("https://www.swift.org/"), "extracts first (single-quoted class) URL")
+        XCTAssertTrue(out.contains("Swift.org & docs"), "decodes HTML entities in the title")
+        XCTAssertTrue(out.contains("https://developer.apple.com/swift/"), "extracts second (double-quoted class) URL")
+        XCTAssertTrue(out.hasPrefix("1."), "numbers the results")
+    }
+
+    func testParseDuckDuckGoLiteDecodesRedirectWrapper() {
+        let html = #"<a href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fpage&amp;rut=abc" class='result-link'>Example</a>"#
+        let out = WebSearchTool.parseLiteResults(html)
+        XCTAssertTrue(out.contains("https://example.com/page"), "decodes a uddg redirect wrapper to the real URL")
+        XCTAssertFalse(out.contains("duckduckgo.com/l/"), "does not surface the redirect URL")
+    }
+
     func testMiniAppDraftExtraction() {
         let text = """
         Fertig!

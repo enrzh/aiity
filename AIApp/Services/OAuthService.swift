@@ -122,10 +122,11 @@ final class OAuthService: NSObject, ObservableObject {
             "client_id": config.clientId,
             "code_verifier": pending.verifier,
         ]
-        // Claude echoes the state appended to the code (authCode#state) and
-        // wants it back in the exchange.
+        // Standard OAuth token exchanges do NOT carry state — sending it breaks
+        // OpenAI's Codex swap. Only Claude's non-standard flow (code#state) wants
+        // it back, so it's opt-in per provider.
         let state = stateFromInput ?? pending.state
-        if !state.isEmpty { body["state"] = state }
+        if config.stateInTokenExchange, !state.isEmpty { body["state"] = state }
 
         let object = try await Self.postForm(config.tokenURL,
                                              contentType: config.tokenBody == .json ? .json : .form,
@@ -153,17 +154,43 @@ final class OAuthService: NSObject, ObservableObject {
     /// Accepts a bare code, a "code#state" pair (Claude), or a full redirect
     /// URL whose query holds code/state (localhost callbacks).
     nonisolated static func parseAuthorizationInput(_ raw: String) -> (code: String, state: String?) {
-        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let components = URLComponents(string: trimmed), components.scheme != nil,
-           let items = components.queryItems {
-            let code = items.first(where: { $0.name == "code" })?.value ?? ""
-            let state = items.first(where: { $0.name == "state" })?.value
-            if !code.isEmpty { return (code, state) }
+        // Reject RTFD / shared-pasteboard path dumps before any parsing.
+        if PlainPasteboard.looksLikePasteboardArtifact(raw) {
+            return ("", nil)
         }
-        if let hashIndex = trimmed.firstIndex(of: "#") {
+        var trimmed = PlainPasteboard.sanitize(raw) ?? raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Strip wrapping quotes / zero-width junk from some password managers.
+        trimmed = trimmed
+            .trimmingCharacters(in: CharacterSet(charactersIn: "\"'“”‘’"))
+            .replacingOccurrences(of: "\u{200B}", with: "")
+
+        // Full URL (http://localhost:1455/auth/callback?code=…&state=…)
+        if let components = URLComponents(string: trimmed),
+           components.scheme != nil || trimmed.contains("code=") {
+            // Handle bare query strings "code=…&state=…"
+            let comps: URLComponents? = {
+                if components.scheme != nil { return components }
+                return URLComponents(string: "http://x?\(trimmed)")
+            }()
+            if let items = comps?.queryItems {
+                let code = items.first(where: { $0.name == "code" })?.value ?? ""
+                let state = items.first(where: { $0.name == "state" })?.value
+                if !code.isEmpty { return (code, state) }
+            }
+        }
+        // Claude-style "code#state"
+        if let hashIndex = trimmed.firstIndex(of: "#"), !trimmed.contains("://") {
             let code = String(trimmed[..<hashIndex])
             let state = String(trimmed[trimmed.index(after: hashIndex)...])
-            return (code, state.isEmpty ? nil : state)
+            if !code.isEmpty { return (code, state.isEmpty ? nil : state) }
+        }
+        // Extract code= from messy paste (page HTML or multi-line)
+        if let range = trimmed.range(of: #"code=([A-Za-z0-9._~\-]+)"#, options: .regularExpression) {
+            let match = String(trimmed[range])
+            if let eq = match.firstIndex(of: "=") {
+                let code = String(match[match.index(after: eq)...])
+                if !code.isEmpty { return (code, nil) }
+            }
         }
         return (trimmed, nil)
     }
@@ -185,9 +212,9 @@ final class OAuthService: NSObject, ObservableObject {
             request.httpBody = components.percentEncodedQuery?.data(using: .utf8)
         }
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
-              let object = jsonObject(data) else {
-            throw OAuthError.exchangeFailed(String(decoding: data.prefix(240), as: UTF8.self))
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200..<300).contains(status), let object = jsonObject(data) else {
+            throw OAuthError.exchangeFailed("HTTP \(status): \(String(decoding: data.prefix(300), as: UTF8.self))")
         }
         return object
     }
