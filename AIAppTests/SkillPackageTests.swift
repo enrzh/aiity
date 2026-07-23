@@ -127,6 +127,15 @@ final class SkillPackageTests: XCTestCase {
         XCTAssertTrue(text.count <= 900)
     }
 
+    func testDeflatedZipImport() throws {
+        // A real DEFLATE-compressed zip containing skills/deflated/SKILL.md + README.md.
+        let b64 = "UEsDBBQAAAAIAGe/91wqQ/IzbwAAAOMHAAAYAAAAc2tpbGxzL2RlZmxhdGVkL1NLSUxMLm1k7cvBDcIwDAXQe6b4C4RTT70hMQArWIlLEXUS2YmgTE+m4OTz04sxhkLCK268HdQ5407pFWyIkJ4rNq0CQqrSlM2mf58txNmux5tOwzCG1lHypESaDVQylqV90OtIOzrpg7td4MGDBw8ePHj4W/gBUEsDBBQAAAAIAGe/91yHcuC0CwAAAAkAAAAJAAAAUkVBRE1FLm1ky0zPyy9KVchNBQBQSwECFAMUAAAACABnv/dcKkPyM28AAADjBwAAGAAAAAAAAAAAAAAAgAEAAAAAc2tpbGxzL2RlZmxhdGVkL1NLSUxMLm1kUEsBAhQDFAAAAAgAZ7/3XIdy4LQLAAAACQAAAAkAAAAAAAAAAAAAAIABpQAAAFJFQURNRS5tZFBLBQYAAAAAAgACAH0AAADXAAAAAAA="
+        let data = Data(base64Encoded: b64)!
+        let md = try ZipSkillExtractor.skillMarkdown(from: data)
+        XCTAssertTrue(md.contains("Deflated Pack"), md)
+        XCTAssertTrue(md.contains("44px touch targets"), "inflated body should be present")
+    }
+
     func testInstallPackageEnableDisableInjection() {
         let store = SkillStore()
         XCTAssertFalse(store.skills.isEmpty)

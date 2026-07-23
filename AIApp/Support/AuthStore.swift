@@ -82,6 +82,20 @@ actor TokenRefreshCoordinator {
     static let shared = TokenRefreshCoordinator()
     private var inFlight: [String: Task<OAuthCredential?, Never>] = [:]
 
+    #if DEBUG
+    /// Test hook: replaces the network refresh so single-flight can be verified.
+    nonisolated(unsafe) static var testRefreshOverride: (@Sendable (OAuthProviderConfig, String) async -> OAuthCredential?)?
+    #endif
+
+    private nonisolated func performRefresh(config: OAuthProviderConfig, refreshToken: String) async -> OAuthCredential? {
+        #if DEBUG
+        if let override = Self.testRefreshOverride {
+            return await override(config, refreshToken)
+        }
+        #endif
+        return try? await OAuthService.refresh(config: config, refreshToken: refreshToken)
+    }
+
     func refresh(account: String, config: OAuthProviderConfig, refreshToken: String,
                  currentAccountId: String?) async -> OAuthCredential? {
         // A refresh for this account may already have completed while we waited;
@@ -93,8 +107,8 @@ actor TokenRefreshCoordinator {
         if let existing = inFlight[account] {
             return await existing.value
         }
-        let task = Task<OAuthCredential?, Never> {
-            guard let refreshed = try? await OAuthService.refresh(config: config, refreshToken: refreshToken) else {
+        let task = Task<OAuthCredential?, Never> { [self] in
+            guard let refreshed = await performRefresh(config: config, refreshToken: refreshToken) else {
                 return nil
             }
             var updated = refreshed

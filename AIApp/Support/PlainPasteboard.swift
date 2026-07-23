@@ -107,7 +107,7 @@ enum PlainPasteboard {
         if lower.contains("useractivityd") { return true }
         if lower.contains("group.com.apple.coreservices") { return true }
         if lower.contains(".rtfd") { return true }
-        if lower.contains(".rtf/") || lower.hasSuffix(".rtf") && lower.contains("/library/") { return true }
+        if lower.contains(".rtf/") || (lower.hasSuffix(".rtf") && lower.contains("/library/")) { return true }
         if lower.contains("group containers") { return true }
         // Absolute path that looks like a pasteboard item, not a user path of interest
         if (lower.hasPrefix("/users/") || lower.hasPrefix("/private/") || lower.hasPrefix("file://"))

@@ -330,11 +330,6 @@ struct ChatView: View {
                     // Block RTFD / shared-pasteboard path dumps from rich paste.
                     if PlainPasteboard.looksLikePasteboardArtifact(newValue) {
                         input = PlainPasteboard.plainText() ?? ""
-                        return
-                    }
-                    if let clean = PlainPasteboard.sanitize(newValue), clean != newValue,
-                       PlainPasteboard.looksLikePasteboardArtifact(newValue) {
-                        input = clean
                     }
                 }
             if session.busy {

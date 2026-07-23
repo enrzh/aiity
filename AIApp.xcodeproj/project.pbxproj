@@ -87,6 +87,7 @@
 		EE0E7B73B10BB80480DE85EF /* ThreadsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A5AA226542C302BD802CA65 /* ThreadsSheet.swift */; };
 		EE87BB72426368F4AD0BA5DB /* ModelCatalogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C60F49D56B0F41AE9A20553C /* ModelCatalogService.swift */; };
 		F206DAD2CFE1E06CECA4FC55 /* ImageGenerationTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4831D1C0C33774F1B4FB92C5 /* ImageGenerationTool.swift */; };
+		F8B17C15C9DDEA1736CB0232 /* MiniAppConsent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03CD3A873E43E090E151702D /* MiniAppConsent.swift */; };
 		F96609EAC33C26D544150C05 /* AgentLiveActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69A13B6EF2EBD864ADF05F14 /* AgentLiveActivityController.swift */; };
 		FE9F93850B5BECE1E3BC729E /* ProviderRequestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 451FFE4A80BDAE6B1D2F0AD9 /* ProviderRequestSupport.swift */; };
 /* End PBXBuildFile section */
@@ -131,6 +132,7 @@
 
 /* Begin PBXFileReference section */
 		001ACFE23DC3902551F49327 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
+		03CD3A873E43E090E151702D /* MiniAppConsent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniAppConsent.swift; sourceTree = "<group>"; };
 		05541A04F12A85851A1D5B9D /* PasteCodeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteCodeSheet.swift; sourceTree = "<group>"; };
 		07F4919952C177D32E92BB59 /* ProviderProfiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderProfiles.swift; sourceTree = "<group>"; };
 		08C5F4775EA7255155F12151 /* SkillPackage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillPackage.swift; sourceTree = "<group>"; };
@@ -302,6 +304,7 @@
 				8DD7D24371D8F94E84498FBA /* LocalModelStore.swift */,
 				0AE7001C6015F3ED8028A812 /* MiniApp.swift */,
 				A160BDDE100B930F17D58C54 /* MiniAppCapability.swift */,
+				03CD3A873E43E090E151702D /* MiniAppConsent.swift */,
 				A120211BC81051181BFFD2A9 /* ModelModality.swift */,
 				07F4919952C177D32E92BB59 /* ProviderProfiles.swift */,
 				6E2F0648BFF26215581F3521 /* ProviderSettings.swift */,
@@ -624,6 +627,7 @@
 				3FD8544EC1E625846282E75D /* MiniApp.swift in Sources */,
 				2D1330A2FD233A7800198AE2 /* MiniAppBundle.swift in Sources */,
 				04C2620AD2CD89F256CB508D /* MiniAppCapability.swift in Sources */,
+				F8B17C15C9DDEA1736CB0232 /* MiniAppConsent.swift in Sources */,
 				C3D0A39A19C380D5BE46DF50 /* MiniAppRunnerView.swift in Sources */,
 				D817671B08A9EFCFAA46BF12 /* MiniAppServices.swift in Sources */,
 				789237983030FA01832A6906 /* MiniAppSheet.swift in Sources */,
@@ -712,7 +716,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.2.0;
+				MARKETING_VERSION = 0.6.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.aiity.app;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
@@ -732,7 +736,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 0.2.0;
+				MARKETING_VERSION = 0.6.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.aiity.app.AgentActivity;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -828,7 +832,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.2.0;
+				MARKETING_VERSION = 0.6.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.aiity.app;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
@@ -848,7 +852,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 0.2.0;
+				MARKETING_VERSION = 0.6.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.aiity.app.AgentActivity;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;

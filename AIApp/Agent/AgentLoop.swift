@@ -143,7 +143,9 @@ final class ChatSession: ObservableObject {
     ) -> String {
         // Local LAN / MLX: keep it dumb-simple so 1–8B models stay coherent.
         if LocalRuntimePolicy.isLocal(settings) {
-            var system = LocalRuntimePolicy.systemPrompt
+            var system = LocalRuntimePolicy.shouldSendTools(settings)
+                ? LocalRuntimePolicy.systemPromptWithTools
+                : LocalRuntimePolicy.systemPrompt
             let roster = SkillStore.enabledRoster()
             if !roster.isEmpty {
                 system += "\n\n" + roster

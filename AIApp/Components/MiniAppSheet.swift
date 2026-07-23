@@ -10,7 +10,6 @@ struct MiniAppSheet: View {
     var libraryId: UUID? = nil
     var emoji: String = "✨"
     var iconSymbol: String? = nil
-    var allowsNetwork: Bool = false
     /// Called after dismiss when user wants AI edits (host switches to Chat tab).
     var onEditWithAI: (() -> Void)? = nil
 
@@ -18,14 +17,29 @@ struct MiniAppSheet: View {
     @EnvironmentObject private var session: ChatSession
     @Environment(\.openChatTab) private var openChatTab
 
+    @State private var effectiveCapability: MiniAppCapability = .offline
+    @State private var pendingDeclared: MiniAppCapability = .offline
+    @State private var showConsent = false
+
     var body: some View {
         NavigationStack {
             MiniAppRunnerView(
                 appId: appId,
                 html: html,
-                capability: MiniAppCapability.from(html: html)
+                capability: effectiveCapability
             )
             .ignoresSafeArea(edges: .bottom)
+            .onAppear { resolveCapability() }
+            .alert("Internetzugriff erlauben?", isPresented: $showConsent) {
+                Button("Nur offline", role: .cancel) { effectiveCapability = .offline }
+                Button("Erlauben") {
+                    MiniAppConsent.allow(appId: appId, capability: pendingDeclared)
+                    effectiveCapability = pendingDeclared
+                }
+            } message: {
+                let what = pendingDeclared == .browser ? "Webseiten öffnen und laden" : "Daten aus dem Internet laden"
+                Text("Die App „\(name)“ möchte \(what) (\(pendingDeclared.label)). Nur erlauben, wenn du dieser App vertraust.")
+            }
             .navigationTitle(name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -57,6 +71,19 @@ struct MiniAppSheet: View {
         }
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
+    }
+
+    /// Offline apps run immediately; a network/browser app runs offline until
+    /// the user consents (once per app).
+    private func resolveCapability() {
+        let declared = MiniAppCapability.from(html: html)
+        if MiniAppConsent.isAllowed(appId: appId, declared: declared) {
+            effectiveCapability = declared
+        } else {
+            effectiveCapability = .offline
+            pendingDeclared = declared
+            showConsent = true
+        }
     }
 
     private func openAIEdit() {

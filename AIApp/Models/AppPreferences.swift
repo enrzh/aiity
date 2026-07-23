@@ -8,6 +8,7 @@ final class AppPreferences: ObservableObject {
     static let shared = AppPreferences()
 
     private static let keepScreenKey = "prefs.keepScreenAwakeWhileBuilding.v1"
+    static let allowLocalToolsKey = "prefs.allowLocalTools.v1"
 
     /// When true, disable idle timer while the agent is busy (chat/build running).
     @Published var keepScreenAwakeWhileBuilding: Bool {
@@ -17,6 +18,13 @@ final class AppPreferences: ObservableObject {
         }
     }
 
+    /// When true, on-device / LAN models also get the web tools (web_search /
+    /// fetch_url). Off by default — tiny models invent fake tool calls; enable
+    /// only for a capable local model (Qwen3 4B+).
+    @Published var allowLocalTools: Bool {
+        didSet { UserDefaults.standard.set(allowLocalTools, forKey: Self.allowLocalToolsKey) }
+    }
+
     private init() {
         if UserDefaults.standard.object(forKey: Self.keepScreenKey) == nil {
             // Default off — users opt in (saves battery). didSet not called from init.
@@ -24,6 +32,7 @@ final class AppPreferences: ObservableObject {
         } else {
             keepScreenAwakeWhileBuilding = UserDefaults.standard.bool(forKey: Self.keepScreenKey)
         }
+        allowLocalTools = UserDefaults.standard.bool(forKey: Self.allowLocalToolsKey)
     }
 }
 

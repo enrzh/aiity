@@ -28,7 +28,7 @@ enum NetworkErrorFriendly {
         let lower = text.lowercased()
         if lower.contains("network connection was lost")
             || lower.contains("connection was lost")
-            || lower.contains("NSURLErrorDomain") && lower.contains("-1005") {
+            || (lower.contains("nsurlerrordomain") && lower.contains("-1005")) {
             return "Verbindung unterbrochen — Netz prüfen und erneut senden."
         }
         if lower.contains("timed out") || lower.contains("timeout") {

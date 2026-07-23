@@ -24,11 +24,11 @@ enum MiniAppCapability: String, Codable, Equatable {
         case .offline:
             return "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; font-src data:; media-src data:;"
         case .network:
-            // Allow XHR/fetch + images over https; no frames (not a full browser).
-            return "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data: https: http:; font-src data: https:; media-src data: https: http:; connect-src https: http:; worker-src 'none'; object-src 'none';"
+            // Allow XHR/fetch + images over https only (no cleartext MITM); no frames.
+            return "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data: https:; font-src data: https:; media-src data: https:; connect-src https:; worker-src 'none'; object-src 'none';"
         case .browser:
-            // Research-style apps: frames + navigation + fetch.
-            return "default-src 'none'; style-src 'unsafe-inline' https: http:; script-src 'unsafe-inline' https: http:; img-src data: https: http:; font-src data: https: http:; media-src data: https: http:; connect-src https: http:; frame-src https: http:; child-src https: http:; worker-src 'none'; object-src 'none';"
+            // Research-style apps: frames + navigation + fetch, https only.
+            return "default-src 'none'; style-src 'unsafe-inline' https:; script-src 'unsafe-inline' https:; img-src data: https:; font-src data: https:; media-src data: https:; connect-src https:; frame-src https:; child-src https:; worker-src 'none'; object-src 'none';"
         }
     }
 

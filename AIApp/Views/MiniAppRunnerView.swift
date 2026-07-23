@@ -38,8 +38,9 @@ struct MiniAppRunnerView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
+        let capabilityChanged = context.coordinator.capability != capability
         context.coordinator.capability = capability
-        if context.coordinator.loadedHTML != html {
+        if context.coordinator.loadedHTML != html || capabilityChanged {
             context.coordinator.loadedHTML = html
             context.coordinator.beginTrustedLoad()
             webView.loadHTMLString(Sandbox.harden(html, capability: capability), baseURL: nil)

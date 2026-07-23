@@ -95,6 +95,32 @@ final class OAuthServiceTests: XCTestCase {
         XCTAssertEqual(parsed.code, "tok_hello")
     }
 
+    func testRefreshCoordinatorSingleFlight() async {
+        actor Counter { var n = 0; func inc() { n += 1 }; func value() -> Int { n } }
+        let counter = Counter()
+        TokenRefreshCoordinator.testRefreshOverride = { _, _ in
+            await counter.inc()
+            try? await Task.sleep(nanoseconds: 250_000_000)  // hold the flight open
+            return OAuthCredential(accessToken: "new", refreshToken: "r2", expiresAt: Date().addingTimeInterval(3600))
+        }
+        defer { TokenRefreshCoordinator.testRefreshOverride = nil }
+
+        let config = ProviderPreset.preset(for: "anthropic").oauth!
+        let acct = "test-refresh-\(UUID().uuidString)"
+        await withTaskGroup(of: OAuthCredential?.self) { group in
+            for _ in 0..<6 {
+                group.addTask {
+                    await TokenRefreshCoordinator.shared.refresh(
+                        account: acct, config: config, refreshToken: "r1", currentAccountId: nil
+                    )
+                }
+            }
+            for await _ in group {}
+        }
+        let n = await counter.value()
+        XCTAssertEqual(n, 1, "6 concurrent refreshes must collapse to a single network refresh")
+    }
+
     func testOAuthCredentialRoundtripsThroughDecoder() {
         let credential = OAuthCredential(accessToken: "tok", refreshToken: "ref", expiresAt: Date(timeIntervalSince1970: 1_000_000))
         let data = try! JSONEncoder().encode(credential)

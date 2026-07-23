@@ -43,6 +43,17 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    Toggle(isOn: $prefs.allowLocalTools) {
+                        Label("Web-Tools für lokale Modelle", systemImage: "globe.badge.chevron.backward")
+                    }
+                    .accessibilityIdentifier("allow-local-tools")
+                } header: {
+                    Text("Lokale Modelle")
+                } footer: {
+                    Text("Gibt On-Device- (MLX) und LAN-Modellen (Ollama/LM Studio) die Web-Suche. Nur für fähige Modelle (Qwen3 4B+) sinnvoll — kleine Modelle erfinden Tool-Aufrufe.")
+                }
+
+                Section {
                     Picker("Backend", selection: settings.searchBackend) {
                         ForEach(SearchBackend.allCases) { backend in
                             Text(backend.title).tag(backend.rawValue)
