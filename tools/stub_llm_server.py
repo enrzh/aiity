@@ -37,6 +37,14 @@ NOTES_APP = """<!doctype html>
 
 NOTES_APP_BLUE = NOTES_APP.replace("background:#fff", "background:#0a2a66;color:#fff")
 
+NETWORK_APP = """<!doctype html>
+<!-- emoji: 🌐 -->
+<!-- capability: network -->
+<html>
+<head><title>Netz Demo</title><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body><h1>Netz Demo</h1><p>Diese App braucht Internet.</p></body>
+</html>"""
+
 
 def sse_chunk(delta):
     payload = {"choices": [{"index": 0, "delta": delta}]}
@@ -122,11 +130,15 @@ class Handler(BaseHTTPRequestHandler):
         last_user = next((m.get("content", "") for m in reversed(messages) if m.get("role") == "user"), "")
         editing = "You are editing" in (system or "")
         wants_image = "bild" in last_user.lower()
+        wants_network = "netz" in last_user.lower()
         image_done = any("Bild erstellt" in (t or "") for t in tool_texts)
 
         self._send_sse_headers()
         if image_done:
             self.wfile.write(sse_chunk({"content": "Hier ist dein Bild."}))
+        elif wants_network and not tool_texts:
+            for part in ("Hier ist deine Netz-App:\n\n", "```html\n" + NETWORK_APP + "\n```"):
+                self.wfile.write(sse_chunk({"content": part}))
         elif wants_image and not tool_texts:
             self.wfile.write(sse_chunk({
                 "tool_calls": [{

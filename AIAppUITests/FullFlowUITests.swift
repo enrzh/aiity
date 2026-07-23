@@ -91,6 +91,42 @@ final class FullFlowUITests: XCTestCase {
         XCTAssertTrue(image.waitForExistence(timeout: 10), "the generated image should render inline in the chat")
     }
 
+    /// A network-capability mini-app must ask the user before it gets internet.
+    func testNetworkMiniAppAsksConsent() {
+        app.launch()
+        startFreshThread()
+        sendChatMessage("Bau eine Netz-App")
+        let keep = app.buttons["keep-app"]
+        XCTAssertTrue(keep.waitForExistence(timeout: 25), "network mini-app card should appear")
+        keep.tap()
+
+        app.tabBars.buttons["Apps"].tap()
+        let item = app.buttons["library-app"].firstMatch
+        XCTAssertTrue(item.waitForExistence(timeout: 10), "kept app should be in the library")
+        item.tap()
+
+        // Consent prompt gates the relaxed (network) capability.
+        XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 10), "a network mini-app must prompt for consent")
+        let allow = app.alerts.buttons["Erlauben"]
+        XCTAssertTrue(allow.exists, "consent alert should offer Erlauben / Nur offline")
+        allow.tap()
+        XCTAssertTrue(app.webViews.firstMatch.waitForExistence(timeout: 10), "app runs after consent")
+    }
+
+    /// With the "Web-Tools für lokale Modelle" toggle on, a local-style provider
+    /// runs a web_search round (default is no tools for local).
+    func testLocalToolsToggleEnablesWebSearch() {
+        app.launchEnvironment["PROVIDER_SETTINGS_JSON"] = """
+        {"presetId":"ollama","baseURL":"http://127.0.0.1:8555/v1","model":"stub","searchEndpoint":"http://127.0.0.1:8555"}
+        """
+        app.launchArguments += ["-prefs.allowLocalTools.v1", "1"]
+        app.launch()
+        startFreshThread()
+        sendChatMessage("Recherchier kurz etwas Aktuelles")
+        let answer = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Laut Recherche'")).firstMatch
+        XCTAssertTrue(answer.waitForExistence(timeout: 25), "local model with tools enabled should run a web_search round")
+    }
+
     /// Threads persist in the simulator across test runs; stale tool results
     /// in a restored thread would derail the stub's content-based script. Each
     /// test therefore begins in a brand-new conversation.
