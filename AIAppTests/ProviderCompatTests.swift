@@ -68,6 +68,24 @@ final class ProviderCompatTests: XCTestCase {
         XCTAssertNil(body["max_completion_tokens"])
     }
 
+    func testWebAppBuilderDetectsOpenRequests() {
+        XCTAssertEqual(WebAppBuilder.detectOpenRequest("Öffne app.allo.restaurant als Browser-Mini-App"), "app.allo.restaurant")
+        XCTAssertEqual(WebAppBuilder.detectOpenRequest("open example.com"), "example.com")
+        XCTAssertEqual(WebAppBuilder.detectOpenRequest("app.allo.restaurant"), "app.allo.restaurant")
+        XCTAssertEqual(WebAppBuilder.detectOpenRequest("https://foo.bar/x"), "https://foo.bar/x")
+        // Not open-requests:
+        XCTAssertNil(WebAppBuilder.detectOpenRequest("Bau mir einen Trinkgeld-Rechner"))
+        XCTAssertNil(WebAppBuilder.detectOpenRequest("was ist app.allo.restaurant für ein service"))
+        XCTAssertNil(WebAppBuilder.detectOpenRequest("erkläre mir z.b. das"))
+    }
+
+    func testWebAppBuilderHTMLIsBrowserCapability() {
+        let html = WebAppBuilder.html(urlString: "app.allo.restaurant")
+        XCTAssertTrue(html.contains("capability: browser"))
+        XCTAssertTrue(html.contains("https://app.allo.restaurant"))
+        XCTAssertEqual(MiniAppCapability.from(html: html), .browser)
+    }
+
     func testFetchURLBlocksPrivateHosts() {
         for host in ["localhost", "127.0.0.1", "10.1.2.3", "192.168.0.5", "172.16.9.9",
                      "169.254.169.254", "100.93.237.25", "nas.local", "box.internal", "::1"] {

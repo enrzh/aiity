@@ -91,6 +91,38 @@ final class FullFlowUITests: XCTestCase {
         XCTAssertTrue(image.waitForExistence(timeout: 10), "the generated image should render inline in the chat")
     }
 
+    /// End-to-end proof that a browser mini-app actually loads an external site.
+    /// Network-dependent (loads example.com) — run to verify, not part of hermetic CI.
+    func testBrowserMiniAppLoadsExampleCom() {
+        app.launch()
+        startFreshThread()
+        sendChatMessage("Öffne example.com")
+        let keep = app.buttons["keep-app"]
+        XCTAssertTrue(keep.waitForExistence(timeout: 10))
+        keep.tap()
+        app.tabBars.buttons["Apps"].tap()
+        let item = app.buttons["library-app"].firstMatch
+        XCTAssertTrue(item.waitForExistence(timeout: 10))
+        item.tap()
+        // Consent, then the real page must load in the web view.
+        if app.alerts.buttons["Erlauben"].waitForExistence(timeout: 10) {
+            app.alerts.buttons["Erlauben"].tap()
+        }
+        let loaded = app.webViews.staticTexts["Example Domain"]
+        XCTAssertTrue(loaded.waitForExistence(timeout: 20), "the external site should load inside the browser mini-app")
+    }
+
+    /// "Öffne <url>" builds a browser mini-app deterministically — no model round.
+    func testOpenUrlBuildsBrowserAppWithoutModel() {
+        app.launch()
+        startFreshThread()
+        sendChatMessage("Öffne example.com")
+        let keep = app.buttons["keep-app"]
+        XCTAssertTrue(keep.waitForExistence(timeout: 10), "a browser mini-app should be built for an open-url request")
+        let host = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'example.com'")).firstMatch
+        XCTAssertTrue(host.waitForExistence(timeout: 5), "reply should name the host")
+    }
+
     /// A network-capability mini-app must ask the user before it gets internet.
     func testNetworkMiniAppAsksConsent() {
         app.launch()

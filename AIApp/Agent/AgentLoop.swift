@@ -226,10 +226,30 @@ final class ChatSession: ObservableObject {
         return system + tail
     }
 
+    /// Builds a browser mini-app for a URL without any model round.
+    private func buildWebApp(url: String, userText: String) {
+        messages.append(ChatMessage(role: .user, text: userText))
+        let host = WebAppBuilder.host(of: url)
+        let html = WebAppBuilder.html(urlString: url)
+        let reply = "Hier ist eine Browser-Mini-App für **\(host)**. „Vorschau“ öffnet sie sofort, „Behalten“ speichert sie unter Apps. Beim ersten Öffnen fragt sie nach Internet-Erlaubnis — danach bleibst du auf der Seite eingeloggt."
+        // Embed the HTML fence so the draft survives a restart (ChatView hides it).
+        let assistantText = reply + "\n\n```html\n" + html + "\n```"
+        messages.append(ChatMessage(role: .assistant, text: assistantText))
+        draftMiniApp = MiniAppDraft.extract(from: assistantText)
+        persist()
+        Analytics.track("webapp_built")
+    }
+
     func send(_ input: String, settings: ProviderSettings) {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !busy else { return }
         errorMessage = nil
+        // "Öffne <url>" builds a browser mini-app deterministically — the model
+        // tends to over-refuse "accessing" a site, so don't route it through one.
+        if editingContext == nil, let openURL = WebAppBuilder.detectOpenRequest(text) {
+            buildWebApp(url: openURL, userText: text)
+            return
+        }
         repairUsedThisTurn = false
         lastUserTextForRepair = text
         // Always refresh system prompt so provider/skills changes apply immediately.

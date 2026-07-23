@@ -36,6 +36,7 @@
 		4F0C46055999E167345D1444 /* AgentLoop.swift in Sources */ = {isa = PBXBuildFile; fileRef = F56CF7D28858015116950FB2 /* AgentLoop.swift */; };
 		5195B6E0E2F504654EFF8AB0 /* MiniAppBundleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CD59DF34EB2C44797D18EB6 /* MiniAppBundleTests.swift */; };
 		55C44BEB12DF7B79C059A5A3 /* ProviderHTTP.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0968349080466C8D0E568C49 /* ProviderHTTP.swift */; };
+		560B55C92EC8FF19C9327D76 /* WebAppBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E8D34CD92895CEE357BD33B /* WebAppBuilder.swift */; };
 		60B3574A25D62B373DF1164C /* ZipSkillExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C65B0A742718901D6873603 /* ZipSkillExtractor.swift */; };
 		64CE1BDF8ABE33571E7C932B /* LocalModelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DD7D24371D8F94E84498FBA /* LocalModelStore.swift */; };
 		6876F6FB1F4B6F3C6C18B869 /* ProviderProfiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07F4919952C177D32E92BB59 /* ProviderProfiles.swift */; };
@@ -154,6 +155,7 @@
 		1ECF26AD24A8A3ED8DD9E6AA /* WebSearchTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSearchTool.swift; sourceTree = "<group>"; };
 		22FCF2E8FDC1437D7606750E /* AddSkillSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddSkillSheet.swift; sourceTree = "<group>"; };
 		2C86F83176F788DEC5D87646 /* ModelCatalogCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelCatalogCache.swift; sourceTree = "<group>"; };
+		2E8D34CD92895CEE357BD33B /* WebAppBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebAppBuilder.swift; sourceTree = "<group>"; };
 		30ED079172073256DDBC629B /* AIAppLiveActivity.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = AIAppLiveActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		3483FC3CF2E1F3F8B1069CCE /* AIApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = AIApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3C5FF94B44063B01088D5671 /* ProviderProfilesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderProfilesTests.swift; sourceTree = "<group>"; };
@@ -259,6 +261,7 @@
 				C60F49D56B0F41AE9A20553C /* ModelCatalogService.swift */,
 				8ABB510FA42777974274E004 /* OAuthService.swift */,
 				08C5F4775EA7255155F12151 /* SkillPackage.swift */,
+				2E8D34CD92895CEE357BD33B /* WebAppBuilder.swift */,
 				3C65B0A742718901D6873603 /* ZipSkillExtractor.swift */,
 			);
 			path = Services;
@@ -658,6 +661,7 @@
 				EE0E7B73B10BB80480DE85EF /* ThreadsSheet.swift in Sources */,
 				BC4365B0D79250C62E441DBB /* UpgradeModal.swift in Sources */,
 				2C351D5BAB9CD0B656FCEB9A /* VideoGenerationTool.swift in Sources */,
+				560B55C92EC8FF19C9327D76 /* WebAppBuilder.swift in Sources */,
 				4B72B8AB5D07ACF3ACA0F465 /* WebSearchTool.swift in Sources */,
 				60B3574A25D62B373DF1164C /* ZipSkillExtractor.swift in Sources */,
 			);

@@ -9,6 +9,7 @@ struct LibraryView: View {
     @Environment(\.openChatTab) private var openChatTab
     @State private var openApp: MiniApp?
     @State private var iconEditApp: MiniApp?
+    @State private var showAddWebApp = false
 
     private let columns = [GridItem(.adaptive(minimum: 100), spacing: 16)]
 
@@ -29,6 +30,16 @@ struct LibraryView: View {
                 }
             }
             .navigationTitle("Meine Apps")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showAddWebApp = true
+                    } label: {
+                        Image(systemName: "globe.badge.chevron.backward")
+                    }
+                    .accessibilityIdentifier("add-webapp")
+                }
+            }
             .sheet(item: $openApp) { app in
                 MiniAppSheet(
                     appId: app.id.uuidString,
@@ -42,6 +53,18 @@ struct LibraryView: View {
             }
             .sheet(item: $iconEditApp) { app in
                 IconPickerSheet(app: app)
+            }
+            .sheet(isPresented: $showAddWebApp) {
+                AddWebAppSheet { url, name in
+                    let host = WebAppBuilder.host(of: url)
+                    modelContext.insert(MiniApp(
+                        name: name.isEmpty ? host : name,
+                        emoji: "🌐",
+                        html: WebAppBuilder.html(urlString: url, name: name),
+                        filesJSON: "{}",
+                        iconSymbol: "globe"
+                    ))
+                }
             }
         }
     }
@@ -105,6 +128,56 @@ struct LibraryView: View {
                 Label("Löschen", systemImage: "trash")
             }
         }
+    }
+}
+
+/// Create a browser mini-app that opens a website (login persists per app).
+struct AddWebAppSheet: View {
+    var onCreate: (_ url: String, _ name: String) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var url = ""
+    @State private var name = ""
+
+    private var isValid: Bool {
+        let t = url.trimmingCharacters(in: .whitespaces)
+        return t.count >= 3 && t.contains(".")
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Adresse (z. B. app.allo.restaurant)", text: $url)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.URL)
+                        .accessibilityIdentifier("webapp-url")
+                    TextField("Name (optional)", text: $name)
+                        .accessibilityIdentifier("webapp-name")
+                } header: {
+                    Text("Website als App öffnen")
+                } footer: {
+                    Text("Öffnet die Seite in einem eingebauten Browser. Du siehst die Seite, kannst dich einloggen und sie normal nutzen — der Login bleibt pro App gespeichert.")
+                }
+            }
+            .navigationTitle("Web-App")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Abbrechen") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Erstellen") {
+                        onCreate(url.trimmingCharacters(in: .whitespaces), name.trimmingCharacters(in: .whitespaces))
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                    .disabled(!isValid)
+                    .accessibilityIdentifier("webapp-create")
+                }
+            }
+        }
+        .presentationDetents([.medium])
     }
 }
 
