@@ -4,6 +4,12 @@ import UIKit
 
 /// Runs one mini-app in a sandboxed WKWebView. Capability controls CSP and
 /// whether top-level navigation / frames are allowed.
+///
+/// Security model: the native `bridge` (storage/health/notify/openExternal) is
+/// served ONLY while the web view is showing our trusted, CSP-hardened initial
+/// document. The moment the page navigates to remote or `data:` content (browser
+/// tier), the bridge is disabled so a remote/injected page cannot reach native
+/// capabilities by posting to `webkit.messageHandlers.bridge` directly.
 struct MiniAppRunnerView: UIViewRepresentable {
     let appId: String
     let html: String
@@ -26,14 +32,17 @@ struct MiniAppRunnerView: UIViewRepresentable {
         webView.uiDelegate = context.coordinator
         context.coordinator.webView = webView
         context.coordinator.capability = capability
+        context.coordinator.beginTrustedLoad()
         webView.loadHTMLString(Sandbox.harden(html, capability: capability), baseURL: nil)
         return webView
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
+        let capabilityChanged = context.coordinator.capability != capability
         context.coordinator.capability = capability
-        if context.coordinator.loadedHTML != html {
+        if context.coordinator.loadedHTML != html || capabilityChanged {
             context.coordinator.loadedHTML = html
+            context.coordinator.beginTrustedLoad()
             webView.loadHTMLString(Sandbox.harden(html, capability: capability), baseURL: nil)
         }
     }
@@ -48,29 +57,56 @@ struct MiniAppRunnerView: UIViewRepresentable {
         weak var webView: WKWebView?
         var loadedHTML: String?
 
+        /// The bridge only serves the trusted, CSP-hardened initial document.
+        private var bridgeActive = true
+        /// True for exactly one navigation: our own `loadHTMLString`.
+        private var pendingTrustedLoad = false
+
         init(appId: String, capability: MiniAppCapability) {
             self.appId = appId
             self.capability = capability
+        }
+
+        /// Mark the next navigation as a trusted (app-initiated) document load.
+        func beginTrustedLoad() {
+            pendingTrustedLoad = true
+            bridgeActive = true
         }
 
         private var storageKeyPrefix: String { "miniapp-storage-\(appId)-" }
 
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                      decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-            let scheme = navigationAction.request.url?.scheme?.lowercased()
-            if scheme == nil || scheme == "about" || scheme == "data" {
+            // Our own hardened (re)load — the only navigation that keeps the bridge.
+            if pendingTrustedLoad {
+                pendingTrustedLoad = false
                 decisionHandler(.allow)
                 return
             }
-            // Browser capability: allow in-webview http(s) navigations.
-            if capability.allowsTopLevelNavigation,
-               scheme == "http" || scheme == "https" {
+            let url = navigationAction.request.url
+            let scheme = url?.scheme?.lowercased()
+
+            // Same-document / in-memory (fragment links, about:) — harmless, keep bridge.
+            if scheme == nil || scheme == "about" {
                 decisionHandler(.allow)
                 return
             }
-            // Otherwise: user taps open in Safari; scripts cannot navigate away.
-            if navigationAction.navigationType == .linkActivated,
-               let url = navigationAction.request.url, scheme == "http" || scheme == "https" {
+
+            let isRemote = scheme == "http" || scheme == "https"
+            let isMainFrame = navigationAction.targetFrame?.isMainFrame ?? true
+
+            // Browser tier may load remote content, but once the main frame leaves
+            // our trusted document the bridge stops trusting the page.
+            if capability.allowsTopLevelNavigation, isRemote {
+                if isMainFrame { bridgeActive = false }
+                decisionHandler(.allow)
+                return
+            }
+
+            // Everything else — offline/network remote nav, any `data:` top-level
+            // load, other schemes — never navigates the sandbox. A user-tapped
+            // link opens in Safari instead; scripts cannot navigate away.
+            if isMainFrame, isRemote, navigationAction.navigationType == .linkActivated, let url {
                 UIApplication.shared.open(url)
             }
             decisionHandler(.cancel)
@@ -78,22 +114,23 @@ struct MiniAppRunnerView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                      for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-            if capability.allowsTopLevelNavigation,
-               let url = navigationAction.request.url,
-               let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" {
-                webView.load(URLRequest(url: url))
+            guard let url = navigationAction.request.url,
+                  let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else {
                 return nil
             }
-            if navigationAction.navigationType == .linkActivated,
-               let url = navigationAction.request.url,
-               let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" {
+            if capability.allowsTopLevelNavigation {
+                bridgeActive = false
+                webView.load(URLRequest(url: url))
+            } else if navigationAction.navigationType == .linkActivated {
                 UIApplication.shared.open(url)
             }
             return nil
         }
 
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-            guard message.name == "bridge",
+            // Remote/untrusted page (browser tier navigated away): no native bridge.
+            guard bridgeActive,
+                  message.name == "bridge",
                   let body = message.body as? [String: Any],
                   let callId = body["id"] as? Int,
                   let action = body["action"] as? String else { return }
@@ -146,17 +183,47 @@ struct MiniAppRunnerView: UIViewRepresentable {
                     days: (payload["days"] as? NSNumber)?.intValue ?? 7
                 )
             case "open.external":
-                if let urlString = payload["url"] as? String,
-                   let url = URL(string: urlString),
-                   let scheme = url.scheme?.lowercased(),
-                   scheme == "http" || scheme == "https" {
-                    await MainActor.run { UIApplication.shared.open(url) }
-                    return ["ok": true]
+                // Opening Safari is a user-visible action — always confirm so a
+                // generated/injected app can't silently exfiltrate via the URL.
+                guard let urlString = payload["url"] as? String,
+                      let url = URL(string: urlString),
+                      let scheme = url.scheme?.lowercased(),
+                      scheme == "http" || scheme == "https" else {
+                    return ["ok": false, "error": "invalid_url"]
                 }
-                return ["ok": false, "error": "invalid_url"]
+                let confirmed = await confirmOpenExternal(url)
+                if confirmed { UIApplication.shared.open(url, options: [:], completionHandler: nil) }
+                return ["ok": confirmed]
             default:
                 return NSNull()
             }
         }
+
+        /// Native confirmation before leaving the app for Safari.
+        @MainActor
+        private func confirmOpenExternal(_ url: URL) async -> Bool {
+            guard let presenter = webView?.window?.rootViewController?.topmostPresented else { return false }
+            let host = url.host ?? url.absoluteString
+            return await withCheckedContinuation { continuation in
+                var resumed = false
+                func finish(_ value: Bool) { if !resumed { resumed = true; continuation.resume(returning: value) } }
+                let alert = UIAlertController(
+                    title: "Im Browser öffnen?",
+                    message: host,
+                    preferredStyle: .alert
+                )
+                alert.addAction(UIAlertAction(title: "Abbrechen", style: .cancel) { _ in finish(false) })
+                alert.addAction(UIAlertAction(title: "Öffnen", style: .default) { _ in finish(true) })
+                presenter.present(alert, animated: true)
+            }
+        }
+    }
+}
+
+private extension UIViewController {
+    var topmostPresented: UIViewController {
+        var vc: UIViewController = self
+        while let presented = vc.presentedViewController { vc = presented }
+        return vc
     }
 }

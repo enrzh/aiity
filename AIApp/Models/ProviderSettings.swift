@@ -78,8 +78,8 @@ struct ProviderSettings: Codable, Equatable {
         try container.encode(model, forKey: .model)
         try container.encode(searchEndpoint, forKey: .searchEndpoint)
         try container.encode(searchBackend, forKey: .searchBackend)
-        try container.encode(searchBraveKey, forKey: .searchBraveKey)
-        try container.encode(searchTavilyKey, forKey: .searchTavilyKey)
+        // searchBraveKey / searchTavilyKey are secrets — persisted in the
+        // Keychain only, never written to the UserDefaults settings blob.
         try container.encode(localModelId, forKey: .localModelId)
         try container.encode(imageModel, forKey: .imageModel)
         try container.encode(videoModel, forKey: .videoModel)
@@ -96,10 +96,25 @@ struct ProviderSettings: Codable, Equatable {
             return settings
         }
         guard let data = UserDefaults.standard.data(forKey: storageKey),
-              let settings = try? JSONDecoder().decode(ProviderSettings.self, from: data) else {
+              var settings = try? JSONDecoder().decode(ProviderSettings.self, from: data) else {
             return ProviderSettings()
         }
+        // Search keys are Keychain-backed. Migrate any legacy plaintext value
+        // (from older builds that stored it in the settings blob) into the
+        // Keychain, then hydrate from there so the field displays but never
+        // re-persists to UserDefaults.
+        settings.searchBraveKey = Self.hydrateSecret(settings.searchBraveKey, keychainKey: "search-brave-key")
+        settings.searchTavilyKey = Self.hydrateSecret(settings.searchTavilyKey, keychainKey: "search-tavily-key")
         return settings
+    }
+
+    private static func hydrateSecret(_ decoded: String, keychainKey: String) -> String {
+        let stored = Keychain.get(keychainKey)
+        if stored.isEmpty && !decoded.isEmpty {
+            Keychain.set(decoded, for: keychainKey)  // migrate legacy plaintext
+            return decoded
+        }
+        return stored
     }
 
     func save() {

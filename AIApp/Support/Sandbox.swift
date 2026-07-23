@@ -40,7 +40,8 @@ enum Sandbox {
         health: {
           query: (type, days) => call('health.query', { type, days }),
         },
-        /** Open a URL in Safari (always allowed; use for external links). */
+        /** Open a URL in Safari. Prompts the user for confirmation first; the
+            returned {ok} reflects whether they allowed it. Use for external links. */
         openExternal: (url) => call('open.external', { url }),
         capability: document.querySelector('meta[name="aiity-capability"]')?.content || 'offline',
         _resolve: (id, value) => {

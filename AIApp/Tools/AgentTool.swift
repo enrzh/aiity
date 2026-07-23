@@ -30,7 +30,8 @@ enum ToolRegistry {
 
         var tools: [AgentTool] = [
             WebSearchTool(settings: settings),
-            FetchURLTool(),
+            // Private/LAN fetches only allowed when the chat provider is itself local.
+            FetchURLTool(allowPrivateHosts: LocalRuntimePolicy.isLocal(settings)),
         ]
         if let imageRoute = await MediaRoute.resolve(modality: .image, from: settings) {
             tools.append(ImageGenerationTool(route: imageRoute))

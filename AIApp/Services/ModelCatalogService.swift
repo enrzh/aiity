@@ -49,6 +49,15 @@ enum ModelCatalogService {
             ModelCatalogCache.save(presetId: settings.presetId, models: models)
             return models
         }
+        // Grok subscription authenticates only against the CLI proxy; api.x.ai's
+        // /models rejects the subscription token — use a curated list instead.
+        if settings.presetId == "xai", apiKey.hasPrefix(AuthStore.oauthMarker) {
+            let models = ["grok-4", "grok-3", "grok-3-mini"].map {
+                CatalogModel(id: $0, supportsTools: true)
+            }
+            ModelCatalogCache.save(presetId: settings.presetId, models: models)
+            return models
+        }
         do {
             let models: [CatalogModel]
             switch settings.preset.dialect {

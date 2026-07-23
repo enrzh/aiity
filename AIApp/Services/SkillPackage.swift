@@ -64,7 +64,9 @@ enum SkillPackage {
         guard !enabled.isEmpty else { return "" }
         let imported = prioritized(enabled.filter { !$0.builtin })
         let builtins = prioritized(enabled.filter(\.builtin))
-        let importBudget = max(1_200, Int(Double(maxChars) * 0.75))
+        // Give imports ~75% of the budget, floored at 1200 — but never more than
+        // the total budget, or a small maxChars would be silently exceeded.
+        let importBudget = min(maxChars, max(1_200, Int(Double(maxChars) * 0.75)))
         let importBlock = packSkills(imported, maxChars: importBudget, tag: "imported — high priority")
         let rest = max(0, maxChars - importBlock.count - 4)
         let builtinBlock = packSkills(builtins, maxChars: rest, tag: "built-in")

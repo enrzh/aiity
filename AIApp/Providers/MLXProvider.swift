@@ -81,8 +81,10 @@ struct MLXProvider: LLMProvider {
                         throw ProviderError.badResponse(0, "Modell nicht heruntergeladen — bitte in den Einstellungen laden.")
                     }
                     let container = try await MLXRuntime.shared.container(for: modelId)
-                    // No tool schemas for on-device models — they invent fake tool_calls and ramble.
-                    let chat = Self.buildChat(messages: messages, tools: [])
+                    // Tools only when the user opted local models in; the <tool_call>
+                    // convention is taught via the system prompt (buildChat).
+                    let effectiveTools = LocalRuntimePolicy.localToolsEnabled ? tools : []
+                    let chat = Self.buildChat(messages: messages, tools: effectiveTools)
 
                     let fullText: String = try await container.perform { context in
                         let input = try await context.processor.prepare(input: UserInput(chat: chat))
@@ -90,21 +92,32 @@ struct MLXProvider: LLMProvider {
                             maxTokens: LocalRuntimePolicy.maxTokens,
                             temperature: Float(LocalRuntimePolicy.temperature)
                         )
+                        // The emitter holds back any <tool_call> span (and a split
+                        // opening tag) from the visible stream.
+                        var emitter = ToolCallStreamEmitter()
                         var accumulated = ""
                         let stream = try MLXLMCommon.generate(input: input, parameters: parameters, context: context)
                         for await generation in stream {
                             if Task.isCancelled { break }
                             if case .chunk(let piece) = generation {
                                 accumulated += piece
-                                // Strip accidental tool_call spam if the model still emits it.
-                                if let safe = ToolCallStreamEmitter.sanitizeVisible(piece, accumulated: accumulated) {
+                                if let safe = emitter.consume(accumulated: accumulated) {
                                     continuation.yield(.textDelta(safe))
                                 }
                             }
                         }
+                        if let tail = emitter.finish(accumulated: accumulated) {
+                            continuation.yield(.textDelta(tail))
+                        }
                         return accumulated
                     }
-                    _ = fullText
+                    // Surface any tool calls the model emitted (only acted on when
+                    // tools were offered; otherwise stripped from the text above).
+                    if !effectiveTools.isEmpty {
+                        for call in Self.extractToolCalls(from: fullText) {
+                            continuation.yield(.toolCall(call))
+                        }
+                    }
                     continuation.yield(.done)
                     continuation.finish()
                 } catch {
@@ -209,28 +222,6 @@ struct ToolCallStreamEmitter {
         let end = accumulated.index(accumulated.startIndex, offsetBy: visibleEnd)
         emittedCount = visibleEnd
         return String(accumulated[start..<end])
-    }
-
-    /// Drop tool_call spans from a chunk when not using tools (local MLX path).
-    static func sanitizeVisible(_ piece: String, accumulated: String) -> String? {
-        if accumulated.contains(openTag) {
-            // Once a tool tag starts, stop showing further junk.
-            if let range = accumulated.range(of: openTag) {
-                let before = String(accumulated[..<range.lowerBound])
-                // Only emit if this piece still contributes pre-tag text — simplify: strip tags from piece
-            }
-            var cleaned = piece
-            if let r = cleaned.range(of: openTag) {
-                cleaned = String(cleaned[..<r.lowerBound])
-            }
-            cleaned = cleaned.replacingOccurrences(
-                of: #"<tool_call>[\s\S]*?</tool_call>"#,
-                with: "",
-                options: .regularExpression
-            )
-            return cleaned.isEmpty ? nil : cleaned
-        }
-        return piece
     }
 
     private static func visibleEnd(of text: String, holdTail: Bool) -> Int {

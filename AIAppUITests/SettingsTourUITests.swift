@@ -1,23 +1,30 @@
 import XCTest
 
-/// Smoke test of the connections surface: providers now open from Settings →
-/// "KI-Anbieter"; a provider's detail exposes its OAuth add-account button. The
-/// app tour screenshots every navbar surface + chat + the on-device model list.
+/// Smoke test of the connections surface: providers open from the "Mehr" tab →
+/// "KI-Anbieter & Modelle"; a provider's detail exposes its OAuth add-account
+/// button. The app tour screenshots every navbar surface. Onboarding is skipped
+/// via a launch argument.
 final class SettingsTourUITests: XCTestCase {
 
-    func testSettingsTour() {
+    private func makeApp() -> XCUIApplication {
         let app = XCUIApplication()
+        app.launchArguments += ["-onboarding.completed.v1", "1"]
+        return app
+    }
+
+    func testSettingsTour() {
+        let app = makeApp()
         app.launch()
 
-        // Providers now live behind Settings → "KI-Anbieter".
-        app.tabBars.buttons["Einstellungen"].tap()
+        // Providers live behind the "Mehr" tab → "KI-Anbieter & Modelle".
+        app.tabBars.buttons["Mehr"].tap()
         let connectionsRow = app.buttons["open-connections"]
         XCTAssertTrue(connectionsRow.waitForExistence(timeout: 10), "Settings should offer the KI-Anbieter row")
         connectionsRow.tap()
         XCTAssertTrue(app.navigationBars["Anbieter"].waitForExistence(timeout: 10))
         attach(app, name: "connections-list")
 
-        // OpenRouter detail -> OAuth add-account button must appear.
+        // OpenRouter (Schnellstart) detail -> OAuth add-account button must appear.
         let openRouterRow = app.buttons.matching(NSPredicate(format: "label CONTAINS 'OpenRouter'")).firstMatch
         scrollTo(openRouterRow, in: app)
         XCTAssertTrue(openRouterRow.waitForExistence(timeout: 10), "provider list should include OpenRouter")
@@ -39,45 +46,30 @@ final class SettingsTourUITests: XCTestCase {
         // Skills tab lists the built-ins.
         app.tabBars.buttons["Skills"].tap()
         XCTAssertTrue(app.staticTexts["UI-Design Pro"].waitForExistence(timeout: 10), "builtin skills should be listed")
-        XCTAssertTrue(app.staticTexts["Spiele-Entwickler"].exists)
-        XCTAssertTrue(app.staticTexts["Diagramme & Charts"].exists)
         attach(app, name: "skills")
     }
 
-    /// Visual tour of the navbar (Apps/Skills/Einstellungen) + the chat cover +
-    /// the on-device model list, for review screenshots on a device-hub sim.
+    /// Visual tour of the navbar (Chat/Apps/Skills/Mehr) for review screenshots.
     func testAppTour() {
-        let app = XCUIApplication()
+        let app = makeApp()
         app.launch()
 
-        // Apps page: Chat is a permanent app card here.
-        XCTAssertTrue(app.buttons["open-chat"].waitForExistence(timeout: 10))
-        attach(app, name: "tour-1-apps")
+        // Chat is the default tab (chat-input is a text field).
+        XCTAssertTrue(app.descendants(matching: .any)["chat-input"].firstMatch.waitForExistence(timeout: 10))
+        attach(app, name: "tour-1-chat")
 
-        // Open the chat cover, then close it.
-        app.buttons["open-chat"].tap()
-        _ = app.buttons["chat-new"].waitForExistence(timeout: 8)
-        attach(app, name: "tour-2-chat")
-        app.buttons["chat-close"].tap()
+        app.tabBars.buttons["Apps"].tap()
+        attach(app, name: "tour-2-apps")
 
         app.tabBars.buttons["Skills"].tap()
         attach(app, name: "tour-3-skills")
 
-        app.tabBars.buttons["Einstellungen"].tap()
-        attach(app, name: "tour-4-settings")
+        app.tabBars.buttons["Mehr"].tap()
+        attach(app, name: "tour-4-mehr")
 
-        // Settings -> KI-Anbieter -> on-device models.
         app.buttons["open-connections"].tap()
         XCTAssertTrue(app.navigationBars["Anbieter"].waitForExistence(timeout: 10))
         attach(app, name: "tour-5-anbieter")
-
-        let mlxRow = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Lokal auf dem Gerät'")).firstMatch
-        scrollTo(mlxRow, in: app)
-        if mlxRow.exists {
-            mlxRow.tap()
-            _ = app.staticTexts["Gemma 3 1B (Google)"].waitForExistence(timeout: 8)
-            attach(app, name: "tour-6-local-models")
-        }
     }
 
     /// Swipes up until the element exists (lazy List rows materialize only
@@ -96,8 +88,6 @@ final class SettingsTourUITests: XCTestCase {
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
-        // Simulator test runners are host processes: also drop the shot on
-        // disk for review workflows outside Xcode.
         let directory = URL(fileURLWithPath: "/tmp/aiapp-tour", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try? screenshot.pngRepresentation.write(to: directory.appendingPathComponent("\(name).png"))

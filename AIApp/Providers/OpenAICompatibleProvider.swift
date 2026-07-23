@@ -19,8 +19,8 @@ struct OpenAICompatibleProvider: LLMProvider {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    // Never send tools to local runtimes even if caller passed any.
-                    let effectiveTools = isLocalRuntime ? [] : tools
+                    // Local runtimes get tools only when the user opted in.
+                    let effectiveTools = (isLocalRuntime && !LocalRuntimePolicy.localToolsEnabled) ? [] : tools
                     var attempt = 0
                     while true {
                         do {
