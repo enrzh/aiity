@@ -26,22 +26,32 @@ final class MiniAppValidatorTests: XCTestCase {
         XCTAssertFalse(v.needsRepair)
     }
 
-    func testMissingRootFails() {
-        let v = MiniAppValidator.validate("<div>hi</div>")
+    func testEmptyHTMLFails() {
+        let v = MiniAppValidator.validate("   ")
         XCTAssertFalse(v.isValid)
-        XCTAssertTrue(v.issues.contains(where: { $0.lowercased().contains("html") }))
+        XCTAssertTrue(v.issues.contains(where: { $0.lowercased().contains("empty") }))
     }
 
-    func testExternalCDNFails() {
+    func testBareFragmentIsAutoWrappedToValid() {
+        // v6: prepareHTML wraps a bare fragment into a full document rather than
+        // hard-failing on a missing <html> root.
+        let v = MiniAppValidator.validate("<div>Hallo, das ist ein kleiner App-Body zum Testen.</div>")
+        XCTAssertTrue(v.isValid, v.issues.joined(separator: "; "))
+        XCTAssertTrue(MiniAppValidator.prepareHTML("<div>x</div>").lowercased().contains("<html"))
+    }
+
+    func testExternalCDNIsSoftIssue() {
         let html = """
         <!DOCTYPE html><html><head>
         <meta name="viewport" content="width=device-width">
         <script src="https://cdn.example.com/app.js"></script>
-        </head><body></body></html>
+        </head><body>Genug Inhalt, um die Mindestlänge klar zu überschreiten.</body></html>
         """
         let v = MiniAppValidator.validate(html)
-        XCTAssertFalse(v.isValid)
-        XCTAssertTrue(v.issues.contains(where: { $0.lowercased().contains("external") || $0.contains("script") }))
+        // v6: an external CDN in an offline app is advisory — the draft still
+        // shows (runtime CSP blocks it), but the issue is surfaced for repair.
+        XCTAssertTrue(v.isValid)
+        XCTAssertTrue(v.issues.contains(where: { $0.lowercased().contains("external") || $0.lowercased().contains("script") }))
     }
 
     func testExtractAndValidateFromAssistantFence() {

@@ -49,8 +49,9 @@ final class ProviderCompatTests: XCTestCase {
 
     func testDefaultModelsAreNonEmptyForCloud() {
         for preset in ProviderPreset.catalog where preset.needsKey && preset.dialect != .mlx {
-            // Together may still be empty (user must pick) — allow that one.
-            if preset.id == "together" { continue }
+            // Bring-your-own-endpoint presets (custom-openai) and Together let
+            // the user pick the model, so an empty default is expected there.
+            if preset.editableBaseURL || preset.id == "together" { continue }
             XCTAssertFalse(preset.defaultModel.isEmpty, preset.id)
         }
     }
@@ -58,12 +59,12 @@ final class ProviderCompatTests: XCTestCase {
     func testTokenLimitUsesCompletionTokensForOSeries() {
         var body: [String: Any] = [:]
         OpenAICompatibleProvider.applyTokenLimit(&body, model: "o3-mini")
-        XCTAssertEqual(body["max_completion_tokens"] as? Int, 8192)
+        XCTAssertEqual(body["max_completion_tokens"] as? Int, 12_288)
         XCTAssertNil(body["max_tokens"])
 
         body = [:]
         OpenAICompatibleProvider.applyTokenLimit(&body, model: "gpt-4o")
-        XCTAssertEqual(body["max_tokens"] as? Int, 8192)
+        XCTAssertEqual(body["max_tokens"] as? Int, 12_288)
         XCTAssertNil(body["max_completion_tokens"])
     }
 

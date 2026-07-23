@@ -1,26 +1,29 @@
 import XCTest
 
-/// Hermetic end-to-end flow against tools/stub_llm_server.py (port 8555):
-/// open the chat (now a first-class app on the Apps page), ask a question
-/// (agent does a web_search round), receive a mini-app, keep it, open it from
-/// the library, edit it via chat, and verify history survives an app restart.
+/// Hermetic end-to-end flow against tools/stub_llm_server.py (port 8555).
+/// Chat is the default tab in v6; onboarding is skipped via a launch argument.
 final class FullFlowUITests: XCTestCase {
 
     private var app: XCUIApplication!
 
+    // A CLOUD, image-capable preset (openai) pointed at the local stub. Cloud
+    // providers get the agent tools (web_search / generate_image); a plain key
+    // (not an oauth: token) keeps it on the OpenAI-compatible path, not Codex.
     private static let stubSettings = """
-    {"kind":"openAICompatible","baseURL":"http://127.0.0.1:8555/v1","model":"stub","searchEndpoint":"http://127.0.0.1:8555"}
+    {"presetId":"openai","baseURL":"http://127.0.0.1:8555/v1","model":"stub","searchEndpoint":"http://127.0.0.1:8555"}
     """
 
     override func setUp() {
         continueAfterFailure = false
         app = XCUIApplication()
         app.launchEnvironment["PROVIDER_SETTINGS_JSON"] = Self.stubSettings
+        app.launchEnvironment["AIITY_TEST_API_KEY"] = "stub-key"  // satisfy the needs-key gate
+        // Skip the first-run onboarding wizard (writes the completed flag).
+        app.launchArguments += ["-onboarding.completed.v1", "1"]
     }
 
     func testFullMiniAppFlow() {
         app.launch()
-        openChat()
         startFreshThread()
 
         // 1. Ask for an app — the stub first requests a web_search round.
@@ -33,18 +36,18 @@ final class FullFlowUITests: XCTestCase {
         XCTAssertTrue(keepButton.waitForExistence(timeout: 10), "mini-app card should appear")
         keepButton.tap()
 
-        // 3. Close the chat cover and open the kept app from the library behind it.
-        app.buttons["chat-close"].tap()
+        // 3. Open the kept app from the Apps tab.
+        app.tabBars.buttons["Apps"].tap()
         let libraryItem = app.buttons["library-app"].firstMatch
         XCTAssertTrue(libraryItem.waitForExistence(timeout: 10), "kept app should show up in the library")
         libraryItem.tap()
         let runner = app.webViews.firstMatch
         XCTAssertTrue(runner.waitForExistence(timeout: 15), "mini-app web view should load")
-        app.buttons["Fertig"].tap()
+        app.buttons["miniapp-done"].tap()
 
-        // 4. Continue the mini-app in the chat (context menu -> edit reopens chat).
+        // 4. Continue the mini-app via the context menu → opens the Chat tab.
         libraryItem.press(forDuration: 1.2)
-        let editAction = app.buttons["Im Chat bearbeiten"]
+        let editAction = app.buttons["Mit KI bearbeiten"]
         XCTAssertTrue(editAction.waitForExistence(timeout: 10), "context menu should offer editing")
         editAction.tap()
 
@@ -55,10 +58,9 @@ final class FullFlowUITests: XCTestCase {
         XCTAssertTrue(keepEdited.waitForExistence(timeout: 10))
         keepEdited.tap()
 
-        // 5. Chat history must survive a restart (reopen the chat after relaunch).
+        // 5. Chat history must survive a restart (Chat tab is default on relaunch).
         app.terminate()
         app.launch()
-        openChat()
         let restoredMessage = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Hintergrund blau'")).firstMatch
         XCTAssertTrue(restoredMessage.waitForExistence(timeout: 15), "chat history should be restored after relaunch")
 
@@ -81,20 +83,12 @@ final class FullFlowUITests: XCTestCase {
     /// PNG, and the chat shows it inline.
     func testImageGenerationShowsInlineImage() {
         app.launch()
-        openChat()
         startFreshThread()
         sendChatMessage("Mach mir ein Bild von einer roten Katze")
         let answer = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Hier ist dein Bild'")).firstMatch
         XCTAssertTrue(answer.waitForExistence(timeout: 25), "assistant should confirm the generated image")
         let image = app.images["generated-image"]
         XCTAssertTrue(image.waitForExistence(timeout: 10), "the generated image should render inline in the chat")
-    }
-
-    /// Chat is now opened from the Apps page (a permanent "Chat" app), not a tab.
-    private func openChat() {
-        let chat = app.buttons["open-chat"]
-        XCTAssertTrue(chat.waitForExistence(timeout: 15), "Chat card should exist on the Apps page")
-        chat.tap()
     }
 
     /// Threads persist in the simulator across test runs; stale tool results

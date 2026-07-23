@@ -568,6 +568,7 @@ private struct GeneratedMediaView: View {
                     .scaledToFit()
                     .frame(maxWidth: 280)
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .accessibilityIdentifier("generated-image")
             }
         case .videoURL:
             if let url = MediaStore.videoURL(for: mediaId) {

@@ -37,6 +37,13 @@ enum AuthStore {
     /// as-is, or an OAuth token as "oauth:<access token>" (refreshed first
     /// when near expiry). Empty when no account is configured.
     static func effectiveKey(for settings: ProviderSettings) async -> String {
+        #if DEBUG
+        // Hermetic UI tests point a cloud preset at a local stub; this injects a
+        // dummy key so the "needs key" gate passes and tools get exercised.
+        if let forced = ProcessInfo.processInfo.environment["AIITY_TEST_API_KEY"], !forced.isEmpty {
+            return forced
+        }
+        #endif
         guard let account = AccountStore.activeAccount(for: settings.presetId) else { return "" }
         return await effectiveKey(forKeychainKey: account.keychainKey, oauthConfig: settings.preset.oauth)
     }
@@ -49,21 +56,55 @@ enum AuthStore {
     }
 
     private static func effectiveKey(forKeychainKey key: String, oauthConfig: OAuthProviderConfig?) async -> String {
-        guard var credential = storedOAuthCredential(account: key) else {
+        guard let credential = storedOAuthCredential(account: key) else {
             return Keychain.get(key)
         }
-        // Refresh when expired or about to expire (2 min buffer).
+        // Refresh when expired or about to expire (2 min buffer). Deduped so two
+        // near-simultaneous callers (chat stream + model list / connection probe)
+        // don't each spend the single-use refresh token — the loser would get
+        // `invalid_grant` and could clobber the credential to a stale state.
         if let expiresAt = credential.expiresAt,
            expiresAt < Date().addingTimeInterval(120),
            let refreshToken = credential.refreshToken,
            let config = oauthConfig {
-            if let refreshed = try? await OAuthService.refresh(config: config, refreshToken: refreshToken) {
-                var updated = refreshed
-                updated.accountId = updated.accountId ?? credential.accountId
-                credential = updated
-                save(credential, account: key)
-            }
+            let refreshed = await TokenRefreshCoordinator.shared.refresh(
+                account: key, config: config, refreshToken: refreshToken, currentAccountId: credential.accountId
+            )
+            if let refreshed { return oauthMarker + refreshed.accessToken }
         }
         return oauthMarker + credential.accessToken
+    }
+}
+
+/// Serializes OAuth token refresh per account so concurrent callers share one
+/// in-flight refresh instead of each burning the single-use refresh token.
+actor TokenRefreshCoordinator {
+    static let shared = TokenRefreshCoordinator()
+    private var inFlight: [String: Task<OAuthCredential?, Never>] = [:]
+
+    func refresh(account: String, config: OAuthProviderConfig, refreshToken: String,
+                 currentAccountId: String?) async -> OAuthCredential? {
+        // A refresh for this account may already have completed while we waited;
+        // re-read and skip if the stored credential is now comfortably valid.
+        if let current = AuthStore.storedOAuthCredential(account: account),
+           let expiresAt = current.expiresAt, expiresAt > Date().addingTimeInterval(120) {
+            return current
+        }
+        if let existing = inFlight[account] {
+            return await existing.value
+        }
+        let task = Task<OAuthCredential?, Never> {
+            guard let refreshed = try? await OAuthService.refresh(config: config, refreshToken: refreshToken) else {
+                return nil
+            }
+            var updated = refreshed
+            updated.accountId = updated.accountId ?? currentAccountId
+            AuthStore.save(updated, account: account)
+            return updated
+        }
+        inFlight[account] = task
+        let result = await task.value
+        inFlight[account] = nil
+        return result
     }
 }

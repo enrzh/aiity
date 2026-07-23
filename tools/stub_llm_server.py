@@ -108,7 +108,7 @@ class Handler(BaseHTTPRequestHandler):
         system = next((m.get("content", "") for m in messages if m.get("role") == "system"), "")
         tool_texts = [m.get("content", "") for m in messages if m.get("role") == "tool"]
         last_user = next((m.get("content", "") for m in reversed(messages) if m.get("role") == "user"), "")
-        editing = "editing the existing mini-app" in (system or "")
+        editing = "You are editing" in (system or "")
         wants_image = "bild" in last_user.lower()
         image_done = any("Bild erstellt" in (t or "") for t in tool_texts)
 
