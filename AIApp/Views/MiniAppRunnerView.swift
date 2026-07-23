@@ -23,8 +23,13 @@ struct MiniAppRunnerView: UIViewRepresentable {
         let configuration = WKWebViewConfiguration()
         configuration.userContentController.add(context.coordinator, name: "bridge")
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
-        // Browser tier may load remote frames; still no free-for-all cookies.
-        configuration.websiteDataStore = .nonPersistent()
+        // A browser-tier app keeps a persistent, per-app session so the user
+        // stays logged in to the site it opens; other tiers stay ephemeral.
+        if MiniAppCapability.from(html: html) == .browser {
+            configuration.websiteDataStore = WKWebsiteDataStore(forIdentifier: Self.sessionStoreID(for: appId))
+        } else {
+            configuration.websiteDataStore = .nonPersistent()
+        }
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.isOpaque = false
         webView.scrollView.contentInsetAdjustmentBehavior = .never
@@ -49,6 +54,11 @@ struct MiniAppRunnerView: UIViewRepresentable {
 
     static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "bridge")
+    }
+
+    /// Stable per-app data-store id for persistent browser sessions (iOS 17+).
+    static func sessionStoreID(for appId: String) -> UUID {
+        UUID(uuidString: appId) ?? UUID(uuidString: "3F2504E0-4F89-41D3-9A0C-0305E82C3301")!
     }
 
     final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
