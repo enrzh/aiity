@@ -1,9 +1,12 @@
 import SwiftUI
+import SwiftData
 
 /// App settings: provider entry + web search. Keep this screen short.
 struct SettingsView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     @ObservedObject private var prefs = AppPreferences.shared
+    @Query private var savedApps: [MiniApp]
+    @State private var backupURL: URL?
 
     private var settings: Binding<ProviderSettings> { $settingsStore.settings }
 
@@ -29,6 +32,25 @@ struct SettingsView: View {
                     .accessibilityIdentifier("open-connections")
                 } footer: {
                     Text("Chat / Bild / Video getrennt. „Eigener Server“ für jede OpenAI-kompatible API.")
+                }
+
+                Section {
+                    Button {
+                        backupURL = BackupService.writeBackup(apps: savedApps, createdAt: .now)
+                    } label: {
+                        Label("Backup erstellen", systemImage: "arrow.down.doc")
+                    }
+                    .accessibilityIdentifier("create-backup")
+                    if let backupURL {
+                        ShareLink(item: backupURL) {
+                            Label("Backup teilen / sichern", systemImage: "square.and.arrow.up")
+                        }
+                        .accessibilityIdentifier("share-backup")
+                    }
+                } header: {
+                    Text("Backup")
+                } footer: {
+                    Text("Sichert \(BackupService.summary(apps: savedApps)) als JSON-Datei. Ohne Backup sind deine Mini-Apps beim Löschen der App weg. API-Keys und Logins sind NICHT enthalten — die bleiben im Schlüsselbund des Geräts.")
                 }
 
                 Section {
@@ -77,6 +99,14 @@ struct SettingsView: View {
                     Text("Web-Suche")
                 } footer: {
                     Text("Auto wählt Tavily → Brave → SearXNG → DuckDuckGo. Keys von brave.com/search/api bzw. tavily.com. Nach der Suche holt der Agent per fetch_url den Seiteninhalt.")
+                }
+
+                Section {
+                    Text("Deine Daten bleiben auf dem Gerät: Chats, Mini-Apps und Skills werden lokal gespeichert, API-Keys und Logins im Schlüsselbund. aiity betreibt keinen eigenen Server — Anfragen gehen direkt an den Anbieter, den du einrichtest (oder an dein eigenes Gateway). Web-Suche und fetch_url kontaktieren die gewählte Suchmaschine bzw. die aufgerufene Seite.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } header: {
+                    Text("Datenschutz")
                 }
 
                 Section {
