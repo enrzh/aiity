@@ -110,4 +110,18 @@ final class ModelCatalogTests: XCTestCase {
             XCTFail("expected success")
         }
     }
+
+    func testIsLikelyChatModelKeepsChatHidesSpecialised() {
+        // Chat models stay.
+        for id in ["gpt-4.1", "gpt-4o", "gpt-5", "o3-mini", "claude-sonnet-4-5",
+                   "grok-3", "gpt-4-vision-preview"] {
+            XCTAssertTrue(ModelCatalogService.isLikelyChatModel(id: id), id)
+        }
+        // Specialised (non-chat) ids are filtered out of the chat picker.
+        for id in ["text-embedding-3-large", "whisper-1", "tts-1", "gpt-4o-mini-tts",
+                   "gpt-4o-audio-preview", "gpt-4o-realtime-preview", "dall-e-3",
+                   "gpt-image-1", "omni-moderation-latest"] {
+            XCTAssertFalse(ModelCatalogService.isLikelyChatModel(id: id), id)
+        }
+    }
 }

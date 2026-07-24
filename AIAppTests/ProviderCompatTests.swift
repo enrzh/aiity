@@ -158,4 +158,29 @@ final class ProviderCompatTests: XCTestCase {
         let prompt = ChatSession.buildSystemPrompt(settings: settings, editing: nil)
         XCTAssertTrue(prompt.contains("skills truncated") || prompt.count < blob.count + 2000)
     }
+
+    func testFriendly429DistinguishesQuotaFromRateLimit() {
+        let quota = ProviderRequestSupport.friendlyError(
+            status: 429,
+            body: #"{"error":{"message":"You exceeded your current quota","type":"insufficient_quota"}}"#
+        )
+        XCTAssertTrue(quota.lowercased().contains("guthaben") || quota.lowercased().contains("kontingent"), quota)
+        XCTAssertFalse(quota.contains("kurz warten"), quota)
+
+        let rate = ProviderRequestSupport.friendlyError(
+            status: 429,
+            body: #"{"error":{"message":"Rate limit reached for requests"}}"#
+        )
+        XCTAssertTrue(rate.contains("kurz warten"), rate)
+    }
+
+    func testAnthropicMaxTokensClampsLegacyClaude3() {
+        // Legacy Claude 3 caps at 4096; requesting more 400s a valid key.
+        XCTAssertEqual(AnthropicProvider.maxTokens(for: "claude-3-opus-20240229", isOAuth: false), 4_096)
+        XCTAssertEqual(AnthropicProvider.maxTokens(for: "claude-3-haiku-20240307", isOAuth: false), 4_096)
+        // 3.5 / 3.7 and 4.x keep the higher budget.
+        XCTAssertEqual(AnthropicProvider.maxTokens(for: "claude-3-5-sonnet-latest", isOAuth: false), 8_192)
+        XCTAssertEqual(AnthropicProvider.maxTokens(for: "claude-sonnet-4-5", isOAuth: false), 8_192)
+        XCTAssertEqual(AnthropicProvider.maxTokens(for: "claude-sonnet-4-5", isOAuth: true), 6_144)
+    }
 }

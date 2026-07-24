@@ -285,6 +285,23 @@ enum ModelCatalogService {
             || id.contains("claude-opus") || id.contains("pixtral") || id.contains("llava")
     }
 
+    /// True when an id looks like a text-chat model, not a specialised
+    /// embeddings / audio / image / moderation / realtime model. Providers like
+    /// OpenAI return the whole account catalog from `/models`, so without this
+    /// the chat picker fills with `text-embedding-*`, `tts-*`, `whisper-*`,
+    /// `dall-e-*`, `*-realtime-*` and `*-audio-*` ids that can't chat.
+    /// Precise substrings only — a stray keep is better than hiding a real model.
+    static func isLikelyChatModel(id: String) -> Bool {
+        let l = id.lowercased()
+        let nonChat = [
+            "embedding", "text-embedding", "whisper", "-tts", "tts-",
+            "text-to-speech", "-audio", "audio-", "transcribe", "dall-e",
+            "dalle", "gpt-image", "moderation", "-realtime", "realtime-",
+            "sora", "rerank",
+        ]
+        return !nonChat.contains { l.contains($0) }
+    }
+
     /// Higher is better for auto-pick.
     private static func score(_ id: String, presetId: String) -> Int {
         let lower = id.lowercased()

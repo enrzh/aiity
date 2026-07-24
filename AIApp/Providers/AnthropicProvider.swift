@@ -19,6 +19,19 @@ struct AnthropicProvider: LLMProvider {
 
     private var isOAuth: Bool { apiKey.hasPrefix(AuthStore.oauthMarker) }
 
+    /// Output-token budget that stays within the selected model's cap so a valid
+    /// key doesn't 400 on a lower-cap model. Legacy Claude 3 (opus/sonnet/haiku,
+    /// not 3.5/3.7) caps at 4096; newer models allow more. OAuth trims slightly
+    /// for a faster first token.
+    static func maxTokens(for model: String, isOAuth: Bool) -> Int {
+        let m = model.lowercased()
+        let isLegacyClaude3 = m.contains("claude-3")
+            && !m.contains("claude-3-5") && !m.contains("claude-3.5")
+            && !m.contains("claude-3-7") && !m.contains("claude-3.7")
+        if isLegacyClaude3 { return 4_096 }
+        return isOAuth ? 6_144 : 8_192
+    }
+
     func streamChat(messages: [ChatMessage], tools: [ToolSpec]) -> AsyncThrowingStream<ChatEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
@@ -102,8 +115,7 @@ struct AnthropicProvider: LLMProvider {
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
 
         let system = messages.first(where: { $0.role == .system })?.text
-        // OAuth: slightly lower max_tokens for faster first token; still enough for apps.
-        let maxTokens = isOAuth ? 6_144 : 8_192
+        let maxTokens = Self.maxTokens(for: model, isOAuth: isOAuth)
         var body: [String: Any] = [
             "model": model,
             "stream": true,
@@ -146,13 +158,13 @@ struct AnthropicProvider: LLMProvider {
             if status == 401 || status == 403, isOAuth {
                 throw ProviderError.badResponse(
                     status,
-                    "Claude-Abo Auth \(status) — unter Anbieter erneut mit Claude anmelden (Token abgelaufen)."
+                    "Claude-Abo-Login abgelehnt (\(status)). Abo-Zugriff über Dritt-Apps ist nicht garantiert — mit einem API-Key (Pay-as-you-go, console.anthropic.com/settings/keys) läuft es zuverlässig."
                 )
             }
             if status == 429, isOAuth {
                 throw ProviderError.badResponse(
                     status,
-                    "Claude-Abo Limit/Overage — kurz warten, kürzeren Prompt, oder API-Key statt Abo nutzen."
+                    "Claude-Abo-Login vom Server abgewiesen (429). Ein Abo deckt API-/Dritt-App-Nutzung meist nicht ab — ein eigener API-Key (console.anthropic.com/settings/keys) ist zuverlässig."
                 )
             }
             throw ProviderError.fromHTTP(status: status, body: errorBody)

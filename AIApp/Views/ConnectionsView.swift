@@ -143,7 +143,11 @@ struct ConnectionsView: View {
     private func statusText(for preset: ProviderPreset) -> String {
         if preset.dialect == .mlx { return "On-Device (MLX)" }
         switch accountStore.accounts(for: preset.id).count {
-        case 0: return preset.oauthAvailable ? "API-Key oder Abo-Login" : "API-Key"
+        case 0:
+            // Subscription (paste-code) OAuth is experimental for third-party
+            // apps; present the API key as the primary, recommended path.
+            if preset.oauth?.flow == .pasteCode { return "API-Key (empfohlen) · Abo-Login möglich" }
+            return preset.oauthAvailable ? "API-Key oder Abo-Login" : "API-Key"
         case 1: return "1 Konto"
         case let count: return "\(count) Konten"
         }
@@ -507,10 +511,26 @@ struct ProviderConnectionView: View {
                     if oauth.busy {
                         ProgressView()
                     } else {
-                        Label("Konto per \(oauthVerb) hinzufügen", systemImage: "person.crop.circle.badge.plus")
+                        Label(oauthButtonTitle, systemImage: "person.crop.circle.badge.plus")
                     }
                 }
                 .disabled(oauth.busy)
+                .accessibilityIdentifier("oauth-add-account")
+            }
+            // Honest steer: consumer-subscription OAuth is not an officially
+            // supported third-party path — recommend a pay-as-you-go API key.
+            // (OpenRouter's key-exchange OAuth is legit, so it is excluded.)
+            if preset.oauth?.flow == .pasteCode {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Abo-Login (ChatGPT-/Claude-/Grok-Abo) ist für Dritt-Apps nicht offiziell unterstützt und kann jederzeit eingeschränkt werden. Zuverlässig und empfohlen: ein eigener API-Key (Pay-as-you-go).")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    if let url = apiKeyURL {
+                        Link(apiKeyLinkTitle, destination: url)
+                            .font(.caption.weight(.semibold))
+                    }
+                }
+                .padding(.vertical, 2)
             }
             if let authError {
                 Text(authError).font(.caption).foregroundStyle(.red)
@@ -519,7 +539,7 @@ struct ProviderConnectionView: View {
             Text("Konten")
         } footer: {
             Text(accounts.isEmpty
-                 ? "Noch kein Konto — Key eintragen oder per Abo-Login anmelden."
+                 ? "Noch kein Konto — am besten einen API-Key eintragen (Pay-as-you-go)."
                  : "Mehrere Konten möglich; das angehakte gilt für alle Nutzungsarten dieses Anbieters.")
         }
     }
@@ -528,17 +548,47 @@ struct ProviderConnectionView: View {
         preset.label.components(separatedBy: " ").first ?? preset.label
     }
 
+    /// Provider-specific sign-in verb (avoids awkward "Konto per xAI hinzufügen").
+    private var oauthButtonTitle: String {
+        switch presetId {
+        case "openai": return "Mit ChatGPT-Abo anmelden"
+        case "anthropic": return "Mit Claude-Abo anmelden"
+        case "xai": return "Mit Grok-Abo anmelden"
+        case "openrouter": return "Mit OpenRouter anmelden"
+        default: return "Konto per \(oauthVerb) hinzufügen"
+        }
+    }
+
+    /// Where to get a pay-as-you-go API key for the recommended path.
+    private var apiKeyURL: URL? {
+        switch presetId {
+        case "openai": return URL(string: "https://platform.openai.com/api-keys")
+        case "anthropic": return URL(string: "https://console.anthropic.com/settings/keys")
+        case "xai": return URL(string: "https://console.x.ai")
+        default: return nil
+        }
+    }
+
+    private var apiKeyLinkTitle: String {
+        switch presetId {
+        case "openai": return "API-Key erstellen (platform.openai.com)"
+        case "anthropic": return "API-Key erstellen (console.anthropic.com)"
+        case "xai": return "API-Key erstellen (console.x.ai)"
+        default: return "API-Key erstellen"
+        }
+    }
+
     // MARK: OpenAI path
 
     private var openAIPathSection: some View {
         Section {
             if isOpenAIOAuth {
                 Label {
-                    Text("ChatGPT-Abo (Codex) — Modelle laufen über das Codex-Backend, nicht über api.openai.com. Modell-IDs können abweichen. Bild/Video brauchen einen API-Key (Abschnitt Bild/Video).")
+                    Text("ChatGPT-Abo (Codex): experimentell und für Dritt-Apps nicht garantiert — kann jederzeit abgewiesen werden. Zuverlässig ist ein API-Key-Konto (platform.openai.com/api-keys). Bild/Video brauchen ohnehin einen API-Key.")
                         .font(.footnote)
                 } icon: {
-                    Image(systemName: "person.crop.circle.badge.checkmark")
-                        .foregroundStyle(Color.accentColor)
+                    Image(systemName: "exclamationmark.triangle")
+                        .foregroundStyle(.orange)
                 }
             } else {
                 Label {
@@ -639,7 +689,10 @@ struct ProviderConnectionView: View {
     private var filteredCatalogModels: [CatalogModel] {
         switch modality {
         case .chat:
-            return catalogModels
+            // Keep specialised embedding/audio/image/moderation ids out of the
+            // chat picker (OpenAI's /models returns the whole account catalog).
+            let chat = catalogModels.filter { ModelCatalogService.isLikelyChatModel(id: $0.id) }
+            return chat.isEmpty ? catalogModels : chat
         case .image:
             let gen = catalogModels.filter {
                 MediaCapability.modelLooksGenerative(id: $0.id.lowercased())
@@ -953,13 +1006,13 @@ struct ProviderConnectionView: View {
         case "mlx":
             return "Modelle laufen komplett auf dem Gerät (Apple MLX) — offline, privat, kostenlos. Download einmalig über WLAN empfohlen. Im Simulator nicht verfügbar."
         case "anthropic":
-            return "Abo-Login nutzt dein Claude-Abo per CLI-OAuth (Claude-Code-Flow): Browser öffnet sich, du autorisierst, kopierst den angezeigten Code zurück. Alternativ API-Key."
+            return "Empfohlen: eigener API-Key (console.anthropic.com/settings/keys) — offiziell und zuverlässig. Der Claude-Abo-Login ist experimentell und für Dritt-Apps nicht garantiert."
         case "openrouter":
-            return "Abo-Login per OAuth holt automatisch einen API-Key — oder eigenen Key einfügen."
+            return "OAuth holt automatisch einen echten API-Key (Pay-as-you-go) — oder eigenen Key einfügen. Voll unterstützt."
         case "openai":
-            return "Abo-Login nutzt dein ChatGPT-Abo per Codex-CLI-OAuth (Code kopieren). Läuft über OpenAIs Codex-Backend. Bild/Video: API-Key-Konto und eigener Slot unter Bild/Video."
+            return "Empfohlen: eigener API-Key (platform.openai.com/api-keys) — Standard Chat Completions, zuverlässig. Der ChatGPT-Abo-Login ist experimentell und für Dritt-Apps nicht garantiert. Bild/Video brauchen ohnehin einen API-Key."
         case "xai":
-            return "Abo-Login nutzt dein SuperGrok / X-Premium+-Abo per grok-cli-OAuth (Code kopieren) — läuft über den Grok-CLI-Proxy. Alternativ API-Key oder Grok per OpenRouter."
+            return "Empfohlen: eigener API-Key (console.x.ai) — oder Grok per OpenRouter. Der Grok-Abo-Login ist experimentell und für Dritt-Apps nicht garantiert."
         case "sub2api":
             return "Server-Adresse deiner sub2api-Instanz eintragen (nur der Host reicht, „/v1“ wird ergänzt) und den sub2api-Key als API-Key. Danach „Modelle laden“ tippen."
         default:

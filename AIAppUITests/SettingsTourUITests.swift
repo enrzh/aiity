@@ -29,7 +29,7 @@ final class SettingsTourUITests: XCTestCase {
         scrollTo(openRouterRow, in: app)
         XCTAssertTrue(openRouterRow.waitForExistence(timeout: 10), "provider list should include OpenRouter")
         openRouterRow.tap()
-        let oauthButton = app.buttons.matching(NSPredicate(format: "label CONTAINS 'hinzufügen'")).firstMatch
+        let oauthButton = app.buttons["oauth-add-account"]
         XCTAssertTrue(oauthButton.waitForExistence(timeout: 10), "OAuth add-account button should appear for OpenRouter")
         attach(app, name: "connections-openrouter")
 
@@ -39,7 +39,7 @@ final class SettingsTourUITests: XCTestCase {
         scrollTo(xaiRow, in: app)
         XCTAssertTrue(xaiRow.waitForExistence(timeout: 10), "provider list should include xAI (Grok)")
         xaiRow.tap()
-        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS 'hinzufügen'")).firstMatch.waitForExistence(timeout: 10),
+        XCTAssertTrue(app.buttons["oauth-add-account"].waitForExistence(timeout: 10),
                       "OAuth add-account button should appear for Grok")
         attach(app, name: "connections-xai")
 

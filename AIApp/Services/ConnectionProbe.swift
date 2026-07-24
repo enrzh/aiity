@@ -221,7 +221,7 @@ enum ConnectionProbe {
         } catch {
             return ConnectionProbeResult(
                 ok: false, models: models,
-                reason: "Modelle ok (\(models.count)), aber Chat-Test (Codex-Backend): \(NetworkErrorFriendly.message(for: error))",
+                reason: "ChatGPT-Abo-Login wird vom Backend abgewiesen — Abo-Zugriff für Dritt-Apps ist nicht garantiert. Zuverlässig: eigener API-Key (platform.openai.com/api-keys). (Technisch: \(NetworkErrorFriendly.message(for: error)))",
                 toolsLikely: false, chatOnly: true
             )
         }
@@ -319,12 +319,15 @@ enum ConnectionProbe {
             request.timeoutInterval = 20
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             applyAuth(to: &request, apiKey: apiKey, dialect: dialect)
-            let body: [String: Any] = [
+            var body: [String: Any] = [
                 "model": model,
                 "stream": false,
-                "max_tokens": 8,
                 "messages": [["role": "user", "content": "Reply with exactly: ok"]],
             ]
+            // gpt-5 / o-series reject `max_tokens` and require `max_completion_tokens`;
+            // reuse the live path's tested branching so a valid key doesn't fail the
+            // chat test just because a reasoning model is selected.
+            OpenAICompatibleProvider.applyTokenLimit(&body, model: model, limit: 64)
             request.httpBody = jsonData(body)
             return request
         case .anthropic:

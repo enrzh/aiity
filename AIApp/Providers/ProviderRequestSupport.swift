@@ -82,10 +82,16 @@ enum ProviderRequestSupport {
             return "Modell nicht gefunden: \(detail) — unter Anbieter ein gültiges Modell wählen."
         }
         if status == 401 || status == 403 {
-            return "Auth-Fehler \(status): \(detail) — API-Key oder Abo-Login erneuern (bei ChatGPT-Abo: erneut anmelden)."
+            return "Auth-Fehler \(status): \(detail) — API-Key prüfen/erneuern. (Abo-Logins sind für Dritt-Apps nicht garantiert; ein eigener API-Key ist zuverlässiger.)"
         }
         if status == 429 {
-            return "Rate-Limit / Kontingent erschöpft — kurz warten oder anderes Modell/Konto."
+            // Billing exhaustion (insufficient_quota) is not a transient rate
+            // limit — "kurz warten" would be wrong advice there.
+            if lower.contains("insufficient_quota") || lower.contains("exceeded your current quota")
+                || lower.contains("billing") || lower.contains("payment") || lower.contains("credit") {
+                return "Kontingent/Guthaben aufgebraucht — Abrechnung/Guthaben beim Anbieter prüfen (ein Abo deckt die API-Nutzung meist nicht ab; API-Key nutzen)."
+            }
+            return "Rate-Limit erreicht — kurz warten und erneut versuchen (ggf. anderes Modell/Konto)."
         }
         if isToolUnsupportedError(status: status, body: detail) {
             return "Dieses Modell unterstützt keine Tool-Calls. Die App versucht es ohne Tools erneut…"

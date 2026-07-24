@@ -13,6 +13,9 @@ struct ChatView: View {
     @State private var showUpgrade = false
     @State private var showQuickProvider = false
     @State private var showSkills = false
+    /// Measured height of the floating input bubble — drives the scroll
+    /// clearance so a multi-line input never overlaps the last message.
+    @State private var inputBarHeight: CGFloat = 64
     @Environment(\.modelContext) private var modelContext
 
     private var visibleMessages: [ChatMessage] {
@@ -177,8 +180,9 @@ struct ChatView: View {
                     }
                     .padding()
                     // Clearance so the last message can scroll clear of the
-                    // floating input bubble (which now overlays the content).
-                    .padding(.bottom, 72)
+                    // floating input bubble (which overlays the content). Tracks
+                    // the measured bubble height so a 6-line input never overlaps.
+                    .padding(.bottom, inputBarHeight + 16)
                 }
                 .onChange(of: visibleMessages.last?.text) {
                     if let lastId = visibleMessages.last?.id {
@@ -203,7 +207,25 @@ struct ChatView: View {
         // Input floats over the scroll content so messages pass behind it.
         .overlay(alignment: .bottom) {
             inputBar
+                // Soft fade so scrolled message text dissolves under the bubble
+                // instead of colliding with it edge-to-edge.
+                .background(alignment: .bottom) {
+                    LinearGradient(
+                        colors: [Color(.systemBackground).opacity(0),
+                                 Color(.systemBackground).opacity(0.9)],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                    .frame(height: inputBarHeight + 28)
+                    .allowsHitTesting(false)
+                    .ignoresSafeArea(edges: .bottom)
+                }
+                .background(
+                    GeometryReader { geo in
+                        Color.clear.preference(key: InputBarHeightKey.self, value: geo.size.height)
+                    }
+                )
         }
+        .onPreferenceChange(InputBarHeightKey.self) { inputBarHeight = $0 }
         .navigationTitle(session.activeThreadTitle.isEmpty ? "Chat" : session.activeThreadTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -442,6 +464,13 @@ struct ChatView: View {
 
 extension MiniAppDraft: Identifiable {
     var id: String { name + String(html.hashValue) }
+}
+
+/// Reports the floating input bubble's measured height up to ChatView so the
+/// scroll clearance and fade scrim can track a growing multi-line field.
+private struct InputBarHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 64
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
 // MARK: - Bubbles
