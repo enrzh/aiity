@@ -318,14 +318,20 @@ struct ChatView: View {
         .padding(.top, 24)
     }
 
+    // Floating input: a text-field bubble and a round send/stop bubble — no bar.
     private var inputBar: some View {
         HStack(alignment: .bottom, spacing: 10) {
             TextField(isEditingApp ? "Änderung beschreiben…" : "Nachricht", text: $input, axis: .vertical)
                 .lineLimit(1...6)
                 .textFieldStyle(.plain)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 11)
+                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.05))
+                )
+                .shadow(color: .black.opacity(0.06), radius: 7, y: 2)
                 .onSubmit(send)
                 .disabled(session.busy)
                 .accessibilityIdentifier("chat-input")
@@ -337,17 +343,27 @@ struct ChatView: View {
                 }
             if session.busy {
                 Button { session.stop() } label: {
-                    Image(systemName: "stop.circle.fill")
-                        .font(.system(size: 34))
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(.red)
+                    Image(systemName: "stop.fill")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 40, height: 40)
+                        .background(Color.red, in: Circle())
+                        .shadow(color: .red.opacity(0.35), radius: 6, y: 2)
                 }
                 .accessibilityIdentifier("chat-stop")
             } else {
                 Button(action: send) {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.system(size: 34))
-                        .symbolRenderingMode(.hierarchical)
+                    Image(systemName: "arrow.up")
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(sanitizedInput.isEmpty ? Color.secondary : .white)
+                        .frame(width: 40, height: 40)
+                        .background(
+                            sanitizedInput.isEmpty
+                                ? AnyShapeStyle(Color(.tertiarySystemFill))
+                                : AnyShapeStyle(Theme.accentGradient),
+                            in: Circle()
+                        )
+                        .shadow(color: sanitizedInput.isEmpty ? .clear : Theme.accent.opacity(0.35), radius: 6, y: 2)
                 }
                 .disabled(sanitizedInput.isEmpty)
                 .accessibilityIdentifier("chat-send")
@@ -355,7 +371,6 @@ struct ChatView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(.bar)
     }
 
     private var sanitizedInput: String {
