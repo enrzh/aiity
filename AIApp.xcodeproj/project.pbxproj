@@ -53,6 +53,7 @@
 		7F4CF66174ECFF7C03D0467C /* OpenAICodexProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = F024AC8F788EB351034F7717 /* OpenAICodexProvider.swift */; };
 		80862C128CB62D9B0BA431B6 /* ConnectionProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9FF8C6F144D582B46438129 /* ConnectionProbe.swift */; };
 		8AD221FEF1B8C8AD26B41507 /* MediaStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 122F7974E96E74B9FF933BF7 /* MediaStore.swift */; };
+		8AEC23EB8B0C5535154E25F0 /* BackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F04C8896CDE2E3B7A606FC63 /* BackupService.swift */; };
 		8D23EA1119A363739C148D1A /* OpenAICompatibleProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC5114A5AE539D250B891038 /* OpenAICompatibleProvider.swift */; };
 		8F97A78FFB5E6BD58A4ED24C /* AgentTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08F42566CC84DCCF803F8163 /* AgentTool.swift */; };
 		92A149CD928D78C1E4C35AC6 /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = 68E7117D7176BD2E5BDF2039 /* MLXLLM */; };
@@ -218,6 +219,7 @@
 		DF3AC7A4A0BA71623D3D51B0 /* ProviderPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderPreset.swift; sourceTree = "<group>"; };
 		EF1FC1BCBCEFE7A60CF649E6 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		F024AC8F788EB351034F7717 /* OpenAICodexProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAICodexProvider.swift; sourceTree = "<group>"; };
+		F04C8896CDE2E3B7A606FC63 /* BackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupService.swift; sourceTree = "<group>"; };
 		F56CF7D28858015116950FB2 /* AgentLoop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentLoop.swift; sourceTree = "<group>"; };
 		F94421697B05F7E0BE1255D1 /* SkillPackageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillPackageTests.swift; sourceTree = "<group>"; };
 		F9FF8C6F144D582B46438129 /* ConnectionProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionProbe.swift; sourceTree = "<group>"; };
@@ -254,6 +256,7 @@
 				89C708D4BF2A41A45532FF21 /* AgentActivityAttributes.swift */,
 				69A13B6EF2EBD864ADF05F14 /* AgentLiveActivityController.swift */,
 				5E788FCA5BA9AE97A20E3AB3 /* Analytics.swift */,
+				F04C8896CDE2E3B7A606FC63 /* BackupService.swift */,
 				F9FF8C6F144D582B46438129 /* ConnectionProbe.swift */,
 				5D9831B06742D222451B7FAE /* FreeTier.swift */,
 				51C5F75BC4890C8C2B2AF59B /* LocalRuntimePolicy.swift */,
@@ -616,6 +619,7 @@
 				6F6EA0AD89FC132B8077CA87 /* AnthropicProvider.swift in Sources */,
 				A50C01B73E50281E069B3219 /* AppPreferences.swift in Sources */,
 				D8E24D6523B25B4C6DB156AB /* AuthStore.swift in Sources */,
+				8AEC23EB8B0C5535154E25F0 /* BackupService.swift in Sources */,
 				97B77AE2989796A7A348153B /* ChatView.swift in Sources */,
 				80862C128CB62D9B0BA431B6 /* ConnectionProbe.swift in Sources */,
 				3510E3426A0F0F94927AF2C5 /* ConnectionsView.swift in Sources */,

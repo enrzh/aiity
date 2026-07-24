@@ -409,12 +409,28 @@ struct MediaRoute: Equatable {
         guard MediaCapability.canUseMedia(presetId: presetId, apiKey: apiKey, modality: modality) else {
             return nil
         }
-        let model = settings.model(for: modality)
+        let model = resolveModel(settings.model(for: modality), presetId: presetId, modality: modality)
         return MediaRoute(
             presetId: presetId,
             baseURL: connection.baseURL(forKey: apiKey),
             model: model,
             apiKey: apiKey
         )
+    }
+
+    /// Keep the configured model when the provider actually serves it; otherwise
+    /// pick a generative model from that provider's catalog. Without this, a
+    /// self-hosted gateway (sub2api) inherits the OpenAI-shaped default
+    /// (`gpt-image-1`) and every generation 404s even though the gateway offers
+    /// perfectly good image models (e.g. gemini-*-image).
+    static func resolveModel(_ configured: String, presetId: String, modality: ModelModality) -> String {
+        let catalog = ModelCatalogCache.modelsForDisplay(presetId: presetId).map(\.id)
+        if catalog.isEmpty { return configured }
+        if catalog.contains(configured) { return configured }
+        let generative = catalog.filter { MediaCapability.modelLooksGenerative(id: $0.lowercased()) }
+        let pool = modality == .video
+            ? generative.filter { $0.lowercased().contains("video") || $0.lowercased().contains("sora") }
+            : generative.filter { !$0.lowercased().contains("video") && !$0.lowercased().contains("sora") }
+        return pool.first ?? generative.first ?? configured
     }
 }
