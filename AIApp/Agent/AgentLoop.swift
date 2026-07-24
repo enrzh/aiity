@@ -532,6 +532,11 @@ final class ChatSession: ObservableObject {
             }
 
             for call in requestedCalls {
+                // Stop must take effect between tools: tool runs swallow their own
+                // errors (incl. URLError.cancelled), so without these checks a
+                // cancelled turn keeps running tools and appends messages after the
+                // UI already tore the turn down.
+                if Task.isCancelled { return }
                 statusLine = Self.statusText(for: call)
                 AgentLiveActivityController.shared.update(
                     phase: statusLine,
@@ -540,6 +545,7 @@ final class ChatSession: ObservableObject {
                 )
                 let result = await toolsByName[call.name]?.run(argumentsJSON: call.argumentsJSON)
                     ?? ToolRunResult("Error: unknown tool \(call.name)")
+                if Task.isCancelled { return }
                 pendingMediaIds.append(contentsOf: result.mediaIds)
                 messages.append(ChatMessage(role: .tool, text: result.text, toolCallId: call.id, toolName: call.name))
             }

@@ -19,6 +19,29 @@ final class SkillPackageTests: XCTestCase {
         super.tearDown()
     }
 
+    func testAddPreservesConflictingUserSkill() {
+        let store = SkillStore()
+        // User-authored skill (no source).
+        store.add(name: "PDF", instructions: "meine eigenen Notizen")
+        XCTAssertEqual(store.skills.filter { $0.name == "PDF" }.count, 1)
+
+        // A package from a DIFFERENT origin must not silently delete it.
+        store.add(name: "PDF", instructions: "package content", source: "github:acme/pdf")
+        let names = store.skills.filter { !$0.builtin }.map(\.name)
+        XCTAssertTrue(names.contains("PDF"), "incoming package keeps the name")
+        XCTAssertTrue(names.contains("PDF (lokal)"), "user's edited skill is preserved, not deleted")
+        XCTAssertTrue(
+            store.skills.contains { $0.name == "PDF (lokal)" && $0.instructions == "meine eigenen Notizen" }
+        )
+
+        // Re-installing from the SAME origin is an upgrade: replace, don't fork.
+        store.add(name: "PDF", instructions: "package v2", source: "github:acme/pdf")
+        XCTAssertEqual(store.skills.filter { $0.name == "PDF" }.count, 1)
+        XCTAssertEqual(store.skills.first { $0.name == "PDF" }?.instructions, "package v2")
+        XCTAssertEqual(store.skills.filter { $0.name.hasPrefix("PDF (lokal") }.count, 1,
+                       "upgrade must not create another fork")
+    }
+
     func testParseFrontmatterPackage() {
         let md = """
         ---

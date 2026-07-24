@@ -127,7 +127,27 @@ final class SkillStore: ObservableObject {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedInstructions = instructions.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty, !trimmedInstructions.isEmpty else { return }
-        skills.removeAll { !$0.builtin && $0.name == trimmedName }
+        // A same-name skill used to be deleted silently, losing local edits when an
+        // unrelated package happened to share the name. Replace only when it's the
+        // same origin (a genuine upgrade) or the content is unchanged; otherwise
+        // keep the user's version under a distinct name.
+        if let existingIndex = skills.firstIndex(where: { !$0.builtin && $0.name == trimmedName }) {
+            let existing = skills[existingIndex]
+            let sameOrigin = (existing.source ?? "") == (source ?? "")
+            if sameOrigin || existing.instructions == trimmedInstructions {
+                skills.remove(at: existingIndex)
+            } else {
+                var preserved = existing
+                var candidate = trimmedName + " (lokal)"
+                var suffix = 2
+                while skills.contains(where: { $0.name == candidate }) {
+                    candidate = "\(trimmedName) (lokal \(suffix))"
+                    suffix += 1
+                }
+                preserved.name = candidate
+                skills[existingIndex] = preserved
+            }
+        }
         let skill = AgentSkill(
             name: trimmedName,
             summary: summary ?? String(trimmedInstructions.prefix(80)),
