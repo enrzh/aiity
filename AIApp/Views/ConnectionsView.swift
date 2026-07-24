@@ -217,6 +217,7 @@ struct ProviderConnectionView: View {
                 if (isChatActive || modality != .chat) && preset.editableBaseURL {
                     if isLocalWizard { localRuntimeWizardSection } else { baseURLSection }
                 }
+                if presetId == "sub2api" { sub2apiSetupSection }
                 accountsSection
                 if modality == .chat && isChatActive && presetId == "openai" {
                     openAIPathSection
@@ -389,14 +390,7 @@ struct ProviderConnectionView: View {
 
     private var localRuntimeWizardSection: some View {
         Section {
-            TextField(
-                presetId == "ollama"
-                    ? "Host (z. B. http://192.168.1.10:11434)"
-                    : (preset.defaultBaseURL.isEmpty
-                       ? "http://IP:Port oder http://Mac.local:1234"
-                       : "Base-URL (Standard: \(preset.defaultBaseURL))"),
-                text: $hostDraft
-            )
+            TextField(wizardPlaceholder, text: $hostDraft)
             .autocorrectionDisabled()
             .textInputAutocapitalization(.never)
             .keyboardType(.URL)
@@ -413,6 +407,11 @@ struct ProviderConnectionView: View {
             }
             if presetId == "ollama" {
                 Text("Ollama auf dem Mac: `ollama serve`, dann die LAN-IP dieses Macs hier eintragen (nicht localhost vom iPhone).")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            if presetId == "sub2api" {
+                Text("Adresse deiner sub2api-Instanz (Host:Port). Das iPhone muss sie erreichen — im WLAN per LAN-IP, sonst über Tailscale/VPN.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -575,6 +574,56 @@ struct ProviderConnectionView: View {
         case "anthropic": return "API-Key erstellen (console.anthropic.com)"
         case "xai": return "API-Key erstellen (console.x.ai)"
         default: return "API-Key erstellen"
+        }
+    }
+
+    // MARK: sub2api gateway
+
+    /// Placeholder for the self-hosted-server address field, per preset.
+    private var wizardPlaceholder: String {
+        switch presetId {
+        case "ollama": return "Host (z. B. http://192.168.1.10:11434)"
+        case "sub2api": return "Gateway-Adresse (z. B. 192.168.1.10:8090)"
+        default:
+            return preset.defaultBaseURL.isEmpty
+                ? "http://IP:Port oder http://Mac.local:1234"
+                : "Base-URL (Standard: \(preset.defaultBaseURL))"
+        }
+    }
+
+    /// The user's own sub2api web admin, served at the gateway root (the `/v1`
+    /// API suffix stripped). Opens in Safari — where the user manages their
+    /// provider accounts. aiity itself stays a plain sk-… client and never
+    /// touches those accounts.
+    private var sub2apiAdminURL: URL? {
+        let raw = hostDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalized = raw.isEmpty
+            ? connectionSettings.effectiveBaseURL
+            : ProviderSettings.normalizeBaseURL(raw, dialect: .openai)
+        guard !normalized.isEmpty else { return nil }
+        let root = normalized.hasSuffix("/v1") ? String(normalized.dropLast(3)) : normalized
+        return URL(string: root)
+    }
+
+    private var sub2apiSetupSection: some View {
+        Section {
+            Label {
+                Text("sub2api läuft auf deinem Server und hält deine Anbieter-Konten (ChatGPT/Claude/Grok). aiity verbindet sich nur als Client mit einem sk-…-Key — die Abo-Konten selbst verwaltest du in sub2api.")
+                    .font(.footnote)
+            } icon: {
+                Image(systemName: "server.rack").foregroundStyle(Color.accentColor)
+            }
+            if let adminURL = sub2apiAdminURL {
+                Link(destination: adminURL) {
+                    Label("Konten in sub2api verwalten", systemImage: "safari")
+                }
+                .accessibilityIdentifier("sub2api-admin-link")
+            }
+            Text("Einrichten: 1. Gateway-Adresse oben eintragen. 2. sk-…-Key als Konto hinzufügen. 3. „Modelle laden“.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } header: {
+            Text("sub2api-Gateway")
         }
     }
 
@@ -1014,7 +1063,7 @@ struct ProviderConnectionView: View {
         case "xai":
             return "Empfohlen: eigener API-Key (console.x.ai) — oder Grok per OpenRouter. Der Grok-Abo-Login ist experimentell und für Dritt-Apps nicht garantiert."
         case "sub2api":
-            return "Server-Adresse deiner sub2api-Instanz eintragen (nur der Host reicht, „/v1“ wird ergänzt) und den sub2api-Key als API-Key. Danach „Modelle laden“ tippen."
+            return "Dein selbst-gehostetes Abo-Gateway. Host eintragen („/v1“ wird ergänzt), sk-…-Key als Konto hinzufügen, „Modelle laden“. Deine Abo-Konten (ChatGPT/Claude/Grok) verwaltest du in sub2api selbst — Link oben öffnet die Verwaltung."
         default:
             if preset.editableBaseURL {
                 return "Für eigene Server: Base-URL des kompatiblen Endpoints eintragen (Ollama, LM Studio, LocalAI, vLLM, LiteLLM …)."
