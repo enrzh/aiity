@@ -174,6 +174,43 @@ final class ProviderCompatTests: XCTestCase {
         XCTAssertTrue(rate.contains("kurz warten"), rate)
     }
 
+    func testAnthropicCoalescesAdjacentUserTurns() {
+        // tool_result user turn + "stop using tools" user turn must merge into one
+        // (Anthropic requires alternating roles; two user turns = HTTP 400).
+        let merged = AnthropicProvider.coalesceAdjacentRoles([
+            ["role": "user", "content": [["type": "tool_result", "tool_use_id": "t1", "content": "ok"]]],
+            ["role": "user", "content": "Stop using tools."],
+            ["role": "assistant", "content": "done"],
+        ])
+        XCTAssertEqual(merged.count, 2, "adjacent user turns should merge")
+        XCTAssertEqual(merged[0]["role"] as? String, "user")
+        let blocks = merged[0]["content"] as? [[String: Any]]
+        XCTAssertEqual(blocks?.count, 2)
+        XCTAssertEqual(blocks?.first?["type"] as? String, "tool_result")
+        XCTAssertEqual(blocks?.last?["type"] as? String, "text")
+    }
+
+    func testFetchURLBlocksEncodedAndPrivateHosts() {
+        for host in ["2130706433", "0x7f000001", "192.168.1.1", "169.254.169.254",
+                     "100.93.237.25", "localhost", "10.0.0.1", "::1"] {
+            XCTAssertTrue(FetchURLTool.isBlockedHost(host), "should block \(host)")
+        }
+        for host in ["8.8.8.8", "example.com", "api.openai.com", "1.1.1.1"] {
+            XCTAssertFalse(FetchURLTool.isBlockedHost(host), "should allow \(host)")
+        }
+    }
+
+    func testMiniAppConsentNoSilentEscalation() {
+        XCTAssertLessThan(MiniAppCapability.offline.rank, MiniAppCapability.network.rank)
+        XCTAssertLessThan(MiniAppCapability.network.rank, MiniAppCapability.browser.rank)
+        let id = "test-escalation-" + UUID().uuidString
+        MiniAppConsent.allow(appId: id, capability: .network)
+        XCTAssertTrue(MiniAppConsent.isAllowed(appId: id, declared: .network))
+        XCTAssertTrue(MiniAppConsent.isAllowed(appId: id, declared: .offline))
+        XCTAssertFalse(MiniAppConsent.isAllowed(appId: id, declared: .browser),
+                       "a network grant must NOT silently satisfy a browser app")
+    }
+
     func testNormalizeBaseURLMatrix() {
         let openai: [(String, String)] = [
             // schemeless LAN → http (the common sub2api-on-a-box case)

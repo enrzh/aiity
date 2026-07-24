@@ -21,7 +21,9 @@ enum Keychain {
         guard !value.isEmpty else { return }
         var attributes = query
         attributes[kSecValueData as String] = data
-        attributes[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        // ThisDeviceOnly: secrets (API keys, OAuth refresh tokens) must NOT travel
+        // in encrypted device backups to another device.
+        attributes[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         SecItemAdd(attributes as CFDictionary, nil)
     }
 

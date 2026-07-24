@@ -32,6 +32,16 @@ enum MiniAppCapability: String, Codable, Equatable {
         }
     }
 
+    /// Privilege ordering: offline < network < browser. Consent for a lower tier
+    /// must NOT satisfy a request for a higher tier (no silent escalation).
+    var rank: Int {
+        switch self {
+        case .offline: return 0
+        case .network: return 1
+        case .browser: return 2
+        }
+    }
+
     var allowsTopLevelNavigation: Bool {
         self == .browser
     }

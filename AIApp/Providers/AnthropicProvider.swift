@@ -288,6 +288,34 @@ struct AnthropicProvider: LLMProvider {
                 encoded.append(["role": message.role.rawValue, "content": message.text])
             }
         }
-        return encoded
+        return coalesceAdjacentRoles(encoded)
+    }
+
+    /// The Anthropic Messages API requires user/assistant turns to alternate.
+    /// Merge any adjacent same-role turns into one — e.g. a `tool_result` user
+    /// turn immediately followed by the loop safety-valve's "stop using tools"
+    /// user turn, which otherwise returns HTTP 400 "roles must alternate".
+    static func coalesceAdjacentRoles(_ messages: [[String: Any]]) -> [[String: Any]] {
+        var out: [[String: Any]] = []
+        for msg in messages {
+            if var last = out.last,
+               (last["role"] as? String) == (msg["role"] as? String) {
+                last["content"] = contentBlocks(last["content"]) + contentBlocks(msg["content"])
+                out[out.count - 1] = last
+            } else {
+                out.append(msg)
+            }
+        }
+        return out
+    }
+
+    /// Normalize a message `content` (String or array of blocks) to blocks so two
+    /// turns with differing content shapes can be concatenated.
+    private static func contentBlocks(_ content: Any?) -> [[String: Any]] {
+        if let blocks = content as? [[String: Any]] { return blocks }
+        if let text = content as? String, !text.isEmpty {
+            return [["type": "text", "text": text]]
+        }
+        return []
     }
 }

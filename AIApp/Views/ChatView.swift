@@ -250,7 +250,7 @@ struct ChatView: View {
         }
         .sheet(item: $previewDraft) { draft in
             MiniAppSheet(
-                appId: "preview",
+                appId: MiniAppConsent.previewId(html: draft.html),
                 name: draft.name,
                 html: draft.html,
                 emoji: draft.emoji,

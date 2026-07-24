@@ -13,6 +13,16 @@ enum MiniAppConsent {
         return MiniAppCapability(rawValue: raw)
     }
 
+    /// Stable per-content id for an unsaved chat preview. Previews used to share
+    /// the constant id "preview", so consenting one network app granted network
+    /// to every later preview draft. Deterministic djb2 (NOT String.hashValue,
+    /// which is randomized per process and unstable across launches).
+    static func previewId(html: String) -> String {
+        var h: UInt64 = 5381
+        for b in html.utf8 { h = (h &* 33) &+ UInt64(b) }
+        return "preview-" + String(h, radix: 16)
+    }
+
     static func allow(appId: String, capability: MiniAppCapability) {
         var map = (UserDefaults.standard.dictionary(forKey: key) as? [String: String]) ?? [:]
         map[appId] = capability.rawValue
@@ -20,10 +30,12 @@ enum MiniAppConsent {
     }
 
     /// Offline apps always run; a non-offline app is allowed only if the user
-    /// previously granted it a non-offline capability.
+    /// previously granted it a capability at least as privileged as the one
+    /// declared. A `network` grant does NOT satisfy a `browser` app (an edit that
+    /// escalates the tier must re-prompt), closing silent capability escalation.
     static func isAllowed(appId: String, declared: MiniAppCapability) -> Bool {
         if declared == .offline { return true }
         guard let granted = granted(appId: appId) else { return false }
-        return granted != .offline
+        return granted.rank >= declared.rank
     }
 }
