@@ -47,8 +47,14 @@ struct MiniAppBundle: Equatable {
             return !k.hasSuffix(".css") && !k.hasSuffix(".js") && !k.hasSuffix(".html")
         }
         if !other.isEmpty {
+            // Neutralize "-->" inside a companion body: it would close the comment
+            // early and let the remaining bytes become live DOM (script injection).
             let blob = other.sorted { $0.key < $1.key }
-                .map { "<!-- file:\($0.key)\n\($0.value)\n-->" }
+                .map { entry -> String in
+                    let key = entry.key.replacingOccurrences(of: "-->", with: "--&gt;")
+                    let body = entry.value.replacingOccurrences(of: "-->", with: "--&gt;")
+                    return "<!-- file:\(key)\n\(body)\n-->"
+                }
                 .joined(separator: "\n")
             result += "\n" + blob
         }

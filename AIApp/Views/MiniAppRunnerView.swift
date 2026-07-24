@@ -25,7 +25,10 @@ struct MiniAppRunnerView: UIViewRepresentable {
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
         // A browser-tier app keeps a persistent, per-app session so the user
         // stays logged in to the site it opens; other tiers stay ephemeral.
-        if MiniAppCapability.from(html: html) == .browser {
+        // Keyed off the EFFECTIVE (consented) capability — using the declared
+        // one would hand a persistent cookie store to an app the user never
+        // approved for browser tier.
+        if capability == .browser {
             configuration.websiteDataStore = WKWebsiteDataStore(forIdentifier: Self.sessionStoreID(for: appId))
         } else {
             configuration.websiteDataStore = .nonPersistent()
