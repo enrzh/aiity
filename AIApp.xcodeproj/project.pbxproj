@@ -32,6 +32,7 @@
 		4106AB5865694E8A510FC65E /* FullFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 495B0ABB1A3B34D0175425E4 /* FullFlowUITests.swift */; };
 		41138385167F680BA6D9C63E /* ModelCatalogCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C86F83176F788DEC5D87646 /* ModelCatalogCache.swift */; };
 		43DF99B9A97D9A21B686C9C3 /* Sandbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 930330240594778A07B89596 /* Sandbox.swift */; };
+		4A479301F6198310DA7077A7 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DDE36E6528E669C90B4A5AE /* Theme.swift */; };
 		4B72B8AB5D07ACF3ACA0F465 /* WebSearchTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ECF26AD24A8A3ED8DD9E6AA /* WebSearchTool.swift */; };
 		4F0C46055999E167345D1444 /* AgentLoop.swift in Sources */ = {isa = PBXBuildFile; fileRef = F56CF7D28858015116950FB2 /* AgentLoop.swift */; };
 		5195B6E0E2F504654EFF8AB0 /* MiniAppBundleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CD59DF34EB2C44797D18EB6 /* MiniAppBundleTests.swift */; };
@@ -155,6 +156,7 @@
 		1ECF26AD24A8A3ED8DD9E6AA /* WebSearchTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSearchTool.swift; sourceTree = "<group>"; };
 		22FCF2E8FDC1437D7606750E /* AddSkillSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddSkillSheet.swift; sourceTree = "<group>"; };
 		2C86F83176F788DEC5D87646 /* ModelCatalogCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelCatalogCache.swift; sourceTree = "<group>"; };
+		2DDE36E6528E669C90B4A5AE /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		2E8D34CD92895CEE357BD33B /* WebAppBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebAppBuilder.swift; sourceTree = "<group>"; };
 		30ED079172073256DDBC629B /* AIAppLiveActivity.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = AIAppLiveActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		3483FC3CF2E1F3F8B1069CCE /* AIApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = AIApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -401,6 +403,7 @@
 				1D251FBE571B441140F3B945 /* NetworkErrorFriendly.swift */,
 				D666B7BFBCD64AD9FAB95FB3 /* PlainPasteboard.swift */,
 				930330240594778A07B89596 /* Sandbox.swift */,
+				2DDE36E6528E669C90B4A5AE /* Theme.swift */,
 			);
 			path = Support;
 			sourceTree = "<group>";
@@ -658,6 +661,7 @@
 				D1648B3A22D7A36F129DEC96 /* SkillRecommendations.swift in Sources */,
 				C87AB0E41867A2E3C24F981B /* SkillStore.swift in Sources */,
 				7DBB3207B4E8ACA327538280 /* SkillsView.swift in Sources */,
+				4A479301F6198310DA7077A7 /* Theme.swift in Sources */,
 				EE0E7B73B10BB80480DE85EF /* ThreadsSheet.swift in Sources */,
 				BC4365B0D79250C62E441DBB /* UpgradeModal.swift in Sources */,
 				2C351D5BAB9CD0B656FCEB9A /* VideoGenerationTool.swift in Sources */,
@@ -710,6 +714,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = AIApp/AIApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
@@ -826,6 +831,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = AIApp/AIApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;

@@ -44,6 +44,9 @@ struct RootView: View {
         .environmentObject(session)
         .environmentObject(settingsStore)
         .environmentObject(accountStore)
+        // Refined-native look: brand accent + friendly rounded typography app-wide.
+        .tint(Theme.accent)
+        .fontDesign(.rounded)
         .environment(\.openChatTab) {
             selectedTab = 0
         }

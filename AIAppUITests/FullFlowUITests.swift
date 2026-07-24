@@ -93,7 +93,9 @@ final class FullFlowUITests: XCTestCase {
 
     /// End-to-end proof that a browser mini-app actually loads an external site.
     /// Network-dependent (loads example.com) — run to verify, not part of hermetic CI.
-    func testBrowserMiniAppLoadsExampleCom() {
+    func testBrowserMiniAppLoadsExampleCom() throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["RUN_NETWORK_TESTS"] == "1",
+                          "Network-dependent; run with RUN_NETWORK_TESTS=1")
         app.launch()
         startFreshThread()
         sendChatMessage("Öffne example.com")

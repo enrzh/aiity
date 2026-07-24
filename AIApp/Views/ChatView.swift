@@ -291,6 +291,9 @@ struct ChatView: View {
 
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 14) {
+            Image(systemName: isEditingApp ? "wand.and.stars" : "sparkles")
+                .font(.system(size: 32, weight: .semibold))
+                .foregroundStyle(Theme.accentGradient)
             Text(isEditingApp ? "Was soll ich an der App ändern?" : "Was soll ich bauen?")
                 .font(.title2.bold())
             Text(isEditingApp
@@ -454,13 +457,13 @@ private struct MessageBubble: View {
                     } else if !bubbleText.isEmpty {
                         markdownText(bubbleText)
                             .textSelection(.enabled)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
+                            .padding(.horizontal, 15)
+                            .padding(.vertical, 11)
                             .background(
                                 message.role == .user
-                                    ? Color.accentColor
-                                    : Color(.secondarySystemBackground),
-                                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    ? AnyShapeStyle(Theme.accentGradient)
+                                    : AnyShapeStyle(Color(.secondarySystemBackground)),
+                                in: RoundedRectangle(cornerRadius: Theme.bubbleRadius, style: .continuous)
                             )
                             .foregroundStyle(message.role == .user ? Color.white : Color.primary)
                     }

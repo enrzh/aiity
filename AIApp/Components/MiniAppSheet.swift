@@ -107,19 +107,27 @@ struct MiniAppIconView: View {
     var iconSymbol: String?
     var size: CGFloat = 40
 
+    private var isSymbol: Bool { !(iconSymbol ?? "").isEmpty }
+    private var seed: String { (iconSymbol ?? "") + emoji }
+
     var body: some View {
-        Group {
-            if let symbol = iconSymbol, !symbol.isEmpty {
-                Image(systemName: symbol)
-                    .font(.system(size: size * 0.55, weight: .semibold))
-                    .foregroundStyle(Color.accentColor)
-                    .frame(width: size, height: size)
-            } else {
-                Text(emoji.isEmpty ? "✨" : emoji)
-                    .font(.system(size: size * 0.72))
-                    .frame(width: size, height: size)
+        RoundedRectangle(cornerRadius: size * 0.3, style: .continuous)
+            .fill(Theme.tileGradient(for: seed, deep: isSymbol))
+            .frame(width: size, height: size)
+            .overlay {
+                if isSymbol {
+                    Image(systemName: iconSymbol!)
+                        .font(.system(size: size * 0.46, weight: .semibold))
+                        .foregroundStyle(.white)
+                } else {
+                    Text(emoji.isEmpty ? "✨" : emoji)
+                        .font(.system(size: size * 0.56))
+                }
             }
-        }
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: size * 0.28, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: size * 0.3, style: .continuous)
+                    .strokeBorder(.white.opacity(0.14), lineWidth: 0.5)
+            )
+            .shadow(color: .black.opacity(0.06), radius: 3, y: 1)
     }
 }
