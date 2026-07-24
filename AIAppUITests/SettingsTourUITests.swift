@@ -33,15 +33,16 @@ final class SettingsTourUITests: XCTestCase {
         XCTAssertTrue(oauthButton.waitForExistence(timeout: 10), "OAuth add-account button should appear for OpenRouter")
         attach(app, name: "connections-openrouter")
 
-        // Back to the list, then xAI (Grok) also exposes the subscription OAuth button.
+        // Back to the list, then Anthropic (Claude) exposes the subscription OAuth
+        // button (OpenAI/Grok deliberately do not — dead-end without impersonation).
         app.navigationBars.buttons.element(boundBy: 0).tap()
-        let xaiRow = app.buttons.matching(NSPredicate(format: "label CONTAINS 'xAI'")).firstMatch
-        scrollTo(xaiRow, in: app)
-        XCTAssertTrue(xaiRow.waitForExistence(timeout: 10), "provider list should include xAI (Grok)")
-        xaiRow.tap()
+        let claudeRow = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Anthropic'")).firstMatch
+        scrollTo(claudeRow, in: app)
+        XCTAssertTrue(claudeRow.waitForExistence(timeout: 10), "provider list should include Anthropic (Claude)")
+        claudeRow.tap()
         XCTAssertTrue(app.buttons["oauth-add-account"].waitForExistence(timeout: 10),
-                      "OAuth add-account button should appear for Grok")
-        attach(app, name: "connections-xai")
+                      "OAuth add-account button should appear for Claude")
+        attach(app, name: "connections-claude")
 
         // Skills tab lists the built-ins.
         app.tabBars.buttons["Skills"].tap()

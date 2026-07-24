@@ -154,8 +154,10 @@ struct ConnectionsView: View {
         if preset.dialect == .mlx { return "On-Device (MLX)" }
         switch accountStore.accounts(for: preset.id).count {
         case 0:
-            // Subscription (paste-code) OAuth is experimental for third-party
-            // apps; present the API key as the primary, recommended path.
+            // OpenAI/Grok subscription login can't complete in-app (needs CLI
+            // impersonation) — present them as API-key providers.
+            if preset.id == "openai" || preset.id == "xai" { return "API-Key" }
+            // Claude subscription login works but is experimental; API key primary.
             if preset.oauth?.flow == .pasteCode { return "API-Key (empfohlen) · Abo-Login möglich" }
             return preset.oauthAvailable ? "API-Key oder Abo-Login" : "API-Key"
         case 1: return "1 Konto"
@@ -516,7 +518,7 @@ struct ProviderConnectionView: View {
                     }
                 }
             }
-            if preset.oauth != nil {
+            if showsOAuthButton {
                 Button {
                     signInWithOAuth()
                 } label: {
@@ -529,12 +531,12 @@ struct ProviderConnectionView: View {
                 .disabled(oauth.busy)
                 .accessibilityIdentifier("oauth-add-account")
             }
-            // Honest steer: consumer-subscription OAuth is not an officially
-            // supported third-party path — recommend a pay-as-you-go API key.
-            // (OpenRouter's key-exchange OAuth is legit, so it is excluded.)
-            if preset.oauth?.flow == .pasteCode {
+            // Only shown where an in-app subscription login actually completes
+            // (Claude). OpenAI/Grok are excluded — their tokens need CLI
+            // impersonation aiity doesn't do; a note steers those to a gateway.
+            if showsOAuthButton, preset.oauth?.flow == .pasteCode {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Abo-Login (ChatGPT-/Claude-/Grok-Abo) ist für Dritt-Apps nicht offiziell unterstützt und kann jederzeit eingeschränkt werden. Zuverlässig und empfohlen: ein eigener API-Key (Pay-as-you-go).")
+                    Text("Der Claude-Abo-Login funktioniert meist, ist aber für Dritt-Apps nicht offiziell garantiert. Für volle Zuverlässigkeit: ein eigener API-Key (Pay-as-you-go).")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     if let url = apiKeyURL {
@@ -543,6 +545,11 @@ struct ProviderConnectionView: View {
                     }
                 }
                 .padding(.vertical, 2)
+            } else if preset.id == "openai" || preset.id == "xai" {
+                Text("Dein \(preset.id == "openai" ? "ChatGPT" : "Grok")-Abo geht nicht direkt hier — nutze einen API-Key oben, oder dein eigenes sub2api-Gateway (Schnellstart → „Eigenes Abo-Gateway“).")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 2)
             }
             if let authError {
                 Text(authError).font(.caption).foregroundStyle(.red)
@@ -558,6 +565,15 @@ struct ProviderConnectionView: View {
 
     private var oauthVerb: String {
         preset.label.components(separatedBy: " ").first ?? preset.label
+    }
+
+    /// Whether to offer the in-app subscription sign-in button. OpenAI/Grok are
+    /// excluded: their subscription tokens only work against first-party backends
+    /// with CLI impersonation aiity doesn't do, so the sign-in can't complete —
+    /// don't advertise a dead end. Claude works; OpenRouter is a real key exchange.
+    private var showsOAuthButton: Bool {
+        guard preset.oauth != nil else { return false }
+        return presetId != "openai" && presetId != "xai"
     }
 
     /// Provider-specific sign-in verb (avoids awkward "Konto per xAI hinzufügen").
@@ -1072,9 +1088,9 @@ struct ProviderConnectionView: View {
         case "openrouter":
             return "OAuth holt automatisch einen echten API-Key (Pay-as-you-go) — oder eigenen Key einfügen. Voll unterstützt."
         case "openai":
-            return "Empfohlen: eigener API-Key (platform.openai.com/api-keys) — Standard Chat Completions, zuverlässig. Der ChatGPT-Abo-Login ist experimentell und für Dritt-Apps nicht garantiert. Bild/Video brauchen ohnehin einen API-Key."
+            return "Eigener API-Key (platform.openai.com/api-keys) — Standard Chat Completions. Dein ChatGPT-Abo geht nicht direkt hier, sondern über ein eigenes sub2api-Gateway (Schnellstart → „Eigenes Abo-Gateway“). Bild/Video brauchen einen API-Key."
         case "xai":
-            return "Empfohlen: eigener API-Key (console.x.ai) — oder Grok per OpenRouter. Der Grok-Abo-Login ist experimentell und für Dritt-Apps nicht garantiert."
+            return "Eigener API-Key (console.x.ai) — oder Grok per OpenRouter. Dein Grok-Abo geht nicht direkt hier, sondern über ein eigenes sub2api-Gateway (Schnellstart → „Eigenes Abo-Gateway“)."
         case "sub2api":
             return "Dein selbst-gehostetes Abo-Gateway. Host eintragen („/v1“ wird ergänzt), sk-…-Key als Konto hinzufügen, „Modelle laden“. Deine Abo-Konten (ChatGPT/Claude/Grok) verwaltest du in sub2api selbst — Link oben öffnet die Verwaltung."
         default:
