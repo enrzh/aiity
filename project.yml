@@ -34,9 +34,17 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         # Live Activity for chat/build progress on Lock Screen + Dynamic Island.
         NSSupportsLiveActivities: true
-        # Ollama/LM Studio on the user's own machine speak plain http.
+        # aiity is a bring-your-own-endpoint client: users point it at self-hosted
+        # gateways — Ollama/LM Studio on the LAN, a sub2api gateway over Tailscale,
+        # etc. — that often speak plain http. Tailscale IPs (100.64/10 CGNAT) aren't
+        # covered by NSAllowsLocalNetworking, and iOS ATS won't honor exceptions for
+        # raw IP literals, so we allow arbitrary loads to reach any user-configured
+        # gateway. NOTE: NSAllowsArbitraryLoads must appear ALONE — if a more-specific
+        # key like NSAllowsLocalNetworking is also present, iOS ignores arbitrary
+        # loads and honors only the specific key (verified on iOS 26). Traffic to a
+        # Tailscale peer is still WireGuard-encrypted; hosted providers stay https.
         NSAppTransportSecurity:
-          NSAllowsLocalNetworking: true
+          NSAllowsArbitraryLoads: true
         # OAuth callbacks: aiity:// primary; aiapp:// kept for OpenRouter redirect.
         CFBundleURLTypes:
           - CFBundleURLName: com.aiity.app
