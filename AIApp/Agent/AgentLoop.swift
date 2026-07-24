@@ -734,6 +734,7 @@ final class ChatSession: ObservableObject {
             }
             loadActiveThread()
         }
+        reclaimMedia()   // free images/videos the deleted thread referenced
         persist()
     }
 
@@ -835,8 +836,38 @@ final class ChatSession: ObservableObject {
     /// Public hook so UI can flush after clearing edit mode etc.
     func persistPublic() { persist() }
 
+    private static let maxThreads = 50
+
+    /// Bound the store: drop empty non-active threads (newThread/startEditing can
+    /// leave these) and cap total thread count, keeping the active thread plus the
+    /// most-recently-updated others. Reclaims media orphaned by any dropped thread.
+    private func pruneThreads() {
+        let before = threads.map(\.id)
+        threads.removeAll { thread in
+            thread.id != activeThreadId && thread.messages.allSatisfy { $0.role == .system }
+        }
+        if threads.count > Self.maxThreads {
+            let active = threads.first { $0.id == activeThreadId }
+            let others = threads
+                .filter { $0.id != activeThreadId }
+                .sorted { $0.updatedAt > $1.updatedAt }
+                .prefix(Self.maxThreads - (active == nil ? 0 : 1))
+            threads = (active.map { [$0] } ?? []) + Array(others)
+        }
+        if threads.map(\.id) != before { reclaimMedia() }
+    }
+
+    /// Delete stored media no longer referenced by any thread or the live messages.
+    private func reclaimMedia() {
+        var ids = Set<String>()
+        for thread in threads { for message in thread.messages { ids.formUnion(message.mediaIds) } }
+        for message in messages { ids.formUnion(message.mediaIds) }
+        MediaStore.sweep(keeping: ids)
+    }
+
     private func persist() {
         syncActiveIntoThreads()
+        pruneThreads()
         let snapshot = Snapshot(threads: threads, activeThreadId: activeThreadId)
         if let data = try? JSONEncoder().encode(snapshot) {
             try? data.write(to: Self.storeURL, options: .atomic)

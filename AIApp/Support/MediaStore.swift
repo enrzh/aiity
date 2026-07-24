@@ -50,4 +50,16 @@ enum MediaStore {
         guard let data = try? Data(contentsOf: url(for: mediaId)) else { return nil }
         return URL(string: String(decoding: data, as: UTF8.self))
     }
+
+    /// Delete stored media not referenced by any live message. Reclaims images
+    /// and videos left behind by deleted threads/messages — without a sweep the
+    /// media directory grows forever (each image is commonly 1–4 MB).
+    static func sweep(keeping referencedIds: Set<String>) {
+        guard let files = try? FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: nil
+        ) else { return }
+        for file in files where !referencedIds.contains(file.lastPathComponent) {
+            try? FileManager.default.removeItem(at: file)
+        }
+    }
 }
