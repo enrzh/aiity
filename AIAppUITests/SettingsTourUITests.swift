@@ -35,7 +35,7 @@ final class SettingsTourUITests: XCTestCase {
 
         // Back to the list, then xAI (Grok) also exposes the subscription OAuth button.
         app.navigationBars.buttons.element(boundBy: 0).tap()
-        let xaiRow = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Grok'")).firstMatch
+        let xaiRow = app.buttons.matching(NSPredicate(format: "label CONTAINS 'xAI'")).firstMatch
         scrollTo(xaiRow, in: app)
         XCTAssertTrue(xaiRow.waitForExistence(timeout: 10), "provider list should include xAI (Grok)")
         xaiRow.tap()

@@ -191,7 +191,7 @@ enum ConnectionProbe {
                 )
             }
         } catch {
-            return .failure("Netzwerkfehler: \(error.localizedDescription)")
+            return .failure(NetworkErrorFriendly.message(for: error))
         }
     }
 

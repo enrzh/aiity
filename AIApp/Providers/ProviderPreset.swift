@@ -170,7 +170,7 @@ struct ProviderPreset: Identifiable, Equatable {
                        defaultBaseURL: "", needsKey: false,
                        editableBaseURL: true, defaultModel: ""),
         ProviderPreset(id: "sub2api", label: "sub2api (Abo-Gateway, self-hosted)", dialect: .openai,
-                       defaultBaseURL: "", needsKey: false,
+                       defaultBaseURL: "", needsKey: true,
                        editableBaseURL: true, defaultModel: ""),
         ProviderPreset(id: "custom-openai", label: "Beliebige OpenAI-API (URL + Key)", dialect: .openai,
                        defaultBaseURL: "", needsKey: true,

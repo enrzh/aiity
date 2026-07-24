@@ -41,6 +41,8 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Verbindung zu deinem lokalen Server (sub2api-Gateway, Ollama, LM Studio) im selben WLAN.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Mini-Apps können auf Wunsch Gesundheitsdaten (Schritte, Aktivität, Puls) anzeigen. Der Zugriff wird nur nach deiner Freigabe gelesen.</string>
 	<key>NSHealthUpdateUsageDescription</key>

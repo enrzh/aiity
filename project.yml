@@ -45,6 +45,9 @@ targets:
         # Tailscale peer is still WireGuard-encrypted; hosted providers stay https.
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
+        # iOS 14+ gates connections to private-subnet hosts behind Local Network
+        # privacy; without this key the first LAN gateway connection fails opaquely.
+        NSLocalNetworkUsageDescription: Verbindung zu deinem lokalen Server (sub2api-Gateway, Ollama, LM Studio) im selben WLAN.
         # OAuth callbacks: aiity:// primary; aiapp:// kept for OpenRouter redirect.
         CFBundleURLTypes:
           - CFBundleURLName: com.aiity.app

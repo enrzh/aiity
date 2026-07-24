@@ -82,7 +82,7 @@ enum ProviderRequestSupport {
             return "Modell nicht gefunden: \(detail) — unter Anbieter ein gültiges Modell wählen."
         }
         if status == 401 || status == 403 {
-            return "Auth-Fehler \(status): \(detail) — API-Key prüfen/erneuern. (Abo-Logins sind für Dritt-Apps nicht garantiert; ein eigener API-Key ist zuverlässiger.)"
+            return "Auth-Fehler \(status): \(detail) — API-Key prüfen/erneuern. Bei eigenem Gateway (sub2api): stimmt der sk-…-Key mit dem Server überein?"
         }
         if status == 429 {
             // Billing exhaustion (insufficient_quota) is not a transient rate

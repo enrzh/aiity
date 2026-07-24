@@ -29,6 +29,16 @@ struct ConnectionsView: View {
                 } label: {
                     Label("Ollama / lokal", systemImage: "desktopcomputer")
                 }
+                NavigationLink {
+                    ProviderConnectionView(presetId: "sub2api", modality: .chat)
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Label("Eigenes Abo-Gateway (sub2api)", systemImage: "server.rack")
+                        Text("Deine ChatGPT/Claude/Grok-Abos über deinen eigenen Server nutzen — Adresse + sk-…-Key eintragen.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             } header: {
                 Text("Schnellstart")
             }
@@ -214,7 +224,10 @@ struct ProviderConnectionView: View {
                     }
                 }
             } else {
-                if (isChatActive || modality != .chat) && preset.editableBaseURL {
+                // Show the address field during setup too — editing persists to
+                // the provider profile, so activation is not a prerequisite for
+                // typing the gateway address (was hidden until chat-active).
+                if preset.editableBaseURL {
                     if isLocalWizard { localRuntimeWizardSection } else { baseURLSection }
                 }
                 if presetId == "sub2api" { sub2apiSetupSection }

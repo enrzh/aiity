@@ -177,22 +177,86 @@ struct ProviderSettings: Codable, Equatable {
         return ProviderSettings.normalizeBaseURL(raw, dialect: preset.dialect)
     }
 
-    /// Makes a user-typed endpoint forgiving: adds https:// when the scheme is
-    /// missing, drops trailing slashes, and appends the OpenAI-compatible
-    /// version path when the user pasted only a bare host (so "ki.domain.de"
-    /// works for a sub2api / self-hosted gateway).
+    /// Makes a user-typed endpoint forgiving so a non-expert's input "just works":
+    /// - infers the scheme when omitted — LAN/private hosts (loopback, RFC1918,
+    ///   Tailscale CGNAT, link-local, `.local`, bare single-label) default to
+    ///   `http`; public FQDNs/IPs to `https`; an explicit scheme is always kept;
+    /// - strips an accidentally-pasted endpoint (`/chat/completions`, `/v1/models`,
+    ///   the `/admin` panel, …) and trailing slashes so we land on the API root;
+    /// - appends the OpenAI `/v1` root when the path is otherwise empty (Anthropic
+    ///   callers add their own `/v1/messages`; a deliberate custom prefix is kept).
     static func normalizeBaseURL(_ raw: String, dialect: ProviderDialect) -> String {
         var value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !value.isEmpty else { return value }
-        if !value.contains("://") { value = "https://" + value }
-        while value.hasSuffix("/") { value.removeLast() }
-        // Only the OpenAI dialect wants a "/v1" suffix; Anthropic callers add
-        // their own "/v1/messages" path. Leave an already-pathed URL alone.
-        if dialect == .openai, let components = URLComponents(string: value),
-           components.path.isEmpty {
-            value += "/v1"
+
+        if !value.contains("://") {
+            value = classifyHostScheme(value) + "://" + value
         }
-        return value
+        while value.hasSuffix("/") { value.removeLast() }
+
+        guard var components = URLComponents(string: value) else { return value }
+        components.query = nil
+        components.fragment = nil
+
+        // Strip a pasted method endpoint / admin path (longest suffix first) so
+        // the base is the API root, not e.g. `…/v1/chat/completions`.
+        var path = components.path
+        let strip = ["/chat/completions", "/completions", "/messages", "/responses",
+                     "/embeddings", "/models", "/admin"].sorted { $0.count > $1.count }
+        var trimming = true
+        while trimming {
+            trimming = false
+            for suffix in strip where path.hasSuffix(suffix) {
+                path.removeLast(suffix.count)
+                trimming = true
+                break
+            }
+            while path.hasSuffix("/") { path.removeLast() }
+        }
+
+        if dialect == .openai, path.isEmpty {
+            path = "/v1"
+        }
+        components.path = path
+        return components.string ?? value
+    }
+
+    /// Scheme to assume for a schemeless authority (host[:port]). Private/LAN →
+    /// http, public → https. Conservative: only well-known private ranges and
+    /// local suffixes are treated as http.
+    static func classifyHostScheme(_ authority: String) -> String {
+        var host = authority
+        if let cut = host.firstIndex(where: { $0 == "/" || $0 == "?" || $0 == "#" }) {
+            host = String(host[..<cut])
+        }
+        if let at = host.lastIndex(of: "@") { host = String(host[host.index(after: at)...]) }
+        if host.hasPrefix("["), let close = host.firstIndex(of: "]") {
+            let inner = String(host[host.index(after: host.startIndex)..<close]).lowercased()
+            let localV6 = inner == "::1" || inner.hasPrefix("fe80")
+                || inner.hasPrefix("fc") || inner.hasPrefix("fd")
+            return localV6 ? "http" : "https"
+        }
+        if let colon = host.lastIndex(of: ":") { host = String(host[..<colon]) }
+        host = host.lowercased()
+        if host == "localhost" || host.hasSuffix(".local") { return "http" }
+        if isPrivateIPv4(host) { return "http" }
+        if !host.contains(".") { return "http" }   // bare single-label hostname → LAN
+        return "https"
+    }
+
+    private static func isPrivateIPv4(_ host: String) -> Bool {
+        let parts = host.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count == 4 else { return false }
+        let octets = parts.compactMap { Int($0) }
+        guard octets.count == 4, octets.allSatisfy({ (0...255).contains($0) }) else { return false }
+        switch (octets[0], octets[1]) {
+        case (10, _), (127, _): return true
+        case (192, 168): return true
+        case (172, let b) where (16...31).contains(b): return true
+        case (169, 254): return true
+        case (100, let b) where (64...127).contains(b): return true   // Tailscale CGNAT 100.64/10
+        default: return false
+        }
     }
 
     /// Base URL to use for a given credential. OAuth subscription tokens may

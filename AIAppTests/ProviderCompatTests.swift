@@ -174,6 +174,53 @@ final class ProviderCompatTests: XCTestCase {
         XCTAssertTrue(rate.contains("kurz warten"), rate)
     }
 
+    func testNormalizeBaseURLMatrix() {
+        let openai: [(String, String)] = [
+            // schemeless LAN → http (the common sub2api-on-a-box case)
+            ("192.168.1.10:8090", "http://192.168.1.10:8090/v1"),
+            ("10.0.0.5", "http://10.0.0.5/v1"),
+            ("172.16.4.2", "http://172.16.4.2/v1"),
+            ("100.101.102.103", "http://100.101.102.103/v1"),   // Tailscale CGNAT
+            ("169.254.10.10", "http://169.254.10.10/v1"),
+            ("localhost:1234", "http://localhost:1234/v1"),
+            ("host.local", "http://host.local/v1"),
+            ("gateway", "http://gateway/v1"),                    // bare single-label
+            ("[::1]:8090", "http://[::1]:8090/v1"),
+            // boundary traps: just outside the private ranges → public → https
+            ("172.32.0.1", "https://172.32.0.1/v1"),
+            ("100.200.0.1", "https://100.200.0.1/v1"),
+            ("8.8.8.8", "https://8.8.8.8/v1"),
+            // public hostnames → https
+            ("my.gateway.com", "https://my.gateway.com/v1"),
+            // explicit scheme always honored
+            ("http://my.gateway.com", "http://my.gateway.com/v1"),
+            ("https://my.gateway.com", "https://my.gateway.com/v1"),
+            // idempotent /v1, trailing slash, pasted endpoints / admin
+            ("https://api.openai.com/v1", "https://api.openai.com/v1"),
+            ("https://ki.domain.de/", "https://ki.domain.de/v1"),
+            ("http://host:8090/v1/chat/completions", "http://host:8090/v1"),
+            ("https://ki.domain.de/v1/models", "https://ki.domain.de/v1"),
+            ("https://gateway.example.com/admin", "https://gateway.example.com/v1"),
+            ("192.168.0.10/chat/completions", "http://192.168.0.10/v1"),
+            ("10.1.2.3:11434/v1", "http://10.1.2.3:11434/v1"),
+        ]
+        for (input, expected) in openai {
+            XCTAssertEqual(
+                ProviderSettings.normalizeBaseURL(input, dialect: .openai), expected,
+                "openai normalize: \(input)"
+            )
+        }
+        // Anthropic dialect must NOT get a /v1 root appended (callers add /v1/messages).
+        XCTAssertEqual(
+            ProviderSettings.normalizeBaseURL("https://api.anthropic.com", dialect: .anthropic),
+            "https://api.anthropic.com"
+        )
+        XCTAssertEqual(
+            ProviderSettings.normalizeBaseURL("my.claude-proxy.com", dialect: .anthropic),
+            "https://my.claude-proxy.com"
+        )
+    }
+
     func testAnthropicMaxTokensClampsLegacyClaude3() {
         // Legacy Claude 3 caps at 4096; requesting more 400s a valid key.
         XCTAssertEqual(AnthropicProvider.maxTokens(for: "claude-3-opus-20240229", isOAuth: false), 4_096)
