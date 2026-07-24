@@ -1,13 +1,44 @@
 import SwiftUI
 import SwiftData
+import Foundation
 
 @main
 struct AIAppApp: App {
+    private let container = AIAppApp.makeContainer()
+
     var body: some Scene {
         WindowGroup {
             RootView()
         }
-        .modelContainer(for: MiniApp.self)
+        .modelContainer(container)
+    }
+
+    /// Build the SwiftData store, recovering instead of fatally crashing at launch
+    /// on a corrupt or schema-incompatible store (which would brick the app and
+    /// hide every saved mini-app). On failure: move the bad store files aside and
+    /// retry fresh; last resort is an in-memory store so the app still opens.
+    private static func makeContainer() -> ModelContainer {
+        do {
+            return try ModelContainer(for: MiniApp.self)
+        } catch {
+            relocateCorruptStore()
+            if let fresh = try? ModelContainer(for: MiniApp.self) { return fresh }
+            let inMemory = ModelConfiguration(isStoredInMemoryOnly: true)
+            if let mem = try? ModelContainer(for: MiniApp.self, configurations: inMemory) { return mem }
+            fatalError("unrecoverable ModelContainer failure: \(error)")
+        }
+    }
+
+    private static func relocateCorruptStore() {
+        let fm = FileManager.default
+        guard let dir = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return }
+        for name in ["default.store", "default.store-shm", "default.store-wal"] {
+            let url = dir.appendingPathComponent(name)
+            guard fm.fileExists(atPath: url.path) else { continue }
+            let backup = dir.appendingPathComponent(name + ".corrupt")
+            try? fm.removeItem(at: backup)
+            try? fm.moveItem(at: url, to: backup)
+        }
     }
 }
 

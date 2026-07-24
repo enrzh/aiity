@@ -78,6 +78,15 @@ enum ProviderRequestSupport {
         }
         // Common model-id failures
         let lower = detail.lowercased()
+        // Context-length overflow — turn the opaque 400 into actionable guidance
+        // (common on small-window self-hosted/gateway models when editing a large
+        // mini-app or after many tool results).
+        if lower.contains("context length") || lower.contains("context_length")
+            || lower.contains("maximum context") || lower.contains("context window")
+            || lower.contains("reduce the length") || lower.contains("prompt is too long")
+            || lower.contains("too many tokens") || (lower.contains("token") && lower.contains("exceed")) {
+            return "Kontext zu groß für dieses Modell — starte einen neuen Chat, sende kürzer, oder wähle ein Modell mit größerem Kontextfenster (Mini-App-Bearbeitung braucht viel Kontext)."
+        }
         if status == 404 || lower.contains("model") && (lower.contains("not found") || lower.contains("does not exist") || lower.contains("invalid model")) {
             return "Modell nicht gefunden: \(detail) — unter Anbieter ein gültiges Modell wählen."
         }

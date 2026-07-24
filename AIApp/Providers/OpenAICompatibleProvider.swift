@@ -167,17 +167,30 @@ struct OpenAICompatibleProvider: LLMProvider {
             // DeepSeek / some R1 ports stream reasoning separately — ignore for chat UI.
 
             let fragments = delta["tool_calls"] as? [[String: Any]] ?? []
-            for (offset, fragment) in fragments.enumerated() {
+            for fragment in fragments {
                 let index: Int
                 if let i = fragment["index"] as? Int {
                     index = i
+                    nextIndex = max(nextIndex, index + 1)
                 } else if let i = fragment["index"] as? Double {
                     index = Int(i)
+                    nextIndex = max(nextIndex, index + 1)
                 } else {
-                    // Ollama historically omitted index — assign stable order.
-                    index = offset + nextIndex
+                    // Ollama-style: no index. A fragment carrying a fresh id or name
+                    // starts a new call; an arguments-only fragment continues the one
+                    // being built — otherwise a split name/args pair is torn across
+                    // two fabricated indices and the arguments are lost.
+                    let function = fragment["function"] as? [String: Any]
+                    let startsNewCall = (fragment["id"] as? String).map { !$0.isEmpty } ?? false
+                        || (function?["name"] as? String).map { !$0.isEmpty } ?? false
+                        || (fragment["name"] as? String).map { !$0.isEmpty } ?? false
+                    if startsNewCall || pendingCalls.isEmpty {
+                        index = nextIndex
+                        nextIndex += 1
+                    } else {
+                        index = nextIndex - 1
+                    }
                 }
-                nextIndex = max(nextIndex, index + 1)
                 var call = pendingCalls[index] ?? (id: "", name: "", args: "")
                 if let id = fragment["id"] as? String, !id.isEmpty { call.id = id }
                 if let function = fragment["function"] as? [String: Any] {

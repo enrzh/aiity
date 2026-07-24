@@ -604,6 +604,18 @@ final class ChatSession: ObservableObject {
 
     /// Validate mini-app HTML (multi-file aware); if broken, one repair turn (no tools).
     private func handleAssistantFinished(provider: LLMProvider, tools: [AgentTool], assistantIndex: Int) async {
+        // Drop a fully-empty assistant turn (no text, no media, no tool calls).
+        // Keeping it poisons the thread — Anthropic 400s on empty assistant content
+        // on the next request — and shows a blank bubble.
+        if assistantIndex < messages.count,
+           messages[assistantIndex].text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           messages[assistantIndex].mediaIds.isEmpty,
+           messages[assistantIndex].toolCalls.isEmpty {
+            messages.remove(at: assistantIndex)
+            statusLine = nil
+            persist()
+            return
+        }
         let text = messages[assistantIndex].text
         if let bundle = MiniAppBundleParser.extract(from: text) {
             let runnable = MiniAppValidator.prepareHTML(bundle.bundledHTML())
