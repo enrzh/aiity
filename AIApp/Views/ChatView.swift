@@ -176,6 +176,9 @@ struct ChatView: View {
                         }
                     }
                     .padding()
+                    // Clearance so the last message can scroll clear of the
+                    // floating input bubble (which now overlays the content).
+                    .padding(.bottom, 72)
                 }
                 .onChange(of: visibleMessages.last?.text) {
                     if let lastId = visibleMessages.last?.id {
@@ -196,6 +199,9 @@ struct ChatView: View {
                 }
                 .scrollDismissesKeyboard(.immediately)
             }
+        }
+        // Input floats over the scroll content so messages pass behind it.
+        .overlay(alignment: .bottom) {
             inputBar
         }
         .navigationTitle(session.activeThreadTitle.isEmpty ? "Chat" : session.activeThreadTitle)
