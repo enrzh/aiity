@@ -10,6 +10,7 @@ struct LibraryView: View {
     @State private var openApp: MiniApp?
     @State private var iconEditApp: MiniApp?
     @State private var showAddWebApp = false
+    @State private var deleteCandidate: MiniApp?
 
     private let columns = [GridItem(.adaptive(minimum: 100), spacing: 16)]
 
@@ -38,6 +39,7 @@ struct LibraryView: View {
                         Image(systemName: "globe.badge.chevron.backward")
                     }
                     .accessibilityIdentifier("add-webapp")
+                    .accessibilityLabel("Website als App hinzufügen")
                 }
             }
             .sheet(item: $openApp) { app in
@@ -65,6 +67,22 @@ struct LibraryView: View {
                         iconSymbol: "globe"
                     ))
                 }
+            }
+            .confirmationDialog(
+                "Mini-App löschen?",
+                isPresented: Binding(
+                    get: { deleteCandidate != nil },
+                    set: { if !$0 { deleteCandidate = nil } }
+                ),
+                presenting: deleteCandidate
+            ) { app in
+                Button("Löschen", role: .destructive) {
+                    modelContext.delete(app)
+                    deleteCandidate = nil
+                }
+                Button("Abbrechen", role: .cancel) { deleteCandidate = nil }
+            } message: { app in
+                Text("„\(app.name)“ wird dauerhaft entfernt.")
             }
         }
     }
@@ -97,9 +115,9 @@ struct LibraryView: View {
         } label: {
             VStack(spacing: 8) {
                 MiniAppIconView(emoji: app.emoji, iconSymbol: app.iconSymbol, size: 72)
-                // Fixed-height text block so every cell is the same height and
-                // the icons line up across the row (regardless of a 2-line name
-                // or the extra capability label).
+                // Min-height (not fixed) text block: icons line up across the row
+                // at normal sizes, but the block can grow at large Dynamic Type
+                // instead of clipping the name/capability label.
                 VStack(spacing: 2) {
                     Text(app.name)
                         .font(.caption)
@@ -111,7 +129,7 @@ struct LibraryView: View {
                             .foregroundStyle(Color.accentColor)
                     }
                 }
-                .frame(height: 44, alignment: .top)
+                .frame(minHeight: 44, alignment: .top)
             }
         }
         .buttonStyle(.plain)
@@ -129,7 +147,7 @@ struct LibraryView: View {
                 Label("Icon ändern", systemImage: "paintbrush")
             }
             Button(role: .destructive) {
-                modelContext.delete(app)
+                deleteCandidate = app
             } label: {
                 Label("Löschen", systemImage: "trash")
             }

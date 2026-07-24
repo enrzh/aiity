@@ -28,6 +28,12 @@ targets:
       path: AIApp/Info.plist
       properties:
         CFBundleDisplayName: aiity
+        # Version is single-sourced from the build settings below (was hardcoded
+        # 1.0/1 in the plist, mismatching MARKETING_VERSION 0.6.0). App content is
+        # German, so declare the dev region as such (was $(DEVELOPMENT_LANGUAGE)=en).
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleDevelopmentRegion: de
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait

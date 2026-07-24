@@ -2,11 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!--
-	  Empty for personal/free-team device signing. Re-add on a PAID team:
-	    com.apple.developer.healthkit (true)                — mini-app Health bridge
-	    com.apple.developer.kernel.increased-memory-limit (true) — large on-device MLX models
-	  Both require the capability enabled on the App ID.
-	-->
+	<!-- HealthKit read access for the mini-app Health bridge (MiniAppHealthService).
+	     Requires HealthKit enabled on the App ID (paid Apple Developer team). -->
+	<key>com.apple.developer.healthkit</key>
+	<true/>
+	<key>com.apple.developer.healthkit.access</key>
+	<array/>
 </dict>
 </plist>

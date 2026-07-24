@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
-	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<string>de</string>
 	<key>CFBundleDisplayName</key>
 	<string>aiity</string>
 	<key>CFBundleExecutable</key>
@@ -17,7 +17,7 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
+	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -31,22 +31,22 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
-	<key>NSSupportsLiveActivities</key>
-	<true/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>Verbindung zu deinem lokalen Server (sub2api-Gateway, Ollama, LM Studio) im selben WLAN.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Mini-Apps können auf Wunsch Gesundheitsdaten (Schritte, Aktivität, Puls) anzeigen. Der Zugriff wird nur nach deiner Freigabe gelesen.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Diese App schreibt keine Gesundheitsdaten.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Verbindung zu deinem lokalen Server (sub2api-Gateway, Ollama, LM Studio) im selben WLAN.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

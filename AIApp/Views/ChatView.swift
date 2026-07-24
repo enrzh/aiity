@@ -237,6 +237,7 @@ struct ChatView: View {
                 }
                 .disabled(session.busy)
                 .accessibilityIdentifier("chat-threads")
+                .accessibilityLabel("Unterhaltungen")
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -246,6 +247,7 @@ struct ChatView: View {
                 }
                 .disabled(session.busy)
                 .accessibilityIdentifier("chat-new")
+                .accessibilityLabel("Neuer Chat")
             }
         }
         .sheet(item: $previewDraft) { draft in
@@ -379,6 +381,7 @@ struct ChatView: View {
                         .shadow(color: .red.opacity(0.35), radius: 6, y: 2)
                 }
                 .accessibilityIdentifier("chat-stop")
+                .accessibilityLabel("Stopp")
             } else {
                 Button(action: send) {
                     Image(systemName: "arrow.up")
@@ -395,6 +398,7 @@ struct ChatView: View {
                 }
                 .disabled(sanitizedInput.isEmpty)
                 .accessibilityIdentifier("chat-send")
+                .accessibilityLabel("Senden")
             }
         }
         .padding(.horizontal, 12)
