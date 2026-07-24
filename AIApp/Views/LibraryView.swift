@@ -97,15 +97,21 @@ struct LibraryView: View {
         } label: {
             VStack(spacing: 8) {
                 MiniAppIconView(emoji: app.emoji, iconSymbol: app.iconSymbol, size: 72)
-                Text(app.name)
-                    .font(.caption)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-                if app.capability != .offline {
-                    Text(app.capability.label)
-                        .font(.caption2)
-                        .foregroundStyle(Color.accentColor)
+                // Fixed-height text block so every cell is the same height and
+                // the icons line up across the row (regardless of a 2-line name
+                // or the extra capability label).
+                VStack(spacing: 2) {
+                    Text(app.name)
+                        .font(.caption)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.center)
+                    if app.capability != .offline {
+                        Text(app.capability.label)
+                            .font(.caption2)
+                            .foregroundStyle(Color.accentColor)
+                    }
                 }
+                .frame(height: 44, alignment: .top)
             }
         }
         .buttonStyle(.plain)
