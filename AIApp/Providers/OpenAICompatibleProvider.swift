@@ -176,14 +176,17 @@ struct OpenAICompatibleProvider: LLMProvider {
                     index = Int(i)
                     nextIndex = max(nextIndex, index + 1)
                 } else {
-                    // Ollama-style: no index. A fragment carrying a fresh id or name
-                    // starts a new call; an arguments-only fragment continues the one
-                    // being built — otherwise a split name/args pair is torn across
-                    // two fabricated indices and the arguments are lost.
+                    // Ollama-style: no index. Only a fragment naming a NEW function
+                    // starts a new call; id-only or arguments-only fragments belong
+                    // to the call being built (an id can arrive after the name, and
+                    // treating that as a new call tore the pair apart, losing args).
                     let function = fragment["function"] as? [String: Any]
-                    let startsNewCall = (fragment["id"] as? String).map { !$0.isEmpty } ?? false
-                        || (function?["name"] as? String).map { !$0.isEmpty } ?? false
-                        || (fragment["name"] as? String).map { !$0.isEmpty } ?? false
+                    let incomingName = (function?["name"] as? String)
+                        ?? (fragment["name"] as? String) ?? ""
+                    let current = pendingCalls[max(nextIndex - 1, 0)]
+                    let startsNewCall = !incomingName.isEmpty
+                        && !(current?.name.isEmpty ?? true)
+                        && current?.name != incomingName
                     if startsNewCall || pendingCalls.isEmpty {
                         index = nextIndex
                         nextIndex += 1

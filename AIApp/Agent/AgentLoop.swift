@@ -396,6 +396,24 @@ final class ChatSession: ObservableObject {
         persist()
     }
 
+    /// Remove assistant tool calls that never received a matching `tool` result.
+    /// An orphaned tool_use permanently breaks the thread on Anthropic, so this
+    /// runs whenever a turn ends early (Stop, cancellation).
+    func dropDanglingToolCalls() {
+        let answered = Set(messages.compactMap { $0.role == .tool ? $0.toolCallId : nil })
+        for index in messages.indices where messages[index].role == .assistant {
+            let dangling = messages[index].toolCalls.filter { !answered.contains($0.id) }
+            guard !dangling.isEmpty else { continue }
+            messages[index].toolCalls.removeAll { !answered.contains($0.id) }
+            if messages[index].toolCalls.isEmpty,
+               messages[index].text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+               messages[index].mediaIds.isEmpty {
+                messages.remove(at: index)
+                return dropDanglingToolCalls()   // indices shifted — re-scan
+            }
+        }
+    }
+
     /// Cancel the current generation (network stream / tool loop).
     func stop() {
         activeTask?.cancel()
@@ -409,6 +427,11 @@ final class ChatSession: ObservableObject {
            messages[last].toolCalls.isEmpty {
             messages.remove(at: last)
         }
+        // Stopping mid-tool-loop can leave an assistant `tool_use` whose results
+        // never arrived. Anthropic rejects that thread forever ("tool_use ids
+        // found without tool_result"), so drop the dangling calls (and the whole
+        // turn if it carried nothing else).
+        dropDanglingToolCalls()
         errorMessage = nil
         statusLine = "Gestoppt"
         persist()
@@ -545,9 +568,17 @@ final class ChatSession: ObservableObject {
                 )
                 let result = await toolsByName[call.name]?.run(argumentsJSON: call.argumentsJSON)
                     ?? ToolRunResult("Error: unknown tool \(call.name)")
-                if Task.isCancelled { return }
+                // Record the result even when cancelled: the work is already paid
+                // for, and the tool_result must exist to pair with its tool_use.
                 pendingMediaIds.append(contentsOf: result.mediaIds)
                 messages.append(ChatMessage(role: .tool, text: result.text, toolCallId: call.id, toolName: call.name))
+                if Task.isCancelled {
+                    if let last = messages.indices.last, !result.mediaIds.isEmpty {
+                        messages[last].mediaIds = result.mediaIds   // keep generated media visible
+                    }
+                    persist()
+                    return
+                }
             }
             statusLine = "Schreibt…"
             AgentLiveActivityController.shared.update(phase: "Schreibt…", progress: 0.55)
@@ -842,29 +873,23 @@ final class ChatSession: ObservableObject {
     /// Public hook so UI can flush after clearing edit mode etc.
     func persistPublic() { persist() }
 
-    private static let maxThreads = 50
-
-    /// Bound the store: drop empty non-active threads (newThread/startEditing can
-    /// leave these) and cap total thread count, keeping the active thread plus the
-    /// most-recently-updated others. Reclaims media orphaned by any dropped thread.
+    /// Drop threads that hold no real content (newThread/startEditing can leave
+    /// these behind). Deliberately does NOT cap or delete conversations that have
+    /// messages: silently destroying history the user never agreed to lose is
+    /// worse than an large store, and there is now an export path for size.
     private func pruneThreads() {
         let before = threads.map(\.id)
         threads.removeAll { thread in
             thread.id != activeThreadId && thread.messages.allSatisfy { $0.role == .system }
-        }
-        if threads.count > Self.maxThreads {
-            let active = threads.first { $0.id == activeThreadId }
-            let others = threads
-                .filter { $0.id != activeThreadId }
-                .sorted { $0.updatedAt > $1.updatedAt }
-                .prefix(Self.maxThreads - (active == nil ? 0 : 1))
-            threads = (active.map { [$0] } ?? []) + Array(others)
         }
         if threads.map(\.id) != before { reclaimMedia() }
     }
 
     /// Delete stored media no longer referenced by any thread or the live messages.
     private func reclaimMedia() {
+        // Never sweep while a turn is running: media it generated is not attached
+        // to a message yet (MediaStore's grace window is a second safety net).
+        guard !busy else { return }
         var ids = Set<String>()
         for thread in threads { for message in thread.messages { ids.formUnion(message.mediaIds) } }
         for message in messages { ids.formUnion(message.mediaIds) }

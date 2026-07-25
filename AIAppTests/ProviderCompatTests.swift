@@ -192,12 +192,50 @@ final class ProviderCompatTests: XCTestCase {
 
     func testFetchURLBlocksEncodedAndPrivateHosts() {
         for host in ["2130706433", "0x7f000001", "192.168.1.1", "169.254.169.254",
-                     "100.93.237.25", "localhost", "10.0.0.1", "::1"] {
+                     "100.93.237.25", "localhost", "10.0.0.1", "::1",
+                     // Alternative encodings that a plain dotted-quad check misses:
+                     "0177.0.0.1",              // octal
+                     "127.1",                   // short form
+                     "::ffff:127.0.0.1",        // IPv4-mapped IPv6
+                     "[::ffff:192.168.0.1]",    // bracketed IPv4-mapped
+                     "0:0:0:0:0:0:0:1",         // expanded IPv6 loopback
+                     "::",                      // unspecified
+                     "fe80::1",                 // link-local
+                     "fd00::1",                 // unique-local
+                     "localhost.",              // trailing root dot
+                     "user@127.0.0.1",          // userinfo prefix
+                     "0x7f.0x0.0x0.0x1"] {      // hex per-octet
             XCTAssertTrue(FetchURLTool.isBlockedHost(host), "should block \(host)")
         }
-        for host in ["8.8.8.8", "example.com", "api.openai.com", "1.1.1.1"] {
+        for host in ["8.8.8.8", "example.com", "api.openai.com", "1.1.1.1", "172.32.0.1"] {
             XCTAssertFalse(FetchURLTool.isBlockedHost(host), "should allow \(host)")
         }
+    }
+
+    func testMediaModelResolutionNeverCrossesModality() {
+        // A configured, explicit choice is never silently swapped…
+        XCTAssertEqual(
+            MediaRoute.resolveModel("my-custom-image", presetId: "sub2api", modality: .image),
+            "my-custom-image"
+        )
+        // …and a video slot must never fall back to an image model.
+        let videoResolved = MediaRoute.resolveModel(
+            ModelModality.video.defaultModel, presetId: "sub2api", modality: .video
+        )
+        XCTAssertFalse(videoResolved.lowercased().contains("image"),
+                       "video slot must not resolve to an image model, got \(videoResolved)")
+    }
+
+    @MainActor
+    func testSkillReplaceVsForkPredicate() {
+        let existing = AgentSkill(name: "PDF", summary: "s", instructions: "orig",
+                                  enabled: true, packageVersion: nil, source: "github:a/pdf")
+        // Same origin = upgrade (replaces, exempt from the free-tier gate).
+        XCTAssertTrue(SkillStore.replacesExisting(existing, instructions: "v2", source: "github:a/pdf"))
+        // Identical content = no-op replace.
+        XCTAssertTrue(SkillStore.replacesExisting(existing, instructions: "orig", source: "github:b/pdf"))
+        // Different origin + different content = fork, so it must be gated.
+        XCTAssertFalse(SkillStore.replacesExisting(existing, instructions: "other", source: "github:b/pdf"))
     }
 
     func testMiniAppConsentNoSilentEscalation() {

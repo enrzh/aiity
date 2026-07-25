@@ -58,25 +58,85 @@ struct FetchURLTool: AgentTool {
     /// encodings a dotted-quad parser misses (bare 32-bit integer like
     /// `2130706433` = 127.0.0.1, or hex `0x7f000001`).
     static func isBlockedHost(_ host: String) -> Bool {
-        if isPrivateHost(host) { return true }
-        if let dotted = normalizedIPv4(host), isPrivateHost(dotted) { return true }
+        var h = host.lowercased().trimmingCharacters(in: .whitespaces)
+        // Strip userinfo, brackets and a trailing root dot before classifying.
+        if let at = h.lastIndex(of: "@") { h = String(h[h.index(after: at)...]) }
+        h = h.trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
+        while h.hasSuffix(".") { h.removeLast() }
+        // IPv6: parse numerically rather than string-matching, so expanded forms
+        // (0:0:0:0:0:0:0:1) and IPv4-mapped (::ffff:127.0.0.1) are caught too.
+        if h.contains(":"), let verdict = blockedIPv6(h) { return verdict }
+        if isPrivateHost(h) { return true }
+        if let dotted = normalizedIPv4(h), isPrivateHost(dotted) { return true }
         return false
     }
 
-    /// Convert a bare-decimal or hex IPv4 host to dotted-quad; nil if it isn't one.
+    /// Numeric IPv6 classification via inet_pton. Returns nil when `host` isn't a
+    /// valid IPv6 literal (caller falls through to the IPv4/name checks).
+    /// Blocks loopback (::1 in any spelling), unspecified (::), link-local
+    /// (fe80::/10), unique-local (fc00::/7), and IPv4-mapped/compatible addresses
+    /// whose embedded IPv4 is private (::ffff:127.0.0.1).
+    static func blockedIPv6(_ host: String) -> Bool? {
+        var addr = in6_addr()
+        guard host.withCString({ inet_pton(AF_INET6, $0, &addr) }) == 1 else { return nil }
+        let b = withUnsafeBytes(of: &addr) { Array($0) }
+        guard b.count == 16 else { return nil }
+
+        if b[0] == 0xfe, (b[1] & 0xc0) == 0x80 { return true }   // fe80::/10 link-local
+        if (b[0] & 0xfe) == 0xfc { return true }                 // fc00::/7 unique-local
+
+        let firstTwelveZero = b.prefix(10).allSatisfy { $0 == 0 }
+        if firstTwelveZero {
+            let mapped = b[10] == 0xff && b[11] == 0xff          // ::ffff:a.b.c.d
+            let compat = b[10] == 0 && b[11] == 0                // ::a.b.c.d / ::1 / ::
+            if mapped || compat {
+                let v4 = "\(b[12]).\(b[13]).\(b[14]).\(b[15])"
+                if compat, b[12] == 0, b[13] == 0, b[14] == 0, b[15] <= 1 {
+                    return true                                   // :: and ::1
+                }
+                return isPrivateHost(v4)
+            }
+        }
+        return false
+    }
+
+    /// Convert a non-dotted-quad IPv4 form to dotted-quad; nil if it isn't one.
+    /// Handles a bare 32-bit integer (2130706433), hex (0x7f000001), octal
+    /// (0177.0.0.1) and short forms (127.1) — all of which resolve to the same
+    /// address a plain dotted-quad check would have blocked.
     static func normalizedIPv4(_ host: String) -> String? {
         let h = host.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
-        guard !h.isEmpty, !h.contains(".") else { return nil }
-        let value: UInt64?
-        if h.hasPrefix("0x") {
-            value = UInt64(h.dropFirst(2), radix: 16)
-        } else if h.allSatisfy(\.isNumber) {
-            value = UInt64(h)
-        } else {
-            value = nil
+        guard !h.isEmpty else { return nil }
+        let parts = h.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count <= 4, !parts.isEmpty else { return nil }
+
+        var values: [UInt64] = []
+        for part in parts {
+            guard let v = parseIPv4Part(String(part)) else { return nil }
+            values.append(v)
         }
-        guard let v = value, v <= 0xFFFF_FFFF else { return nil }
-        return "\((v >> 24) & 255).\((v >> 16) & 255).\((v >> 8) & 255).\(v & 255)"
+        // Last part absorbs the remaining bytes (127.1 → 127.0.0.1).
+        var address: UInt64 = 0
+        let leading = values.dropLast()
+        guard let tail = values.last else { return nil }
+        let tailBytes = 4 - leading.count
+        guard tailBytes >= 1, tail < (1 << (8 * UInt64(tailBytes))) else { return nil }
+        for (i, v) in leading.enumerated() {
+            guard v <= 255 else { return nil }
+            address |= v << UInt64(8 * (3 - i))
+        }
+        address |= tail
+        guard address <= 0xFFFF_FFFF else { return nil }
+        let dotted = "\((address >> 24) & 255).\((address >> 16) & 255).\((address >> 8) & 255).\(address & 255)"
+        return dotted == h ? nil : dotted   // already plain dotted-quad → caller handled it
+    }
+
+    /// Parse one IPv4 component in decimal, hex (0x…) or octal (leading 0).
+    private static func parseIPv4Part(_ part: String) -> UInt64? {
+        if part.isEmpty { return nil }
+        if part.hasPrefix("0x") { return UInt64(part.dropFirst(2), radix: 16) }
+        if part.count > 1, part.hasPrefix("0") { return UInt64(part.dropFirst(), radix: 8) }
+        return UInt64(part)
     }
 
     /// True for loopback, private (RFC1918), link-local, CGNAT/Tailscale (100.64/10),

@@ -2,6 +2,32 @@ import XCTest
 @testable import AIApp
 
 final class MiniAppEditContextTests: XCTestCase {
+
+    /// Stopping mid-tool-loop must not leave an assistant `tool_use` without its
+    /// `tool_result`: Anthropic rejects that thread forever ("tool_use ids found
+    /// without tool_result"), which permanently bricks the conversation.
+    @MainActor
+    func testDropDanglingToolCallsAfterStop() {
+        let session = ChatSession()
+        let answered = ToolCallData(id: "call_ok", name: "web_search", argumentsJSON: "{}")
+        let dangling = ToolCallData(id: "call_orphan", name: "fetch_url", argumentsJSON: "{}")
+
+        session.messages = [
+            ChatMessage(role: .user, text: "hi"),
+            ChatMessage(role: .assistant, text: "looking", toolCalls: [answered]),
+            ChatMessage(role: .tool, text: "result", toolCallId: "call_ok", toolName: "web_search"),
+            ChatMessage(role: .assistant, text: "", toolCalls: [dangling]),
+        ]
+        session.dropDanglingToolCalls()
+
+        let remaining = session.messages.flatMap(\.toolCalls).map(\.id)
+        XCTAssertEqual(remaining, ["call_ok"], "unanswered tool_use must be dropped")
+        XCTAssertFalse(
+            session.messages.contains { $0.role == .assistant && $0.text.isEmpty && $0.toolCalls.isEmpty },
+            "an assistant turn left with nothing should be removed entirely"
+        )
+    }
+
     func testSourcePinMessageContainsFullHTML() {
         let html = "<!DOCTYPE html><html><body><h1>MiniCraft</h1></body></html>"
         let ctx = ChatSession.EditingContext(id: UUID(), name: "MiniCraft 3D", html: html)

@@ -7,6 +7,7 @@ struct SettingsView: View {
     @ObservedObject private var prefs = AppPreferences.shared
     @Query private var savedApps: [MiniApp]
     @State private var backupURL: URL?
+    @State private var backupSummary = "…"
 
     private var settings: Binding<ProviderSettings> { $settingsStore.settings }
 
@@ -50,7 +51,9 @@ struct SettingsView: View {
                 } header: {
                     Text("Backup")
                 } footer: {
-                    Text("Sichert \(BackupService.summary(apps: savedApps)) als JSON-Datei. Ohne Backup sind deine Mini-Apps beim Löschen der App weg. API-Keys und Logins sind NICHT enthalten — die bleiben im Schlüsselbund des Geräts.")
+                    // Summary reads (and parses) the on-disk chat/skill JSON, so it
+                    // must not run on every body pass — compute once on appear.
+                    Text("Sichert \(backupSummary) als JSON-Datei. Ohne Backup sind deine Mini-Apps beim Löschen der App weg. API-Keys und Logins sind NICHT enthalten — die bleiben im Schlüsselbund des Geräts.")
                 }
 
                 Section {
@@ -117,6 +120,7 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Mehr")
+            .task { backupSummary = BackupService.summary(apps: savedApps) }
         }
     }
 

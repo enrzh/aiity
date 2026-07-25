@@ -51,9 +51,15 @@ struct MiniAppBundle: Equatable {
             // early and let the remaining bytes become live DOM (script injection).
             let blob = other.sorted { $0.key < $1.key }
                 .map { entry -> String in
-                    let key = entry.key.replacingOccurrences(of: "-->", with: "--&gt;")
-                    let body = entry.value.replacingOccurrences(of: "-->", with: "--&gt;")
-                    return "<!-- file:\(key)\n\(body)\n-->"
+                    // Both `-->` and the legacy `--!>` terminate an HTML comment,
+                    // and a nested `<!--` can confuse parsers — neutralize all
+                    // three so a companion body can never become live DOM.
+                    func escape(_ s: String) -> String {
+                        s.replacingOccurrences(of: "-->", with: "--&gt;")
+                            .replacingOccurrences(of: "--!>", with: "--!&gt;")
+                            .replacingOccurrences(of: "<!--", with: "&lt;!--")
+                    }
+                    return "<!-- file:\(escape(entry.key))\n\(escape(entry.value))\n-->"
                 }
                 .joined(separator: "\n")
             result += "\n" + blob

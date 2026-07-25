@@ -425,12 +425,20 @@ struct MediaRoute: Equatable {
     /// perfectly good image models (e.g. gemini-*-image).
     static func resolveModel(_ configured: String, presetId: String, modality: ModelModality) -> String {
         let catalog = ModelCatalogCache.modelsForDisplay(presetId: presetId).map(\.id)
-        if catalog.isEmpty { return configured }
-        if catalog.contains(configured) { return configured }
+        if catalog.isEmpty || catalog.contains(configured) { return configured }
+        // Only substitute the built-in default. A model the user chose themselves
+        // is kept even when absent from a possibly-stale cache — silently swapping
+        // an explicit choice is worse than a clear "model not found" error.
+        guard configured == modality.defaultModel else { return configured }
         let generative = catalog.filter { MediaCapability.modelLooksGenerative(id: $0.lowercased()) }
+        let isVideo: (String) -> Bool = {
+            let l = $0.lowercased()
+            return l.contains("video") || l.contains("sora") || l.contains("veo")
+        }
+        // Never cross modality: a video slot must not fall back to an image model.
         let pool = modality == .video
-            ? generative.filter { $0.lowercased().contains("video") || $0.lowercased().contains("sora") }
-            : generative.filter { !$0.lowercased().contains("video") && !$0.lowercased().contains("sora") }
-        return pool.first ?? generative.first ?? configured
+            ? generative.filter(isVideo)
+            : generative.filter { !isVideo($0) }
+        return pool.first ?? configured
     }
 }

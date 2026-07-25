@@ -123,6 +123,14 @@ final class SkillStore: ObservableObject {
         persist()
     }
 
+    /// Whether an incoming skill replaces `existing` in place (same origin = a
+    /// genuine upgrade, or identical content) rather than forking it. Shared with
+    /// the free-tier gate so "replace" doesn't count against the limit but a fork
+    /// (which really does add a skill) does.
+    static func replacesExisting(_ existing: AgentSkill, instructions: String, source: String?) -> Bool {
+        (existing.source ?? "") == (source ?? "") || existing.instructions == instructions
+    }
+
     func add(name: String, instructions: String, summary: String? = nil, source: String? = nil, version: String? = nil) {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedInstructions = instructions.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -133,8 +141,13 @@ final class SkillStore: ObservableObject {
         // keep the user's version under a distinct name.
         if let existingIndex = skills.firstIndex(where: { !$0.builtin && $0.name == trimmedName }) {
             let existing = skills[existingIndex]
-            let sameOrigin = (existing.source ?? "") == (source ?? "")
-            if sameOrigin || existing.instructions == trimmedInstructions {
+            if Self.replacesExisting(existing, instructions: trimmedInstructions, source: source) {
+                skills.remove(at: existingIndex)
+            } else if skills.contains(where: {
+                $0.id != existing.id && $0.instructions == existing.instructions
+            }) {
+                // An identical fork already exists (e.g. repeated re-install from a
+                // fallback source) — drop this copy instead of piling up "(lokal N)".
                 skills.remove(at: existingIndex)
             } else {
                 var preserved = existing
@@ -167,11 +180,18 @@ final class SkillStore: ObservableObject {
     @discardableResult
     func installPackage(markdown: String, source: String? = nil) -> AgentSkill? {
         let customCount = skills.filter { !$0.builtin }.count
-        if let doc = SkillPackage.parse(markdown: markdown, source: source),
-           !skills.contains(where: { !$0.builtin && $0.name == doc.name }),
-           !FreeTier.canInstallSkill(currentCustomCount: customCount) {
-            errorMessage = FreeTier.skillLimitMessage
-            return nil
+        if let doc = SkillPackage.parse(markdown: markdown, source: source) {
+            // Only a true in-place replace is exempt from the limit. A same-name
+            // install from a different origin FORKS (keeps both), so it must be
+            // gated like any other new skill.
+            let existing = skills.first { !$0.builtin && $0.name == doc.name }
+            let replaces = existing.map {
+                Self.replacesExisting($0, instructions: doc.instructions, source: source ?? doc.source)
+            } ?? false
+            if !replaces, !FreeTier.canInstallSkill(currentCustomCount: customCount) {
+                errorMessage = FreeTier.skillLimitMessage
+                return nil
+            }
         }
         guard let doc = SkillPackage.parse(markdown: markdown, source: source) else {
             errorMessage = "Kein gültiges Skill-Paket (SKILL.md leer oder unlesbar)."
