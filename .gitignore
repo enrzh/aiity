@@ -1,5 +1,36 @@
+# OS / editor
 .DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Xcode / Swift
 xcuserdata/
+**/xcuserdata/
 DerivedData/
+**/DerivedData/
 *.xcuserstate
+**/*.xcuserstate
 build/
+**/build/
+*.xcworkspace/xcuserdata/
+
+# Graphify (local agent tooling — never commit)
+graphify-out/
+
+# Secrets / local env
+.env
+.env.*
+!.env.example
+**/*.pem
+
+# Python helpers
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Logs / temp
+*.log
+*.tmp
+*.temp
