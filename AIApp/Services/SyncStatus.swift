@@ -29,6 +29,11 @@ final class SyncStatus: ObservableObject {
 
     func report(_ mode: Mode) {
         self.mode = mode
+        #if DEBUG
+        // Which rung of the container ladder we landed on is otherwise only
+        // visible by opening Settings on the device.
+        print("AIITY-STORE \(mode)")
+        #endif
     }
 
     var title: String {
