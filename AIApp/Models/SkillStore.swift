@@ -71,18 +71,36 @@ final class SkillStore: ObservableObject {
     nonisolated private static var resolvedFileURL: URL { fileURLOverride ?? fileURL }
 
     init() {
-        if let data = try? Data(contentsOf: Self.resolvedFileURL),
-           let stored = try? JSONDecoder().decode([AgentSkill].self, from: data) {
-            skills = stored
+        let stored = try? Data(contentsOf: Self.resolvedFileURL)
+        if let stored, let decoded = try? JSONDecoder().decode([AgentSkill].self, from: stored) {
+            skills = decoded
             // Ensure builtins always exist (migrate old installs missing them).
             for b in Self.builtins where !skills.contains(where: { $0.builtin && $0.name == b.name }) {
                 skills.append(b)
             }
             persist()
-        } else {
-            skills = Self.builtins
-            persist()
+            return
         }
+
+        skills = Self.builtins
+        // A file that exists but will not decode must NOT be replaced by the
+        // builtins — that silently deletes every skill the user wrote or
+        // imported. Keep the bytes, and only write once they are safe.
+        if let stored, stored.count > 1 {
+            guard Self.quarantine(stored) else { return }
+        }
+        persist()
+    }
+
+    /// Preserve an unreadable skills file alongside its original. Returns false
+    /// when the copy failed, in which case the caller must not overwrite.
+    nonisolated private static func quarantine(_ data: Data) -> Bool {
+        let stamp = ISO8601DateFormatter().string(from: Date())
+            .replacingOccurrences(of: ":", with: "-")
+        let target = resolvedFileURL.deletingLastPathComponent()
+            .appendingPathComponent("\(resolvedFileURL.lastPathComponent).corrupt-\(stamp)")
+        guard (try? data.write(to: target, options: .atomic)) != nil else { return false }
+        return true
     }
 
     nonisolated static func enabledInstructions(maxChars: Int = 12_000) -> String {

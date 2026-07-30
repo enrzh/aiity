@@ -21,6 +21,43 @@ struct AgentDefinition: Identifiable, Codable, Equatable {
     var model: String = ""
     var enabled: Bool = true
 
+    init(
+        id: UUID = UUID(),
+        name: String,
+        role: String,
+        emoji: String = "🤖",
+        presetId: String = "",
+        model: String = "",
+        enabled: Bool = true
+    ) {
+        self.id = id
+        self.name = name
+        self.role = role
+        self.emoji = emoji
+        self.presetId = presetId
+        self.model = model
+        self.enabled = enabled
+    }
+
+    // Hand-written for the same reason as `ChatThread`: Swift's synthesized
+    // decoder treats a DEFAULTED property as required, so the next field added
+    // here would make every stored agent undecodable — and one throw fails the
+    // whole array, wiping the roster. Only name and role are truly mandatory.
+    private enum CodingKeys: String, CodingKey {
+        case id, name, role, emoji, presetId, model, enabled
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
+        role = try c.decodeIfPresent(String.self, forKey: .role) ?? ""
+        emoji = try c.decodeIfPresent(String.self, forKey: .emoji) ?? "🤖"
+        presetId = try c.decodeIfPresent(String.self, forKey: .presetId) ?? ""
+        model = try c.decodeIfPresent(String.self, forKey: .model) ?? ""
+        enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
+    }
+
     /// Name normalised for tool arguments — the model will echo this back.
     var slug: String {
         let allowed = name.lowercased().map { char -> Character in

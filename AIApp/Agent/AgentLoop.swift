@@ -808,9 +808,11 @@ final class ChatSession: ObservableObject {
     var activeParticipants: [AgentDefinition] {
         let ids = activeParticipantIds
         guard !ids.isEmpty else { return [] }
-        let all = AgentStore.load()
+        // `active()`, not `load()`: a switched-off agent must not speak in a
+        // group either — the toggle meant nothing here before.
+        let available = AgentStore.active()
         // Preserve the order the user picked them in.
-        return ids.compactMap { id in all.first { $0.id == id } }
+        return ids.compactMap { id in available.first { $0.id == id } }
     }
 
     /// Post the user's message, then let every participant speak once.
