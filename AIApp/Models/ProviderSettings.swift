@@ -7,8 +7,12 @@ import Foundation
 /// independent slot (`imagePresetId`/`imageModel`) so media is not configured
 /// “inside” the chat provider.
 struct ProviderSettings: Codable, Equatable {
-    /// Active chat provider.
-    var presetId: String = "anthropic"
+    /// Active chat provider. Defaults to a provider whose path has actually
+    /// been run end to end (see `ProviderMaturity`) — OpenRouter also has the
+    /// only one-tap sign-in that works, so a fresh install lands somewhere
+    /// that can genuinely be connected. Only affects installs with no stored
+    /// settings; an existing choice is always decoded over this.
+    var presetId: String = "openrouter"
     /// Override for presets with editable endpoints (self-hosted, LAN).
     var baseURL: String = ""
     /// Active chat model.

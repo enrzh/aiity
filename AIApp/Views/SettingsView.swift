@@ -103,6 +103,10 @@ private struct SearchSettingsView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     private var settings: Binding<ProviderSettings> { $settingsStore.settings }
 
+    private var selected: SearchBackend {
+        SearchBackend(rawValue: settingsStore.settings.searchBackend) ?? .auto
+    }
+
     var body: some View {
         Form {
             Section {
@@ -111,23 +115,40 @@ private struct SearchSettingsView: View {
                         Text(backend.title).tag(backend.rawValue)
                     }
                 }
+            } footer: {
+                Text(selected == .auto || selected == .duckduckgo
+                     ? "DuckDuckGo braucht keinen Key und ist die Standardquelle."
+                     : "Braucht einen eigenen Key bzw. Server. Ohne gültige Angaben fällt die Suche auf DuckDuckGo zurück.")
             }
 
-            Section("Verbindung") {
-                TextField("SearXNG-URL", text: settings.searchEndpoint)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.URL)
-                SecureField("Brave Key", text: settings.searchBraveKey)
-                    .textContentType(.password)
-                    .onChange(of: settingsStore.settings.searchBraveKey) { _, value in
-                        Keychain.set(value, for: "search-brave-key")
-                    }
-                SecureField("Tavily Key", text: settings.searchTavilyKey)
-                    .textContentType(.password)
-                    .onChange(of: settingsStore.settings.searchTavilyKey) { _, value in
-                        Keychain.set(value, for: "search-tavily-key")
-                    }
+            // Only the fields the selected backend actually uses — the others
+            // were just three always-visible inputs for services most people
+            // never configure.
+            if selected == .searxng {
+                Section("SearXNG") {
+                    TextField("SearXNG-URL", text: settings.searchEndpoint)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.URL)
+                }
+            }
+            if selected == .brave {
+                Section("Brave") {
+                    SecureField("Brave Key", text: settings.searchBraveKey)
+                        .textContentType(.password)
+                        .onChange(of: settingsStore.settings.searchBraveKey) { _, value in
+                            Keychain.set(value, for: "search-brave-key")
+                        }
+                }
+            }
+            if selected == .tavily {
+                Section("Tavily") {
+                    SecureField("Tavily Key", text: settings.searchTavilyKey)
+                        .textContentType(.password)
+                        .onChange(of: settingsStore.settings.searchTavilyKey) { _, value in
+                            Keychain.set(value, for: "search-tavily-key")
+                        }
+                }
             }
         }
         .navigationTitle("Web-Suche")
