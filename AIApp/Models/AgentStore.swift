@@ -53,6 +53,62 @@ struct AgentDefinition: Identifiable, Codable, Equatable {
     }
 }
 
+/// Starting points offered when the user has no agents yet.
+///
+/// Roles only — the model is deliberately NOT preset. Which brain an agent runs
+/// on is a cost and privacy decision that belongs to the user; a suggestion
+/// that silently picks an expensive model is a suggestion that spends their
+/// money. Each carries a hint instead.
+enum AgentSuggestion {
+    struct Template: Identifiable {
+        var id: String { name }
+        let name: String
+        let emoji: String
+        let role: String
+        /// What kind of model suits this job, in plain terms.
+        let modelHint: String
+    }
+
+    static let all: [Template] = [
+        Template(
+            name: "Rechercheur",
+            emoji: "🔎",
+            role: "Recherchiert Fakten im Web, prüft sie an mehreren Quellen und fasst sie mit Quellenangabe zusammen. Sagt ausdrücklich, wenn etwas unsicher oder widersprüchlich ist.",
+            modelHint: "Ein starkes Cloud-Modell — Recherche lebt von Sorgfalt."
+        ),
+        Template(
+            name: "Kritiker",
+            emoji: "🧐",
+            role: "Sucht gezielt Schwachstellen in Plänen und Texten: falsche Annahmen, fehlende Fälle, unbegründete Behauptungen. Formuliert knapp und konkret, ohne Höflichkeitsfloskeln.",
+            modelHint: "Ein starkes Modell — Kritik ist wertlos, wenn sie oberflächlich ist."
+        ),
+        Template(
+            name: "Planer",
+            emoji: "🗺️",
+            role: "Zerlegt ein Ziel in eine überschaubare Reihenfolge konkreter Schritte, benennt Abhängigkeiten und sagt, was zuerst geklärt werden muss.",
+            modelHint: "Mittelklasse reicht meist."
+        ),
+        Template(
+            name: "Übersetzer",
+            emoji: "🌍",
+            role: "Übersetzt Texte natürlich statt wörtlich, behält Ton und Fachbegriffe bei und markiert Stellen, die im Original mehrdeutig sind.",
+            modelHint: "Auch ein günstiges Modell macht das gut."
+        ),
+        Template(
+            name: "Zusammenfasser",
+            emoji: "📝",
+            role: "Fasst lange Texte auf das Wesentliche zusammen: Kernaussage zuerst, dann die Punkte, die eine Entscheidung verändern würden. Keine Füllsätze.",
+            modelHint: "Ein günstiges, schnelles Modell genügt."
+        ),
+    ]
+
+    /// A template as a fresh agent — provider intentionally left empty, so it
+    /// inherits the chat provider until the user chooses one.
+    static func agent(from template: Template) -> AgentDefinition {
+        AgentDefinition(name: template.name, role: template.role, emoji: template.emoji)
+    }
+}
+
 @MainActor
 final class AgentStore: ObservableObject {
     /// One instance app-wide. Two views each holding their own store meant

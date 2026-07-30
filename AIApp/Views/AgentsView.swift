@@ -12,13 +12,30 @@ struct AgentsView: View {
         NavigationStack {
             Group {
                 if store.agents.isEmpty {
-                    AppEmptyState(
-                        title: "Noch keine Agenten",
-                        systemImage: "person.2",
-                        message: "Lege Spezialisten an — Recherche, Code-Review, Übersetzung. Der Chat fragt sie von sich aus, wenn eine Aufgabe passt.",
-                        actionTitle: "Agent anlegen",
-                        action: { editing = AgentDefinition(name: "", role: "") }
-                    )
+                    List {
+                        Section {
+                            Text("Lege Spezialisten an — der Chat fragt sie von sich aus, wenn eine Aufgabe passt.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            Button {
+                                editing = AgentDefinition(name: "", role: "")
+                            } label: {
+                                Label("Eigenen Agent anlegen", systemImage: "plus.circle")
+                            }
+                        } header: {
+                            Text("Noch keine Agenten")
+                        }
+
+                        Section {
+                            ForEach(AgentSuggestion.all) { template in
+                                suggestionRow(template)
+                            }
+                        } header: {
+                            Text("Vorschläge")
+                        } footer: {
+                            Text("Öffnet den Entwurf zum Anpassen. Das Modell wählst du selbst — jeder Vorschlag sagt dir, was dafür sinnvoll ist.")
+                        }
+                    }
                 } else {
                     List {
                         Section {
@@ -71,6 +88,35 @@ struct AgentsView: View {
                 Text("„\(agent.name)“ wird entfernt.")
             }
         }
+    }
+
+    /// A suggestion opens the editor pre-filled rather than saving straight
+    /// away — the user still names the model and can rewrite the role.
+    private func suggestionRow(_ template: AgentSuggestion.Template) -> some View {
+        Button {
+            editing = AgentSuggestion.agent(from: template)
+        } label: {
+            HStack(spacing: 12) {
+                Text(template.emoji).font(.title2).frame(width: 34)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(template.name)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    Text(template.role)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                    Text(template.modelHint)
+                        .font(.caption2)
+                        .foregroundStyle(Color.accentColor)
+                        .lineLimit(1)
+                }
+                Spacer()
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("agent-suggestion")
     }
 
     private func agentRow(_ agent: AgentDefinition) -> some View {
@@ -126,6 +172,26 @@ struct AgentEditSheet: View {
 
     @EnvironmentObject private var settingsStore: SettingsStore
     @Environment(\.dismiss) private var dismiss
+    @State private var writingRole = false
+    @State private var roleError: String?
+
+    /// Draft from the name when empty, sharpen what is there otherwise.
+    private func writeRole() {
+        writingRole = true
+        roleError = nil
+        Task {
+            do {
+                agent.role = try await AgentRoleWriter.write(
+                    name: agent.name,
+                    existing: agent.role,
+                    settings: settingsStore.settings
+                )
+            } catch {
+                roleError = error.localizedDescription
+            }
+            writingRole = false
+        }
+    }
 
     private var isValid: Bool {
         !agent.name.trimmingCharacters(in: .whitespaces).isEmpty
@@ -151,6 +217,30 @@ struct AgentEditSheet: View {
                     )
                     .lineLimit(3...8)
                     .accessibilityIdentifier("agent-role")
+
+                    Button {
+                        writeRole()
+                    } label: {
+                        if writingRole {
+                            HStack(spacing: 8) {
+                                ProgressView().controlSize(.small)
+                                Text("Schreibt…")
+                            }
+                        } else {
+                            Label(
+                                agent.role.trimmingCharacters(in: .whitespaces).isEmpty
+                                    ? "Mit KI beschreiben"
+                                    : "Mit KI verbessern",
+                                systemImage: "sparkles"
+                            )
+                        }
+                    }
+                    .disabled(writingRole)
+                    .accessibilityIdentifier("agent-write-role")
+
+                    if let roleError {
+                        Text(roleError).font(.caption).foregroundStyle(.red)
+                    }
                 } header: {
                     Text("Aufgabe")
                 } footer: {

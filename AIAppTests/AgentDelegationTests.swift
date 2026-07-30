@@ -111,3 +111,71 @@ final class AgentDelegationTests: XCTestCase {
         )
     }
 }
+
+/// The bug that made a "group chat" three monologues: a model treats every
+/// `.assistant` message as its OWN prior turn, so peers handed over in the
+/// assistant role read as its own train of thought — and nobody argues with
+/// themselves.
+final class GroupPerspectiveTests: XCTestCase {
+    private let planner = AgentDefinition(name: "Planer", role: "plant")
+    private let critic = AgentDefinition(name: "Kritiker", role: "kritisiert")
+
+    private var transcript: [ChatMessage] {
+        [
+            ChatMessage(role: .user, text: "Wie gehen wir das an?"),
+            ChatMessage(role: .assistant, text: "Erst A, dann B.", authorName: "Planer"),
+            ChatMessage(role: .assistant, text: "B ist riskant.", authorName: "Kritiker"),
+        ]
+    }
+
+    func testAnAgentSeesOnlyItsOwnTurnsAsAssistant() {
+        let view = GroupChatRunner.perspective(of: planner, transcript: transcript)
+        let assistantTexts = view.filter { $0.role == .assistant }.map(\.text)
+        XCTAssertEqual(assistantTexts, ["Erst A, dann B."],
+                       "only the Planer's own contribution may be an assistant turn")
+    }
+
+    func testPeersArriveAsNamedUserMessages() {
+        let view = GroupChatRunner.perspective(of: planner, transcript: transcript)
+        let userTexts = view.filter { $0.role == .user }.map(\.text)
+        XCTAssertTrue(userTexts.contains("Wie gehen wir das an?"))
+        XCTAssertTrue(userTexts.contains("Kritiker: B ist riskant."),
+                      "a peer must arrive as somebody else's message, named")
+    }
+
+    /// The same transcript looks different to each participant — that is what
+    /// makes it a conversation rather than a shared monologue.
+    func testEachAgentGetsItsOwnPerspective() {
+        let plannerView = GroupChatRunner.perspective(of: planner, transcript: transcript)
+        let criticView = GroupChatRunner.perspective(of: critic, transcript: transcript)
+        XCTAssertNotEqual(
+            plannerView.map { "\($0.role):\($0.text)" },
+            criticView.map { "\($0.role):\($0.text)" }
+        )
+        XCTAssertEqual(criticView.filter { $0.role == .assistant }.map(\.text), ["B ist riskant."])
+    }
+
+    /// Tool plumbing is not conversation and must not reach a peer.
+    func testToolAndSystemMessagesAreDropped() {
+        let noisy = transcript + [
+            ChatMessage(role: .tool, text: "{\"results\":[]}", toolName: "web_search"),
+            ChatMessage(role: .system, text: "interner Prompt"),
+        ]
+        let view = GroupChatRunner.perspective(of: planner, transcript: noisy)
+        XCTAssertFalse(view.contains { $0.role == .tool || $0.role == .system })
+        XCTAssertFalse(view.contains { $0.text.contains("interner Prompt") })
+    }
+
+    /// Suggested agents must not preset a provider — the model is the user's
+    /// cost decision.
+    func testSuggestionsLeaveTheModelToTheUser() {
+        XCTAssertFalse(AgentSuggestion.all.isEmpty)
+        for template in AgentSuggestion.all {
+            let agent = AgentSuggestion.agent(from: template)
+            XCTAssertTrue(agent.presetId.isEmpty, "\(template.name) must not preset a provider")
+            XCTAssertTrue(agent.model.isEmpty, "\(template.name) must not preset a model")
+            XCTAssertFalse(agent.role.isEmpty)
+            XCTAssertFalse(template.modelHint.isEmpty, "each suggestion should say what model suits it")
+        }
+    }
+}

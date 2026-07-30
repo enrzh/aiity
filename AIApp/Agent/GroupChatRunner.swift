@@ -56,7 +56,7 @@ enum GroupChatRunner {
             // anybody.
             running.append(ChatMessage(
                 role: .assistant,
-                text: "\(agent.name): \(trimmed)",
+                text: trimmed,
                 authorName: agent.name,
                 authorEmoji: agent.emoji
             ))
@@ -83,9 +83,7 @@ enum GroupChatRunner {
         var messages: [ChatMessage] = [
             ChatMessage(role: .system, text: systemPrompt(for: agent, peers: peers)),
         ]
-        // Drop system/tool noise from the shared history — a peer's tool
-        // plumbing is not part of the conversation.
-        messages += transcript.filter { $0.role == .user || $0.role == .assistant }
+        messages += perspective(of: agent, transcript: transcript)
 
         var text = ""
         do {
@@ -101,6 +99,35 @@ enum GroupChatRunner {
         }
         let answer = text.trimmingCharacters(in: .whitespacesAndNewlines)
         return answer.isEmpty ? "(keine Antwort)" : answer
+    }
+
+    /// Rewrite the shared transcript from one agent's point of view.
+    ///
+    /// This is the difference between a discussion and several monologues. A
+    /// chat model treats every `.assistant` message as something IT said, so
+    /// handing an agent its peers' turns in the assistant role makes them read
+    /// as its own train of thought — and nobody argues with themselves. Only
+    /// this agent's own turns stay `.assistant`; everyone else's arrive as
+    /// `.user`, named, which is what makes them something to respond to.
+    static func perspective(of agent: AgentDefinition, transcript: [ChatMessage]) -> [ChatMessage] {
+        transcript.compactMap { message in
+            switch message.role {
+            case .user:
+                return ChatMessage(role: .user, text: message.text)
+            case .assistant:
+                guard let author = message.authorName else {
+                    // The plain assistant (a non-group turn in this thread).
+                    return ChatMessage(role: .user, text: message.text)
+                }
+                if author == agent.name {
+                    return ChatMessage(role: .assistant, text: message.text)
+                }
+                return ChatMessage(role: .user, text: "\(author): \(message.text)")
+            case .system, .tool:
+                // A peer's tool plumbing is not part of the conversation.
+                return nil
+            }
+        }
     }
 
     private static func systemPrompt(for agent: AgentDefinition, peers: [AgentDefinition]) -> String {
@@ -123,7 +150,8 @@ enum GroupChatRunner {
         So läuft der Chat:
         - Antworte NUR als \(agent.name), in der Ich-Form. Schreib niemals die Beiträge der anderen.
         - Stell deinen Namen NICHT voran — das macht die App.
-        - Beiträge der anderen stehen im Verlauf mit „Name: …“. Geh direkt darauf ein: stimm zu, widersprich, ergänze. Wiederhol nicht, was schon gesagt wurde.
+        - Beiträge der anderen erscheinen als Nachrichten mit „Name: …“ davor. Das sind ANDERE Personen, nicht du. Geh direkt auf sie ein — sprich sie beim Namen an, stimm zu, widersprich begründet, ergänze. Wiederhol nichts, was schon gesagt wurde.
+        - Wenn schon jemand vor dir geantwortet hat, beginne mit einem echten Bezug auf das Gesagte, nicht mit einer eigenen Einleitung.
         - Halt dich kurz: ein bis fünf Sätze, so wie man in einem Chat schreibt.
         - Wenn du nichts Substanzielles beizutragen hast, sag das in einem Satz statt zu füllen.
         - Antworte in der Sprache des Nutzers.
