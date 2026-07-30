@@ -186,3 +186,43 @@ final class WebAppTargetTests: XCTestCase {
         XCTAssertNil(WebAppBuilder.openTarget(in: "<html><body>hallo</body></html>"))
     }
 }
+
+/// The single fetch-target gate the three transports share.
+final class NetworkTargetValidatorTests: XCTestCase {
+    func testPrivateAndDisguisedAddressesAreBlocked() {
+        for host in ["127.0.0.1", "localhost", "10.0.0.5", "192.168.1.10",
+                     "169.254.1.1", "100.93.237.25", "nas.local", "2130706433"] {
+            XCTAssertTrue(NetworkTargetValidator.isBlocked(host: host), "should block \(host)")
+        }
+    }
+
+    func testPublicAddressesAreAllowed() {
+        for host in ["example.com", "8.8.8.8", "api.openai.com", "1.1.1.1"] {
+            XCTAssertFalse(NetworkTargetValidator.isBlocked(host: host), "should allow \(host)")
+        }
+    }
+
+    func testNonWebSchemesAreNeverAllowed() {
+        for raw in ["file:///etc/passwd", "ftp://example.com", "javascript:alert(1)"] {
+            guard let url = URL(string: raw) else { continue }
+            XCTAssertFalse(NetworkTargetValidator.isAllowed(url, allowPrivate: true),
+                           "must refuse \(raw) even when private hosts are allowed")
+        }
+    }
+
+    /// The allowance exists for the user's own LAN runtime, and must apply only
+    /// when explicitly granted.
+    func testPrivateHostsOnlyWithExplicitAllowance() {
+        let url = URL(string: "http://192.168.1.10:11434/v1")!
+        XCTAssertFalse(NetworkTargetValidator.isAllowed(url, allowPrivate: false))
+        XCTAssertTrue(NetworkTargetValidator.isAllowed(url, allowPrivate: true))
+    }
+
+    func testRefusalReasonNamesTheHost() {
+        let url = URL(string: "http://10.1.2.3/secret")!
+        let reason = NetworkTargetValidator.refusalReason(for: url, allowPrivate: false)
+        XCTAssertNotNil(reason)
+        XCTAssertTrue(reason?.contains("10.1.2.3") == true, "the reason should name the refused host")
+        XCTAssertNil(NetworkTargetValidator.refusalReason(for: url, allowPrivate: true))
+    }
+}

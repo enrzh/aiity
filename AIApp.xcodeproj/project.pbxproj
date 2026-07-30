@@ -101,6 +101,7 @@
 		CA64486EB3C158501F9D82B1 /* LocalRuntimePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C5F75BC4890C8C2B2AF59B /* LocalRuntimePolicy.swift */; };
 		CD53EF76E6E3BECAE16D7AA3 /* ConnectionProbeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18BAB401436AAC0B0CA8FE9B /* ConnectionProbeTests.swift */; };
 		D1648B3A22D7A36F129DEC96 /* SkillRecommendations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AC44973E1220CAA6251212E /* SkillRecommendations.swift */; };
+		D24150977C8342B8713F34B4 /* NetworkTargetValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A47B41787BB9423ACFDFFCFB /* NetworkTargetValidator.swift */; };
 		D31DECDB34565EF98BA3E315 /* AIAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D8C4C9C0DF446132CF6E371 /* AIAppApp.swift */; };
 		D40F1A002B6985FCBF8E06BB /* RepositoryError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3146C66FBE0536895AA0C01 /* RepositoryError.swift */; };
 		D49A77918D8926AE6BBF05AE /* ProviderConnectionModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A10B5B3D37AD8FCF3B4DE0E /* ProviderConnectionModelTests.swift */; };
@@ -239,6 +240,7 @@
 		A1481E1633D1F06549CF4AFA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A160BDDE100B930F17D58C54 /* MiniAppCapability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniAppCapability.swift; sourceTree = "<group>"; };
 		A45E2CD712FE5E52DC30F52F /* ProviderConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderConnectionView.swift; sourceTree = "<group>"; };
+		A47B41787BB9423ACFDFFCFB /* NetworkTargetValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkTargetValidator.swift; sourceTree = "<group>"; };
 		A5A7EBC99589ED208D3D8121 /* MiniAppServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniAppServices.swift; sourceTree = "<group>"; };
 		A7C1FFA7A0EB23A72FF72EE4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		A882592F7EDEA35B2140BDDF /* AIAppUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = AIAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -297,6 +299,14 @@
 				1ECF26AD24A8A3ED8DD9E6AA /* WebSearchTool.swift */,
 			);
 			path = Tools;
+			sourceTree = "<group>";
+		};
+		2498C8ECE757D4229B2691AF /* Networking */ = {
+			isa = PBXGroup;
+			children = (
+				A47B41787BB9423ACFDFFCFB /* NetworkTargetValidator.swift */,
+			);
+			path = Networking;
 			sourceTree = "<group>";
 		};
 		372CB198551F27537A828C27 /* Services */ = {
@@ -444,6 +454,7 @@
 				4B05B293EBCB4DE45E90A1E1 /* Agent */,
 				4C621E65A5832BC98F4EC631 /* Components */,
 				4F16CF8409F8E11079E233C9 /* Models */,
+				2498C8ECE757D4229B2691AF /* Networking */,
 				BAB2DFEB9B0434658223D6CF /* Persistence */,
 				FD700AC8B3F2BB035C636FAF /* Providers */,
 				372CB198551F27537A828C27 /* Services */,
@@ -757,6 +768,7 @@
 				EE87BB72426368F4AD0BA5DB /* ModelCatalogService.swift in Sources */,
 				041108F0C7528C8C362E0851 /* ModelModality.swift in Sources */,
 				2A1AB1ABBBB454CDD76C7CFE /* NetworkErrorFriendly.swift in Sources */,
+				D24150977C8342B8713F34B4 /* NetworkTargetValidator.swift in Sources */,
 				7638D9B8308E1A606793ADA7 /* OAuthService.swift in Sources */,
 				9BDEEE9562D1AD6824CBF328 /* OnboardingModal.swift in Sources */,
 				8D23EA1119A363739C148D1A /* OpenAICompatibleProvider.swift in Sources */,
