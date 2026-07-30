@@ -24,6 +24,7 @@ struct FetchURLTool: AgentTool {
     }
 
     func run(argumentsJSON: String) async -> ToolRunResult {
+        var blockedRedirectHost: String?
         let urlString = toolArguments(argumentsJSON)["url"] as? String ?? ""
         guard let url = URL(string: urlString), ["http", "https"].contains(url.scheme ?? "") else {
             return ToolRunResult("Error: invalid URL")
@@ -39,10 +40,13 @@ struct FetchURLTool: AgentTool {
             // above doesn't cover redirect hops, so use a session whose delegate
             // re-validates every hop when private hosts are disallowed.
             let blocker = allowPrivateHosts ? nil : SSRFRedirectBlocker()
+            defer { blockedRedirectHost = blocker?.blockedHost }
             let session = URLSession(configuration: .ephemeral, delegate: blocker, delegateQueue: nil)
             defer { session.finishTasksAndInvalidate() }
             let (data, response) = try await session.data(for: request)
             if let blocked = blocker?.blockedHost {
+                // Deliberately returns instead of falling through: the browser
+                // fallback below would follow the very redirect just refused.
                 return ToolRunResult("Blocked: a redirect pointed at a private/LAN address (\(blocked)). Refusing to follow.")
             }
             let contentType = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Type") ?? ""
@@ -65,7 +69,12 @@ struct FetchURLTool: AgentTool {
             return ToolRunResult(String(text.prefix(Self.maxCharacters)))
         } catch {
             // Some sites reject non-browser clients outright; the browser path
-            // is the natural retry rather than surfacing the failure.
+            // is the natural retry rather than surfacing the failure. But a
+            // request we cancelled OURSELVES for pointing at a private address
+            // must never be retried through a transport that would allow it.
+            if blockedRedirectHost != nil {
+                return ToolRunResult("Blocked: a redirect pointed at a private/LAN address. Refusing to follow.")
+            }
             if let rendered = await Self.renderedText(for: url, allowPrivateHosts: allowPrivateHosts) {
                 return ToolRunResult(String(rendered.prefix(Self.maxCharacters)))
             }

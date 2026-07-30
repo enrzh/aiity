@@ -50,6 +50,15 @@ actor AtomicFileStore<Value: Codable & Sendable> {
         do {
             data = try Data(contentsOf: url)
         } catch {
+            // Only a genuinely absent file is an empty start. A permission or
+            // I/O failure must NOT read as "nothing stored" — callers treat
+            // that as licence to write, which overwrites readable data.
+            if FileManager.default.fileExists(atPath: url.path) {
+                throw RepositoryError.corrupt(
+                    path: url.lastPathComponent,
+                    underlying: String(describing: error)
+                )
+            }
             throw RepositoryError.notFound
         }
         // An empty or whitespace-only file is a previous failed write, not

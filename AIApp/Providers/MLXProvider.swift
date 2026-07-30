@@ -48,9 +48,13 @@ final class MLXRuntime: @unchecked Sendable {
                 try? await Task.sleep(nanoseconds: UInt64(attempt) * 2_000_000_000)
             }
         }
-        // Don't leave a half-written model that `isDownloaded` might later
-        // mistake for a usable one.
-        LocalModelLocation.removeIncomplete(modelId)
+        // Keep a partial download when the failure was transport-level: those
+        // bytes are worth gigabytes of the user's bandwidth and the next
+        // attempt resumes from them. `isDownloaded` already refuses to treat an
+        // incomplete directory as usable, so leaving it is safe.
+        if let lastError, !Self.isRetriable(lastError) {
+            LocalModelLocation.removeIncomplete(modelId)
+        }
         throw lastError ?? ProviderError.badResponse(0, "Download fehlgeschlagen.")
     }
 

@@ -35,6 +35,9 @@ enum BackupService {
             "note": "Enthält keine API-Keys oder Logins — die bleiben im Schlüsselbund des Geräts.",
         ]
         if let skills = jsonValue(atFile: "skills.json") { payload["skills"] = skills }
+        // Agents were missing entirely — a backup that omits them means the
+        // app's only "survives deletion" path silently loses the user's roster.
+        if let agents = jsonValue(atFile: "agents.json") { payload["agents"] = agents }
         if let chats = jsonValue(atFile: "chat-threads.json") { payload["chats"] = chats }
 
         return (try? JSONSerialization.data(
@@ -62,6 +65,9 @@ enum BackupService {
         if let skills = jsonValue(atFile: "skills.json") as? [[String: Any]] {
             parts.append("\(skills.filter { ($0["builtin"] as? Bool) != true }.count) eigene Skills")
         }
+        if let agents = jsonValue(atFile: "agents.json") as? [[String: Any]], !agents.isEmpty {
+            parts.append("\(agents.count) Agenten")
+        }
         if let chats = jsonValue(atFile: "chat-threads.json") as? [String: Any],
            let threads = chats["threads"] as? [[String: Any]] {
             parts.append("\(threads.count) Chats")
@@ -82,6 +88,7 @@ enum BackupService {
         var skippedApps = 0
         var restoredSkills = false
         var restoredChats = false
+        var restoredAgents = false
 
         var summary: String {
             var parts: [String] = []
@@ -89,6 +96,7 @@ enum BackupService {
             if skippedApps > 0 { parts.append("\(skippedApps) schon vorhanden") }
             if restoredSkills { parts.append("Skills übernommen") }
             if restoredChats { parts.append("Chats übernommen") }
+            if restoredAgents { parts.append("Agenten übernommen") }
             return parts.joined(separator: " · ")
         }
     }
@@ -155,6 +163,9 @@ enum BackupService {
         }
         if let chats = payload["chats"], writeIfAbsent(chats, toFile: "chat-threads.json") {
             result.restoredChats = true
+        }
+        if let agents = payload["agents"], writeIfAbsent(agents, toFile: "agents.json") {
+            result.restoredAgents = true
         }
 
         return (result, apps)

@@ -20,7 +20,11 @@ struct MiniAppRunnerView: UIViewRepresentable {
     /// a `default-src 'none'` CSP, so its script is not permitted to navigate
     /// away — which is why sites like x.com never appeared.
     private func load(into webView: WKWebView) {
-        if capability == .browser, let target = WebAppBuilder.openTarget(in: html) {
+        // The target comes out of model-authored HTML, so it is validated like
+        // any other model-chosen URL: http(s) only, never a private/LAN address.
+        if capability == .browser,
+           let target = WebAppBuilder.openTarget(in: html),
+           NetworkTargetValidator.isAllowed(target, allowPrivate: false) {
             // The document is now a REMOTE page, so it must never be treated as
             // our trusted shell: the native bridge stays off. `beginTrustedLoad`
             // turned it on for the shell case — undo that here rather than let
@@ -59,7 +63,9 @@ struct MiniAppRunnerView: UIViewRepresentable {
         context.coordinator.capability = capability
         context.coordinator.beginTrustedLoad()
         load(into: webView)
-        if capability == .browser, WebAppBuilder.openTarget(in: html) != nil {
+        if capability == .browser,
+           let target = WebAppBuilder.openTarget(in: html),
+           NetworkTargetValidator.isAllowed(target, allowPrivate: false) {
             context.coordinator.disableBridgeForRemoteDocument()
         }
         return webView
@@ -72,7 +78,9 @@ struct MiniAppRunnerView: UIViewRepresentable {
             context.coordinator.loadedHTML = html
             context.coordinator.beginTrustedLoad()
             load(into: webView)
-            if capability == .browser, WebAppBuilder.openTarget(in: html) != nil {
+            if capability == .browser,
+               let target = WebAppBuilder.openTarget(in: html),
+               NetworkTargetValidator.isAllowed(target, allowPrivate: false) {
                 context.coordinator.disableBridgeForRemoteDocument()
             }
         }
@@ -89,6 +97,12 @@ struct MiniAppRunnerView: UIViewRepresentable {
     /// Deriving keeps them isolated while still stable across opens.
     static func sessionStoreID(for appId: String) -> UUID {
         StableIdentifier.uuid(fromPossibleUUID: appId)
+    }
+
+    /// Drop a mini-app's persistent cookie jar when the app itself is deleted.
+    /// Otherwise its logins outlive it on disk, owned by nothing.
+    static func removeSessionStore(for appId: String) {
+        WKWebsiteDataStore.remove(forIdentifier: sessionStoreID(for: appId)) { _ in }
     }
 
     final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
@@ -175,7 +189,15 @@ struct MiniAppRunnerView: UIViewRepresentable {
 
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
             // Remote/untrusted page (browser tier navigated away): no native bridge.
+            //
+            // `isMainFrame` is load-bearing, not defensive noise: a browser-tier
+            // app keeps bridgeActive while OUR document is the main frame, but it
+            // may embed <iframe src="https://…">. Without this check any
+            // cross-origin frame could post to the bridge and reach storage,
+            // notifications and openExternal — a full sandbox escape via an
+            // ordinary embed.
             guard bridgeActive,
+                  message.frameInfo.isMainFrame,
                   message.name == "bridge",
                   let body = message.body as? [String: Any],
                   let callId = body["id"] as? Int,

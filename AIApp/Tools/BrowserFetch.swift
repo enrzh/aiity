@@ -43,6 +43,11 @@ final class BrowserFetch: NSObject {
 
     /// Load `url` and return its visible text.
     func text(from url: URL, allowPrivateHosts: Bool) async throws -> String {
+        // `finished` is one-shot by design; a reused instance would return
+        // immediately and never resume its continuation.
+        guard !finished, continuation == nil else {
+            throw FetchError.navigationFailed("BrowserFetch ist einmal verwendbar.")
+        }
         self.allowPrivateHosts = allowPrivateHosts
 
         let configuration = WKWebViewConfiguration()
@@ -119,13 +124,25 @@ extension BrowserFetch: WKNavigationDelegate {
     ) {
         let host = navigationAction.request.url?.host ?? ""
         let scheme = navigationAction.request.url?.scheme?.lowercased() ?? ""
+        let isMainFrame = navigationAction.targetFrame?.isMainFrame ?? true
         MainActor.assumeIsolated {
+            let allowedScheme = ["http", "https", "about", "data", "blob"].contains(scheme)
+            let blocked = !allowPrivateHosts && !host.isEmpty && FetchURLTool.isBlockedHost(host)
+
+            // A SUBFRAME is refused on its own; it must not abort the fetch. An
+            // ad iframe or a tracking pixel pointing somewhere we won't load is
+            // routine, and failing the whole read over it meant ordinary pages
+            // came back empty.
+            guard isMainFrame else {
+                decisionHandler(blocked || !allowedScheme ? .cancel : .allow)
+                return
+            }
             guard ["http", "https"].contains(scheme) else {
                 decisionHandler(.cancel)
                 finish(.failure(FetchError.navigationFailed("Nur http(s) erlaubt.")))
                 return
             }
-            if !allowPrivateHosts, FetchURLTool.isBlockedHost(host) {
+            if blocked {
                 decisionHandler(.cancel)
                 finish(.failure(FetchError.blockedRedirect(host)))
                 return
@@ -149,6 +166,8 @@ extension BrowserFetch: WKNavigationDelegate {
         withError error: Error
     ) {
         MainActor.assumeIsolated {
+            // Ignore a cancellation we caused ourselves by refusing a subframe.
+            guard (error as NSError).code != NSURLErrorCancelled else { return }
             finish(.failure(FetchError.navigationFailed(error.localizedDescription)))
         }
     }
@@ -159,6 +178,7 @@ extension BrowserFetch: WKNavigationDelegate {
         withError error: Error
     ) {
         MainActor.assumeIsolated {
+            guard (error as NSError).code != NSURLErrorCancelled else { return }
             finish(.failure(FetchError.navigationFailed(error.localizedDescription)))
         }
     }

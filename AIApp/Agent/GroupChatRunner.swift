@@ -16,6 +16,9 @@ enum GroupChatRunner {
     /// A single contribution is capped so one verbose agent can't crowd out the
     /// rest of the transcript.
     static let maxReplyCharacters = 4_000
+    /// Messages of shared history each speaker receives. Bounds the cost of a
+    /// long-running group, which otherwise grows with every turn for everyone.
+    static let maxTranscriptMessages = 40
 
     struct Turn {
         var agent: AgentDefinition
@@ -33,7 +36,15 @@ enum GroupChatRunner {
         onTurn: @escaping (Turn) -> Void
     ) async {
         var running = transcript
-        for agent in agents.prefix(maxAgentsPerRound) {
+        let speaking = Array(agents.prefix(maxAgentsPerRound))
+        if agents.count > speaking.count {
+            // Silently muting members looks like a broken app; say it once.
+            onTurn(Turn(
+                agent: AgentDefinition(name: "aiity", role: "", emoji: "ℹ️"),
+                text: "Diese Runde spricht nur mit den ersten \(maxAgentsPerRound) Agenten der Gruppe."
+            ))
+        }
+        for agent in speaking {
             if isCancelled() { return }
             onStart(agent)
 
@@ -83,7 +94,9 @@ enum GroupChatRunner {
         var messages: [ChatMessage] = [
             ChatMessage(role: .system, text: systemPrompt(for: agent, peers: peers)),
         ]
-        messages += perspective(of: agent, transcript: transcript)
+        // Only the recent window: every agent re-reads the transcript each
+        // turn, so an untrimmed history costs agents × rounds × full history.
+        messages += perspective(of: agent, transcript: transcript.suffix(maxTranscriptMessages))
 
         var text = ""
         do {
@@ -119,6 +132,9 @@ enum GroupChatRunner {
                     // The plain assistant (a non-group turn in this thread).
                     return ChatMessage(role: .user, text: message.text)
                 }
+                // Compared against the agent's OWN name; two agents sharing a
+                // name genuinely are indistinguishable here, which is why the
+                // editor now refuses duplicates rather than pretending to cope.
                 if author == agent.name {
                     return ChatMessage(role: .assistant, text: message.text)
                 }

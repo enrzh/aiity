@@ -13,6 +13,14 @@ enum MiniAppConsent {
         return MiniAppCapability(rawValue: raw)
     }
 
+    /// Forget a deleted app's grant, so a future app that happens to reuse the
+    /// id does not silently inherit permission the user never gave it.
+    static func revoke(appId: String) {
+        var map = UserDefaults.standard.dictionary(forKey: key) as? [String: String] ?? [:]
+        map.removeValue(forKey: appId)
+        UserDefaults.standard.set(map, forKey: key)
+    }
+
     /// Stable per-content id for an unsaved chat preview. Previews used to share
     /// the constant id "preview", so consenting one network app granted network
     /// to every later preview draft. Deterministic djb2 (NOT String.hashValue,

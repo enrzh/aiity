@@ -40,7 +40,9 @@ enum SubAgentRunner {
             ChatMessage(role: .user, text: task),
         ]
 
-        for _ in 0...maxToolRounds {
+        // `0...` gave one MORE round than the constant advertises, plus the
+        // forced closing call after it.
+        for _ in 0..<maxToolRounds {
             var text = ""
             var calls: [ToolCallData] = []
             do {
@@ -48,10 +50,11 @@ enum SubAgentRunner {
                     switch event {
                     case .textDelta(let piece): text += piece
                     case .toolCall(let call): calls.append(call)
-                    case .done: break
+                    case .done: break   // ends the switch; the stream ends itself
                     }
                     if Task.isCancelled { return "[\(agent.name): abgebrochen.]" }
                 }
+                if Task.isCancelled { return "[\(agent.name): abgebrochen.]" }
             } catch {
                 return "[\(agent.name) meldet einen Fehler: \(NetworkErrorFriendly.message(for: error))]"
             }
@@ -65,6 +68,9 @@ enum SubAgentRunner {
 
             messages.append(ChatMessage(role: .assistant, text: text, toolCalls: calls))
             for call in calls {
+                // Cancellation between tool rounds was not honoured: a stopped
+                // delegation kept running tools and spending the user's credits.
+                if Task.isCancelled { return "[\(agent.name): abgebrochen.]" }
                 let result: String
                 if let tool = tools.first(where: { $0.spec.name == call.name }) {
                     result = await tool.run(argumentsJSON: call.argumentsJSON).text

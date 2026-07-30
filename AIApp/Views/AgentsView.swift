@@ -62,7 +62,14 @@ struct AgentsView: View {
                 }
             }
             .sheet(item: $editing) { agent in
-                AgentEditSheet(agent: agent) { saved in
+                AgentEditSheet(
+                    agent: agent,
+                    existingNamesInit: Set(
+                        store.agents
+                            .filter { $0.id != agent.id }
+                            .map { $0.name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+                    )
+                ) { saved in
                     if store.agents.contains(where: { $0.id == saved.id }) {
                         store.update(saved)
                     } else {
@@ -168,6 +175,7 @@ struct AgentsView: View {
 /// Create or edit one agent: who it is, what it does, and which brain it uses.
 struct AgentEditSheet: View {
     @State var agent: AgentDefinition
+    var existingNamesInit: Set<String> = []
     var onSave: (AgentDefinition) -> Void
 
     @EnvironmentObject private var settingsStore: SettingsStore
@@ -193,9 +201,22 @@ struct AgentEditSheet: View {
         }
     }
 
+    /// Existing names, so a duplicate can be refused rather than silently
+    /// breaking group authorship and `ask_agent` routing (both key on the name).
+    private var existingNames: Set<String> { existingNamesInit }
+
+    private var trimmedName: String {
+        agent.name.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var nameIsTaken: Bool {
+        existingNames.contains(trimmedName.lowercased())
+    }
+
     private var isValid: Bool {
-        !agent.name.trimmingCharacters(in: .whitespaces).isEmpty
+        !trimmedName.isEmpty
             && !agent.role.trimmingCharacters(in: .whitespaces).isEmpty
+            && !nameIsTaken
     }
 
     var body: some View {
@@ -205,6 +226,11 @@ struct AgentEditSheet: View {
                     TextField("Name (z. B. Rechercheur)", text: $agent.name)
                         .accessibilityIdentifier("agent-name")
                     TextField("Emoji", text: $agent.emoji)
+                    if nameIsTaken {
+                        Text("Diesen Namen gibt es schon. Namen müssen eindeutig sein — der Chat spricht Agenten über den Namen an.")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
                 } header: {
                     Text("Agent")
                 }

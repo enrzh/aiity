@@ -63,7 +63,10 @@ struct AgentDefinition: Identifiable, Codable, Equatable {
         let allowed = name.lowercased().map { char -> Character in
             char.isLetter || char.isNumber ? char : "-"
         }
-        return String(allowed).split(separator: "-").joined(separator: "-")
+        let slug = String(allowed).split(separator: "-").joined(separator: "-")
+        // A name of only punctuation/emoji would slug to "", collapsing every
+        // such agent onto one delegation target. Fall back to the id.
+        return slug.isEmpty ? "agent-\(id.uuidString.prefix(8).lowercased())" : slug
     }
 
     /// Resolved connection for this agent. Falls back to the chat provider so a

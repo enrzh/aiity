@@ -265,3 +265,25 @@ final class StableIdentifierTests: XCTestCase {
         XCTAssertNotEqual(a, b, "different preview apps must not share a session store")
     }
 }
+
+/// The mini-app open-target is model-authored, so it goes through the same
+/// gate as any other model-chosen URL.
+final class OpenTargetValidationTests: XCTestCase {
+    func testPrivateTargetsAreNotDirectlyLoadable() {
+        for raw in ["http://127.0.0.1:8080/", "http://192.168.1.10/admin", "http://100.93.237.25:8090/"] {
+            let html = "<!-- capability: browser --><!-- open: \(raw) -->"
+            let target = WebAppBuilder.openTarget(in: html)
+            XCTAssertNotNil(target, "parsing should succeed for \(raw)")
+            XCTAssertFalse(
+                NetworkTargetValidator.isAllowed(target!, allowPrivate: false),
+                "a private address must not be directly loadable: \(raw)"
+            )
+        }
+    }
+
+    func testPublicTargetsRemainLoadable() {
+        let html = WebAppBuilder.html(urlString: "x.com", name: "X")
+        let target = WebAppBuilder.openTarget(in: html)!
+        XCTAssertTrue(NetworkTargetValidator.isAllowed(target, allowPrivate: false))
+    }
+}

@@ -6,6 +6,7 @@ struct SettingsView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     @ObservedObject private var prefs = AppPreferences.shared
     @ObservedObject private var sync = SyncStatus.shared
+    @EnvironmentObject private var session: ChatSession
     @Query private var savedApps: [MiniApp]
     @Environment(\.modelContext) private var modelContext
     @State private var backupURL: URL?
@@ -164,7 +165,13 @@ struct SettingsView: View {
             let existing = Set(savedApps.map(\.id))
             let (result, apps) = try BackupService.restore(from: data, existingIds: existing)
             for app in apps { modelContext.insert(app) }
-            try? modelContext.save()
+            // Reporting success after swallowing the save error tells the user
+            // their apps were restored when they were not.
+            try modelContext.save()
+            // The import wrote chat/skill files under a live session that still
+            // holds its own state — without this reload the next persist()
+            // overwrites everything just restored.
+            session.reloadFromDisk()
             importSummary = result.summary
             backupSummary = BackupService.summary(apps: savedApps)
         } catch {

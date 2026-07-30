@@ -81,6 +81,11 @@ struct LibraryView: View {
                 presenting: deleteCandidate
             ) { app in
                 Button("Löschen", role: .destructive) {
+                    // A browser app keeps a persistent WKWebsiteDataStore with
+                    // its cookies and logins. Deleting only the record leaves
+                    // that session on disk forever, tied to nothing.
+                    MiniAppRunnerView.removeSessionStore(for: app.id.uuidString)
+                    MiniAppConsent.revoke(appId: app.id.uuidString)
                     modelContext.delete(app)
                     deleteCandidate = nil
                 }

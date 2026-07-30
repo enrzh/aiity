@@ -833,7 +833,12 @@ final class ChatSession: ObservableObject {
     private func runGroupRound(settings: ProviderSettings) {
         let participants = activeParticipants
         guard !participants.isEmpty else {
-            errorMessage = "Keine Agenten in dieser Gruppe — im Tab „Agenten“ anlegen oder aktivieren."
+            // Reachable whenever every member was deleted or switched off; the
+            // user's message is already in the thread, so failing silently would
+            // look like the app ignored them.
+            errorMessage = "Keine aktiven Agenten in dieser Gruppe — im Tab „Agenten“ anlegen oder wieder einschalten."
+            busy = false
+            statusLine = nil
             return
         }
         busy = true
@@ -866,6 +871,14 @@ final class ChatSession: ObservableObject {
                 }
             )
             await MainActor.run {
+                // Only the round that is still the active task may clear `busy`.
+                // A cancelled round's teardown otherwise unlocks the session
+                // while its replacement is mid-flight, letting two rounds append
+                // to the same thread at once.
+                guard !Task.isCancelled else {
+                    self.persistPublic()
+                    return
+                }
                 self.busy = false
                 self.statusLine = nil
                 ScreenWake.shared.setAgentBusy(false)
@@ -877,6 +890,10 @@ final class ChatSession: ObservableObject {
     /// Open a conversation from the list: make it active and drive the push.
     func open(threadId: UUID) {
         switchTo(threadId: threadId)
+        // Push only what we actually switched to. `switchTo` refuses while a
+        // turn is running, so pushing regardless showed the CURRENT conversation
+        // under the tapped row's identity — the user reads someone else's chat.
+        guard activeThreadId == threadId else { return }
         openThreadId = threadId
     }
 
@@ -1010,6 +1027,20 @@ final class ChatSession: ObservableObject {
 
     /// Public hook so UI can flush after clearing edit mode etc.
     func persistPublic() { persist() }
+
+    /// Re-read the archive from disk, discarding in-memory state.
+    ///
+    /// Needed after a backup import: the import writes `chat-threads.json`
+    /// underneath a session that was constructed at launch and still holds its
+    /// own (usually empty) threads. Without this the very next persist() — one
+    /// tap on "Neuer Chat" — writes that stale state straight over everything
+    /// just restored, and because the file is then non-empty a second import
+    /// silently declines to write at all.
+    func reloadFromDisk() {
+        guard !busy else { return }
+        restore()
+        openThreadId = nil
+    }
 
     /// Drop threads that hold no real content (newThread/startEditing can leave
     /// these behind). Deliberately does NOT cap or delete conversations that have

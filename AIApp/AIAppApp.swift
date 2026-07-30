@@ -70,11 +70,15 @@ struct AIAppApp: App {
     private static func relocateCorruptStore() {
         let fm = FileManager.default
         guard let dir = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return }
+        // Timestamped: the old code deleted the PREVIOUS .corrupt copy before
+        // making a new one, so a second bad launch destroyed the only surviving
+        // snapshot of the user's data.
+        let stamp = ISO8601DateFormatter().string(from: Date())
+            .replacingOccurrences(of: ":", with: "-")
         for name in ["default.store", "default.store-shm", "default.store-wal"] {
             let url = dir.appendingPathComponent(name)
             guard fm.fileExists(atPath: url.path) else { continue }
-            let backup = dir.appendingPathComponent(name + ".corrupt")
-            try? fm.removeItem(at: backup)
+            let backup = dir.appendingPathComponent("\(name).corrupt-\(stamp)")
             try? fm.moveItem(at: url, to: backup)
         }
     }
