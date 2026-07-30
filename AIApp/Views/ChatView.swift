@@ -105,6 +105,19 @@ struct ChatView: View {
                             .accessibilityLabel(session.statusLine ?? "Arbeitet")
                             .id("status-line")
                         }
+                        // Another round is a deliberate tap: the agents never
+                        // decide to keep talking (and spending) on their own.
+                        if session.activeThreadIsGroup, !session.busy, !visibleMessages.isEmpty {
+                            Button {
+                                session.continueGroupDiscussion(settings: settingsStore.settings)
+                            } label: {
+                                Label("Weiter diskutieren", systemImage: "arrow.triangle.2.circlepath")
+                                    .font(.subheadline.weight(.semibold))
+                            }
+                            .buttonStyle(.bordered)
+                            .accessibilityIdentifier("continue-group")
+                            .padding(.top, 4)
+                        }
                         if let draft = session.draftMiniApp {
                             MiniAppCard(
                                 draft: draft,
@@ -420,6 +433,14 @@ private struct MessageBubble: View {
             HStack {
                 if message.role == .user { Spacer(minLength: 48) }
                 VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 8) {
+                    // In a group, every bubble says who is speaking — without
+                    // it a discussion is an unattributed wall of text.
+                    if let author = message.authorName {
+                        Text("\(message.authorEmoji ?? "🤖") \(author)")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(Color.accentColor)
+                            .padding(.leading, 4)
+                    }
                     if !message.toolCalls.isEmpty {
                         ForEach(message.toolCalls) { call in
                             ToolChip(name: call.name, text: toolSummary(call), pending: showTyping && bubbleText.isEmpty)

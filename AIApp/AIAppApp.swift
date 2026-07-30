@@ -88,8 +88,33 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var showOnboarding = false
     @State private var selectedTab = 0
+    /// Soft floor so the launch entrance can play once instead of flashing.
+    @State private var splashFinished = false
 
     var body: some View {
+        ZStack {
+            if splashFinished {
+                mainInterface
+                    .transition(.opacity.combined(with: .scale(scale: 0.985)))
+            } else {
+                LaunchSplashView()
+                    .transition(.opacity)
+                    .zIndex(2)
+            }
+        }
+        .animation(
+            Theme.Motion.preferSpring(Theme.Motion.soft, reduceMotion: false),
+            value: splashFinished
+        )
+        .task {
+            // The store is already open by the time RootView appears, so there
+            // is nothing to wait ON — this is purely the entrance finishing.
+            try? await Task.sleep(nanoseconds: 950_000_000)
+            splashFinished = true
+        }
+    }
+
+    private var mainInterface: some View {
         TabView(selection: $selectedTab) {
             // Conversations are the tab's root; opening one pushes it.
             ChatListView()

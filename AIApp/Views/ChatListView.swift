@@ -5,7 +5,7 @@ import SwiftUI
 /// than a modal sheet, and the list is what you see when the tab opens.
 struct ChatListView: View {
     @EnvironmentObject private var session: ChatSession
-    @StateObject private var agentStore = AgentStore()
+    @ObservedObject private var agentStore = AgentStore.shared
     @State private var showNewChat = false
     @State private var deleteCandidate: ChatThread?
 

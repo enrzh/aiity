@@ -55,6 +55,11 @@ struct AgentDefinition: Identifiable, Codable, Equatable {
 
 @MainActor
 final class AgentStore: ObservableObject {
+    /// One instance app-wide. Two views each holding their own store meant
+    /// agents created in the Agenten tab never reached the chat list's copy —
+    /// the group picker silently offered a stale roster.
+    static let shared = AgentStore()
+
     @Published private(set) var agents: [AgentDefinition] = []
 
     private static let fileName = "agents.json"
@@ -65,6 +70,12 @@ final class AgentStore: ObservableObject {
     }
 
     init() {
+        agents = Self.load()
+    }
+
+    /// Re-read from disk. Cheap, and the only thing that keeps a long-lived
+    /// view honest if the file changes underneath it (import, restore).
+    func reload() {
         agents = Self.load()
     }
 

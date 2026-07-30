@@ -4,7 +4,7 @@ import SwiftUI
 /// role and can run on a different provider/model than the chat itself.
 struct AgentsView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
-    @StateObject private var store = AgentStore()
+    @ObservedObject private var store = AgentStore.shared
     @State private var editing: AgentDefinition?
     @State private var deleteCandidate: AgentDefinition?
 
@@ -74,32 +74,41 @@ struct AgentsView: View {
     }
 
     private func agentRow(_ agent: AgentDefinition) -> some View {
-        Button {
-            editing = agent
-        } label: {
-            HStack(spacing: 12) {
-                Text(agent.emoji)
-                    .font(.title2)
-                    .frame(width: 34)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(agent.name.isEmpty ? "Ohne Namen" : agent.name)
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(agent.enabled ? .primary : .secondary)
-                    Text(agent.providerLabel(fallback: settingsStore.settings))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+        // The toggle is a SIBLING of the tap target, not nested inside it:
+        // an interactive control inside a Button's label makes the whole row
+        // one ambiguous accessibility element — bad for VoiceOver, and it made
+        // the row unaddressable in UI tests.
+        HStack(spacing: 12) {
+            Button {
+                editing = agent
+            } label: {
+                HStack(spacing: 12) {
+                    Text(agent.emoji)
+                        .font(.title2)
+                        .frame(width: 34)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(agent.name.isEmpty ? "Ohne Namen" : agent.name)
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(agent.enabled ? .primary : .secondary)
+                        Text(agent.providerLabel(fallback: settingsStore.settings))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Spacer()
                 }
-                Spacer()
-                Toggle("", isOn: Binding(
-                    get: { agent.enabled },
-                    set: { _ in store.toggle(agent) }
-                ))
-                .labelsHidden()
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("agent-row")
+
+            Toggle("", isOn: Binding(
+                get: { agent.enabled },
+                set: { _ in store.toggle(agent) }
+            ))
+            .labelsHidden()
+            .accessibilityLabel("\(agent.name) aktiv")
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("agent-row")
         .swipeActions {
             Button(role: .destructive) {
                 deleteCandidate = agent
@@ -121,10 +130,6 @@ struct AgentEditSheet: View {
     private var isValid: Bool {
         !agent.name.trimmingCharacters(in: .whitespaces).isEmpty
             && !agent.role.trimmingCharacters(in: .whitespaces).isEmpty
-    }
-
-    private var chatProviderLabel: String {
-        ProviderPreset.preset(for: settingsStore.settings.presetId).label
     }
 
     var body: some View {
@@ -153,16 +158,20 @@ struct AgentEditSheet: View {
                 }
 
                 Section {
-                    Picker("Anbieter", selection: $agent.presetId) {
-                        Text("Wie der Chat (\(chatProviderLabel))").tag("")
-                        ForEach(ProviderPreset.catalog) { preset in
-                            Text(preset.label).tag(preset.id)
-                        }
+                    // A pushed page, like the chat's provider button — an
+                    // inline picker plus a free-text model field made you type
+                    // an exact model id from memory.
+                    NavigationLink {
+                        AgentModelPicker(presetId: $agent.presetId, model: $agent.model)
+                            .environmentObject(settingsStore)
+                    } label: {
+                        AppSettingsRow(
+                            title: "Anbieter & Modell",
+                            subtitle: agent.providerLabel(fallback: settingsStore.settings),
+                            systemImage: "cpu"
+                        )
                     }
-                    TextField("Modell (leer = Standard)", text: $agent.model)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-                        .accessibilityIdentifier("agent-model")
+                    .accessibilityIdentifier("agent-model")
                 } header: {
                     Text("Modell")
                 } footer: {

@@ -304,6 +304,12 @@ final class ChatSession: ObservableObject {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !busy else { return }
         errorMessage = nil
+        // A group thread is a different conversation shape entirely — the
+        // participants answer, not the mini-app-building assistant.
+        if activeThreadIsGroup {
+            sendToGroup(text, settings: settings)
+            return
+        }
         // "Öffne <url>" builds a browser mini-app deterministically — the model
         // tends to over-refuse "accessing" a site, so don't route it through one.
         if editingContext == nil, let openURL = WebAppBuilder.detectOpenRequest(text) {
@@ -794,6 +800,76 @@ final class ChatSession: ObservableObject {
         loadActiveThread()
         persist()
         return thread.id
+    }
+
+    // MARK: - Group conversations
+
+    /// Participants of the open thread, resolved against the agent store.
+    var activeParticipants: [AgentDefinition] {
+        let ids = activeParticipantIds
+        guard !ids.isEmpty else { return [] }
+        let all = AgentStore.load()
+        // Preserve the order the user picked them in.
+        return ids.compactMap { id in all.first { $0.id == id } }
+    }
+
+    /// Post the user's message, then let every participant speak once.
+    private func sendToGroup(_ text: String, settings: ProviderSettings) {
+        messages.append(ChatMessage(role: .user, text: text))
+        persist()
+        runGroupRound(settings: settings)
+    }
+
+    /// Another round of the same discussion, without a new user message. This
+    /// is user-driven on purpose: the agents never decide to keep going by
+    /// themselves.
+    func continueGroupDiscussion(settings: ProviderSettings) {
+        guard !busy, activeThreadIsGroup, !messages.isEmpty else { return }
+        runGroupRound(settings: settings)
+    }
+
+    private func runGroupRound(settings: ProviderSettings) {
+        let participants = activeParticipants
+        guard !participants.isEmpty else {
+            errorMessage = "Keine Agenten in dieser Gruppe — im Tab „Agenten“ anlegen oder aktivieren."
+            return
+        }
+        busy = true
+        statusLine = nil
+        ScreenWake.shared.setAgentBusy(true)
+
+        activeTask = Task { [weak self] in
+            guard let self else { return }
+            let transcript = self.messages
+            await GroupChatRunner.runRound(
+                agents: participants,
+                transcript: transcript,
+                chatSettings: settings,
+                isCancelled: { Task.isCancelled },
+                onStart: { agent in
+                    Task { @MainActor in
+                        self.statusLine = "\(agent.emoji) \(agent.name) schreibt…"
+                    }
+                },
+                onTurn: { turn in
+                    Task { @MainActor in
+                        self.messages.append(ChatMessage(
+                            role: .assistant,
+                            text: turn.text,
+                            authorName: turn.agent.name,
+                            authorEmoji: turn.agent.emoji
+                        ))
+                        self.persistPublic()
+                    }
+                }
+            )
+            await MainActor.run {
+                self.busy = false
+                self.statusLine = nil
+                ScreenWake.shared.setAgentBusy(false)
+                self.persistPublic()
+            }
+        }
     }
 
     /// Open a conversation from the list: make it active and drive the push.

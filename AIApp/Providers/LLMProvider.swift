@@ -22,6 +22,11 @@ struct ChatMessage: Identifiable, Equatable, Codable {
     var toolName: String?
     /// Generated media (image/video) attached to this message, by MediaStore id.
     var mediaIds: [String] = []
+    /// In a group chat, which agent spoke. Nil = the user or the assistant.
+    /// Stored by name/emoji rather than id so a message stays readable after
+    /// its agent is deleted or renamed.
+    var authorName: String?
+    var authorEmoji: String?
 
     init(
         id: UUID = UUID(),
@@ -30,7 +35,9 @@ struct ChatMessage: Identifiable, Equatable, Codable {
         toolCalls: [ToolCallData] = [],
         toolCallId: String? = nil,
         toolName: String? = nil,
-        mediaIds: [String] = []
+        mediaIds: [String] = [],
+        authorName: String? = nil,
+        authorEmoji: String? = nil
     ) {
         self.id = id
         self.role = role
@@ -39,6 +46,8 @@ struct ChatMessage: Identifiable, Equatable, Codable {
         self.toolCallId = toolCallId
         self.toolName = toolName
         self.mediaIds = mediaIds
+        self.authorName = authorName
+        self.authorEmoji = authorEmoji
     }
 
     // Hand-written for the same reason as `ChatThread`: Swift's synthesized
@@ -48,6 +57,7 @@ struct ChatMessage: Identifiable, Equatable, Codable {
     // undecodable. Only `role` and `text` are genuinely mandatory.
     private enum CodingKeys: String, CodingKey {
         case id, role, text, toolCalls, toolCallId, toolName, mediaIds
+        case authorName, authorEmoji
     }
 
     init(from decoder: Decoder) throws {
@@ -59,6 +69,8 @@ struct ChatMessage: Identifiable, Equatable, Codable {
         toolCallId = try values.decodeIfPresent(String.self, forKey: .toolCallId)
         toolName = try values.decodeIfPresent(String.self, forKey: .toolName)
         mediaIds = try values.decodeIfPresent([String].self, forKey: .mediaIds) ?? []
+        authorName = try values.decodeIfPresent(String.self, forKey: .authorName)
+        authorEmoji = try values.decodeIfPresent(String.self, forKey: .authorEmoji)
     }
 }
 
