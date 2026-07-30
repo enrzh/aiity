@@ -88,49 +88,25 @@ struct LibraryView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "square.grid.2x2")
-                .font(.system(size: 44))
-                .foregroundStyle(.secondary)
-            Text("Noch keine Mini-Apps")
-                .font(.headline)
-            Text("Im Chat eine App bauen und „Behalten“ tippen — sie erscheint hier.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-            Button {
-                openChatTab()
-            } label: {
-                Label("Zum Chat", systemImage: "bubble.left.and.bubble.right")
-            }
-            .buttonStyle(.borderedProminent)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        AppEmptyState(
+            title: "Noch keine Apps",
+            systemImage: "square.grid.2x2",
+            message: "Im Chat bauen und behalten.",
+            actionTitle: "Zum Chat",
+            action: openChatTab
+        )
     }
 
     private func appCard(_ app: MiniApp) -> some View {
         Button {
             openApp = app
         } label: {
-            VStack(spacing: 8) {
-                MiniAppIconView(emoji: app.emoji, iconSymbol: app.iconSymbol, size: 72)
-                // Min-height (not fixed) text block: icons line up across the row
-                // at normal sizes, but the block can grow at large Dynamic Type
-                // instead of clipping the name/capability label.
-                VStack(spacing: 2) {
-                    Text(app.name)
-                        .font(.caption)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.center)
-                    if app.capability != .offline {
-                        Text(app.capability.label)
-                            .font(.caption2)
-                            .foregroundStyle(Color.accentColor)
-                    }
-                }
-                .frame(minHeight: 44, alignment: .top)
-            }
+            MiniAppTile(
+                name: app.name,
+                emoji: app.emoji,
+                iconSymbol: app.iconSymbol,
+                capabilityLabel: app.capability == .offline ? nil : app.capability.label
+            )
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("library-app")

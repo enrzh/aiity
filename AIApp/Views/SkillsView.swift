@@ -9,143 +9,103 @@ struct SkillsView: View {
     @State private var upgrading = false
 
     var body: some View {
-        NavigationStack {
-            List {
-                Section {
-                    let importedOn = store.skills.filter { !$0.builtin && $0.enabled }.count
-                    let active = store.skills.filter(\.enabled).count
-                    if active > 0 {
-                        Label(
-                            importedOn > 0
-                                ? "\(importedOn) importiert + \(active - importedOn) integriert aktiv — Importierte haben Vorrang im Chat"
-                                : "\(active) Skill\(active == 1 ? "" : "s") aktiv — greifen ab der nächsten Chat-Nachricht",
-                            systemImage: "checkmark.seal.fill"
-                        )
-                        .font(.footnote)
-                        .foregroundStyle(Color.accentColor)
-                        .listRowBackground(Color.accentColor.opacity(0.08))
-                    } else {
-                        Label(
-                            "Keine Skills aktiv — Schalter rechts einschalten",
-                            systemImage: "exclamationmark.triangle"
-                        )
-                        .font(.footnote)
-                        .foregroundStyle(.orange)
-                    }
-                }
+        List {
+            let imported = store.skills.filter { !$0.builtin }
+            let builtins = store.skills.filter(\.builtin)
+            let active = store.skills.filter(\.enabled).count
 
-                let imported = store.skills.filter { !$0.builtin }
-                let builtins = store.skills.filter(\.builtin)
+            Section {
+                Text(active == 0 ? "Keine Skills aktiv" : "\(active) aktiv")
+                    .font(.subheadline)
+                    .foregroundStyle(active == 0 ? .secondary : Color.accentColor)
+            }
 
-                if !imported.isEmpty {
-                    Section {
-                        ForEach(imported) { skill in
-                            skillRow(skill)
-                        }
-                    } header: {
-                        Text("Importiert")
-                    } footer: {
-                        Text("Importierte Skills haben Vorrang vor integrierten und landen zuerst im Prompt. Schalter muss „An“ sein.")
-                    }
-                }
-
-                Section {
-                    ForEach(builtins) { skill in
+            if !imported.isEmpty {
+                Section("Importiert") {
+                    ForEach(imported) { skill in
                         skillRow(skill)
                     }
-                } header: {
-                    Text("Integriert")
-                } footer: {
-                    Text("Nur eingeschaltete Skills. Nächste Chat-Nachricht genügt — kein Neustart.")
                 }
+            }
 
-                Section {
-                    ForEach(SkillRecommendations.all) { rec in
-                        Button {
-                            installRecommendation(rec)
-                        } label: {
-                            HStack(alignment: .top, spacing: 12) {
-                                Image(systemName: rec.systemImage)
-                                    .font(.title3)
+            Section("Integriert") {
+                ForEach(builtins) { skill in
+                    skillRow(skill)
+                }
+            }
+
+            Section("Empfohlen") {
+                ForEach(SkillRecommendations.all) { rec in
+                    Button {
+                        installRecommendation(rec)
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: rec.systemImage)
+                                .foregroundStyle(Color.accentColor)
+                                .frame(width: 28)
+                            Text(rec.title)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.primary)
+                            Spacer(minLength: 0)
+                            if upgrading {
+                                ProgressView().controlSize(.small)
+                            } else {
+                                Image(systemName: "plus.circle.fill")
                                     .foregroundStyle(Color.accentColor)
-                                    .frame(width: 28)
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(rec.title)
-                                        .font(.subheadline.weight(.semibold))
-                                        .foregroundStyle(.primary)
-                                    Text(rec.blurb)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                    Text("In App enthalten · 1-Tipp-Install")
-                                        .font(.caption2)
-                                        .foregroundStyle(.tertiary)
-                                }
-                                Spacer(minLength: 0)
-                                if upgrading {
-                                    ProgressView().controlSize(.small)
-                                } else {
-                                    Image(systemName: "plus.circle.fill")
-                                        .foregroundStyle(Color.accentColor)
-                                }
                             }
                         }
-                        .disabled(upgrading)
-                        .accessibilityIdentifier("skill-rec-\(rec.id)")
                     }
-                } header: {
-                    Text("Empfohlen (in der App)")
-                } footer: {
-                    Text("Installiert die mitgelieferte SKILL.md (ohne Netz). Danach unter „Importiert“ mit Schalter „An“ — greift ab der nächsten Chat-Nachricht.")
+                    .disabled(upgrading)
+                    .accessibilityIdentifier("skill-rec-\(rec.id)")
                 }
+            }
 
-                Section("Installieren") {
-                    Button {
-                        if FreeTier.canInstallSkill(currentCustomCount: store.skills.filter { !$0.builtin }.count) {
-                            showingImport = true
-                        } else {
-                            showUpgrade = true
-                        }
-                    } label: {
-                        Label("Von GitHub / Datei…", systemImage: "arrow.down.app")
+            Section("Installieren") {
+                Button {
+                    if FreeTier.canInstallSkill(currentCustomCount: store.skills.filter { !$0.builtin }.count) {
+                        showingImport = true
+                    } else {
+                        showUpgrade = true
                     }
-                    .accessibilityIdentifier("skill-open-import")
-                    Button {
-                        showingAdd = true
-                    } label: {
-                        Label("Eigenen Skill schreiben", systemImage: "square.and.pencil")
+                } label: {
+                    Label("GitHub / Datei", systemImage: "arrow.down.app")
+                }
+                .accessibilityIdentifier("skill-open-import")
+                Button {
+                    showingAdd = true
+                } label: {
+                    Label("Selbst schreiben", systemImage: "square.and.pencil")
+                }
+                if let error = store.errorMessage {
+                    BannerView(message: error, kind: .error) {
+                        store.errorMessage = nil
                     }
-                    if let error = store.errorMessage {
-                        BannerView(message: error, kind: .error) {
-                            store.errorMessage = nil
-                        }
-                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                }
+                if let ok = store.lastInstallMessage {
+                    BannerView(message: ok, kind: .success) {
+                        store.lastInstallMessage = nil
                     }
-                    if let ok = store.lastInstallMessage {
-                        BannerView(message: ok, kind: .success) {
-                            store.lastInstallMessage = nil
-                        }
-                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                    }
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 }
             }
-            .navigationTitle("Agent-Skills")
-            .sheet(isPresented: $showingAdd) {
-                AddSkillSheet { name, instructions in
-                    store.add(name: name, instructions: instructions)
-                    Analytics.track("skill_authored")
-                }
+        }
+        .navigationTitle("Skills")
+        .sheet(isPresented: $showingAdd) {
+            AddSkillSheet { name, instructions in
+                store.add(name: name, instructions: instructions)
+                Analytics.track("skill_authored")
             }
-            .sheet(isPresented: $showingImport) {
-                ImportSkillModal(store: store)
-            }
-            .sheet(isPresented: $showUpgrade) {
-                UpgradeModal(
-                    title: "Skill-Limit",
-                    message: FreeTier.skillLimitMessage,
-                    onDismiss: { showUpgrade = false }
-                )
-            }
+        }
+        .sheet(isPresented: $showingImport) {
+            ImportSkillModal(store: store)
+        }
+        .sheet(isPresented: $showUpgrade) {
+            UpgradeModal(
+                title: "Skill-Limit",
+                message: FreeTier.skillLimitMessage,
+                onDismiss: { showUpgrade = false }
+            )
         }
     }
 
@@ -154,14 +114,6 @@ struct SkillsView: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(skill.name)
-                    if skill.enabled {
-                        Text("An")
-                            .font(.caption2.weight(.semibold))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 1)
-                            .background(Color.green.opacity(0.18), in: Capsule())
-                            .foregroundStyle(.green)
-                    }
                     if skill.builtin {
                         Text("Integriert")
                             .font(.caption2)
@@ -176,14 +128,11 @@ struct SkillsView: View {
                             .background(Color.accentColor.opacity(0.12), in: Capsule())
                     }
                 }
-                Text(skill.summary)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                if skill.instructions.trimmingCharacters(in: .whitespacesAndNewlines).count < 20 {
-                    Text("Warnung: Anweisungen fast leer — Skill wirkt nicht")
-                        .font(.caption2)
-                        .foregroundStyle(.orange)
+                if !skill.summary.isEmpty {
+                    Text(skill.summary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
             }
             Spacer()

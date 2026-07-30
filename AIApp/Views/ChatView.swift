@@ -17,6 +17,7 @@ struct ChatView: View {
     /// clearance so a multi-line input never overlaps the last message.
     @State private var inputBarHeight: CGFloat = 64
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var visibleMessages: [ChatMessage] {
         session.messages.filter {
@@ -46,15 +47,16 @@ struct ChatView: View {
         return result.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// Short label for the toolbar pill — model name only when possible.
     private var activeModelLabel: String {
         let s = settingsStore.settings
         if s.preset.dialect == .mlx {
-            return "MLX · \(s.localModelId.split(separator: "/").last.map(String.init) ?? s.localModelId)"
+            return s.localModelId.split(separator: "/").last.map(String.init) ?? "MLX"
         }
         let model = s.effectiveModel
-        if model.isEmpty { return "\(s.preset.label) · Modell wählen" }
-        let short = model.count > 24 ? String(model.prefix(22)) + "…" : model
-        return "\(s.preset.label) · \(short)"
+        if model.isEmpty { return "Modell" }
+        let short = model.count > 18 ? String(model.prefix(16)) + "…" : model
+        return short
     }
 
     private var needsSetup: Bool {
@@ -68,56 +70,19 @@ struct ChatView: View {
 
     private var isEditingApp: Bool { session.editingContext != nil }
 
-    private var skillsChipLabel: String {
-        let n = SkillStore.enabledCount()
-        let imp = SkillStore.enabledImportedCount()
-        if n == 0 { return "Skills: aus" }
-        if imp > 0 { return "Skills: \(imp) importiert · \(n) aktiv" }
-        return "Skills: \(n) aktiv"
-    }
-
     var body: some View {
         VStack(spacing: 0) {
-            Button {
-                showQuickProvider = true
-            } label: {
-                ActiveModelChip(label: activeModelLabel)
-            }
-            .buttonStyle(.plain)
-
-            Button {
-                showSkills = true
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "puzzlepiece.extension.fill")
-                        .font(.caption2)
-                    Text(skillsChipLabel)
-                        .font(.caption)
-                        .lineLimit(1)
-                    Spacer(minLength: 0)
-                    Image(systemName: "chevron.right")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-                .foregroundStyle(SkillStore.enabledImportedCount() > 0 ? Color.accentColor : .secondary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 5)
-                .background(Color(.tertiarySystemBackground))
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("skills-chip")
-
             if let ctx = session.editingContext {
                 editingBanner(ctx)
             }
 
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 14) {
+                    LazyVStack(alignment: .leading, spacing: Theme.space2) {
                         if needsSetup {
                             setupBanner
                         }
-                        if visibleMessages.isEmpty {
+                        if visibleMessages.isEmpty && !session.busy {
                             emptyState
                         }
                         ForEach(visibleMessages) { message in
@@ -131,17 +96,15 @@ struct ChatView: View {
                                     && message.toolCalls.isEmpty
                             )
                             .id(message.id)
+                            .transition(.opacity.combined(with: .move(edge: .bottom)))
                         }
-                        if let status = session.statusLine {
+                        if session.busy, session.statusLine != nil {
                             HStack(spacing: 8) {
-                                if status != "Gestoppt" {
-                                    ProgressView().controlSize(.small)
-                                }
-                                Text(status)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
+                                ProgressView().controlSize(.small)
                             }
                             .padding(.horizontal, 4)
+                            .padding(.vertical, 4)
+                            .accessibilityLabel(session.statusLine ?? "Arbeitet")
                             .id("status-line")
                         }
                         if let draft = session.draftMiniApp {
@@ -169,7 +132,7 @@ struct ChatView: View {
                                     Button {
                                         retryLastUserMessage()
                                     } label: {
-                                        Label("Erneut senden", systemImage: "arrow.clockwise")
+                                        Label("Erneut", systemImage: "arrow.clockwise")
                                             .font(.subheadline.weight(.semibold))
                                     }
                                     .buttonStyle(.bordered)
@@ -178,15 +141,22 @@ struct ChatView: View {
                             .id("error-banner")
                         }
                     }
-                    .padding()
+                    .padding(.horizontal, Theme.space3)
+                    .padding(.top, Theme.space2)
                     // Clearance so the last message can scroll clear of the
                     // floating input bubble (which overlays the content). Tracks
                     // the measured bubble height so a 6-line input never overlaps.
                     .padding(.bottom, inputBarHeight + 16)
+                    .animation(
+                        Theme.Motion.preferSpring(Theme.Motion.soft, reduceMotion: reduceMotion),
+                        value: visibleMessages.count
+                    )
                 }
                 .onChange(of: visibleMessages.last?.text) {
                     if let lastId = visibleMessages.last?.id {
-                        withAnimation(.easeOut(duration: 0.15)) {
+                        withAnimation(
+                            Theme.Motion.preferSpring(Theme.Motion.scroll, reduceMotion: reduceMotion)
+                        ) {
                             proxy.scrollTo(lastId, anchor: .bottom)
                         }
                     }
@@ -239,7 +209,7 @@ struct ChatView: View {
                 .accessibilityIdentifier("chat-threads")
                 .accessibilityLabel("Unterhaltungen")
             }
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
                 Button {
                     session.newThread()
                 } label: {
@@ -248,6 +218,32 @@ struct ChatView: View {
                 .disabled(session.busy)
                 .accessibilityIdentifier("chat-new")
                 .accessibilityLabel("Neuer Chat")
+
+                Button {
+                    showQuickProvider = true
+                } label: {
+                    ActiveModelChip(label: activeModelLabel, compact: true)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Modell: \(activeModelLabel)")
+                .accessibilityHint("Anbieter und Modell wählen")
+
+                Menu {
+                    Button {
+                        showSkills = true
+                    } label: {
+                        Label("Skills", systemImage: "puzzlepiece.extension")
+                    }
+                    Button {
+                        showQuickProvider = true
+                    } label: {
+                        Label("Anbieter", systemImage: "cpu")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .accessibilityLabel("Mehr")
+                .accessibilityIdentifier("chat-more-menu")
             }
         }
         .sheet(item: $previewDraft) { draft in
@@ -289,120 +285,79 @@ struct ChatView: View {
     }
 
     private func editingBanner(_ ctx: ChatSession.EditingContext) -> some View {
-        let kb = max(1, ctx.html.utf8.count / 1024)
-        return HStack(spacing: 10) {
-            Image(systemName: "sparkles")
+        HStack(spacing: 10) {
+            Image(systemName: "wand.and.stars")
                 .foregroundStyle(Color.accentColor)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Bearbeiten: \(ctx.name)")
-                    .font(.subheadline.weight(.semibold))
-                Text("Quellcode an KI übergeben (\(kb) KB) — Änderungen beschreiben, „Behalten“ speichert.")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Button("Ende") {
+            Text(ctx.name)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+            Spacer(minLength: 0)
+            Button {
                 session.editingContext = nil
                 session.persistPublic()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 28, height: 28)
             }
-            .font(.caption.weight(.semibold))
+            .buttonStyle(.plain)
+            .accessibilityLabel("Bearbeiten beenden")
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, Theme.space3)
         .padding(.vertical, 8)
-        .background(Color.accentColor.opacity(0.1))
+        .background(Color.accentColor.opacity(0.08))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Bearbeiten: \(ctx.name)")
     }
 
     private var setupBanner: some View {
         BannerView(
-            message: "Noch kein nutzbares Modell. Tippe oben auf den Anbieter oder öffne Mehr → KI-Anbieter.",
+            message: "Noch kein Modell — oben tippen.",
             kind: .info
         )
     }
 
     private var emptyState: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: Theme.space3) {
             Image(systemName: isEditingApp ? "wand.and.stars" : "sparkles")
-                .font(.system(size: 32, weight: .semibold))
-                .foregroundStyle(Theme.accentGradient)
-            Text(isEditingApp ? "Was soll ich an der App ändern?" : "Was soll ich bauen?")
+                .font(.system(size: 28, weight: .semibold))
+                .foregroundStyle(Theme.accent)
+            Text(isEditingApp ? "Was ändern?" : "Was soll ich bauen?")
                 .font(.title2.bold())
-            Text(isEditingApp
-                 ? "Feature, Design, Icon oder z. B. Netzwerk-Fähigkeit beschreiben."
-                 : "Frage stellen oder Mini-App beschreiben. Web-Recherche und Skills laufen im Hintergrund.")
-                .foregroundStyle(.secondary)
             SuggestionList(suggestions: isEditingApp ? [
-                "Mach das Design dunkler und moderner",
-                "Füge Bearbeiten und Löschen hinzu",
-                "Ändere das Icon und den Titel",
-                "Erlaube Netzwerk (capability: network)",
+                "Dunkleres Design",
+                "Bearbeiten & Löschen",
+                "Anderes Icon",
+                "Netzwerk erlauben",
             ] : [
-                "Bau mir einen Trinkgeld-Rechner",
-                "Einfache Todo-Liste mit Dark Mode",
-                "Pomodoro-Timer mit Erinnerung",
-                "Was ist heute in den Tech-News?",
+                "Trinkgeld-Rechner",
+                "Todo-Liste",
+                "Pomodoro-Timer",
+                "Tech-News heute",
             ]) { suggestion in
                 input = suggestion
                 send()
             }
         }
-        .padding(.top, 24)
+        .padding(.top, Theme.space4)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // Floating input: a text-field bubble and a round send/stop bubble — no bar.
     private var inputBar: some View {
-        HStack(alignment: .bottom, spacing: 10) {
-            TextField(isEditingApp ? "Änderung beschreiben…" : "Nachricht", text: $input, axis: .vertical)
-                .lineLimit(1...6)
-                .textFieldStyle(.plain)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 11)
-                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .strokeBorder(Color.primary.opacity(0.05))
-                )
-                .shadow(color: .black.opacity(0.06), radius: 7, y: 2)
-                .onSubmit(send)
-                .disabled(session.busy)
-                .accessibilityIdentifier("chat-input")
-                .onChange(of: input) { _, newValue in
-                    // Block RTFD / shared-pasteboard path dumps from rich paste.
-                    if PlainPasteboard.looksLikePasteboardArtifact(newValue) {
-                        input = PlainPasteboard.plainText() ?? ""
-                    }
-                }
-            if session.busy {
-                Button { session.stop() } label: {
-                    Image(systemName: "stop.fill")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 40, height: 40)
-                        .background(Color.red, in: Circle())
-                        .shadow(color: .red.opacity(0.35), radius: 6, y: 2)
-                }
-                .accessibilityIdentifier("chat-stop")
-                .accessibilityLabel("Stopp")
-            } else {
-                Button(action: send) {
-                    Image(systemName: "arrow.up")
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundStyle(sanitizedInput.isEmpty ? Color.secondary : .white)
-                        .frame(width: 40, height: 40)
-                        .background(
-                            sanitizedInput.isEmpty
-                                ? AnyShapeStyle(Color(.tertiarySystemFill))
-                                : AnyShapeStyle(Theme.accentGradient),
-                            in: Circle()
-                        )
-                        .shadow(color: sanitizedInput.isEmpty ? .clear : Theme.accent.opacity(0.35), radius: 6, y: 2)
-                }
-                .disabled(sanitizedInput.isEmpty)
-                .accessibilityIdentifier("chat-send")
-                .accessibilityLabel("Senden")
+        ChatComposer(
+            text: $input,
+            placeholder: isEditingApp ? "Änderung beschreiben…" : "Nachricht",
+            isBusy: session.busy,
+            canSend: !sanitizedInput.isEmpty,
+            onSend: send,
+            onStop: session.stop
+        ) { newValue in
+            if PlainPasteboard.looksLikePasteboardArtifact(newValue) {
+                input = PlainPasteboard.plainText() ?? ""
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
     }
 
     private var sanitizedInput: String {
@@ -503,16 +458,16 @@ private struct MessageBubble: View {
                     if showTyping {
                         HStack(spacing: 6) {
                             ProgressView().controlSize(.small)
-                            Text("Schreibt…").font(.footnote).foregroundStyle(.secondary)
                         }
                         .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .padding(.vertical, 12)
+                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.bubbleRadius, style: .continuous))
+                        .accessibilityLabel("Schreibt")
                     } else if !bubbleText.isEmpty {
                         markdownText(bubbleText)
                             .textSelection(.enabled)
-                            .padding(.horizontal, 15)
-                            .padding(.vertical, 11)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
                             .background(
                                 message.role == .user
                                     ? AnyShapeStyle(Theme.accentGradient)
@@ -581,30 +536,25 @@ private struct ToolChip: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(spacing: 6) {
             Image(systemName: icon)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 16)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(label)
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(Color.accentColor)
-                    if pending {
-                        ProgressView().controlSize(.mini)
-                    }
-                }
+                .font(.caption2.weight(.semibold))
+            Text(label)
+                .font(.caption2.weight(.semibold))
+            if pending {
+                ProgressView().controlSize(.mini)
+            } else if !text.isEmpty {
                 Text(text)
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundStyle(.secondary)
-                    .lineLimit(3)
+                    .lineLimit(1)
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.accentColor.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .foregroundStyle(Color.accentColor)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Color.accentColor.opacity(0.08), in: Capsule())
+        .accessibilityLabel("\(label): \(text)")
     }
 }
 
@@ -643,31 +593,16 @@ private struct MiniAppCard: View {
     var onEditAI: (() -> Void)? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Theme.space2) {
             HStack(spacing: 12) {
-                MiniAppIconView(emoji: draft.emoji, iconSymbol: draft.iconSymbol, size: 48)
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(draft.name).font(.headline)
-                        if isStreaming {
-                            ProgressView().controlSize(.mini)
-                            Text("live")
-                                .font(.caption2.weight(.semibold))
-                                .foregroundStyle(Color.accentColor)
-                        }
-                    }
-                    HStack(spacing: 6) {
-                        Text(draft.filesJSON == "{}" || draft.filesJSON.isEmpty ? "Mini-App" : "Multi-File")
-                        Text("·")
-                        Text(MiniAppCapability.from(html: draft.html).label)
-                        if isStreaming {
-                            Text("·")
-                            Text("~\(draft.html.count) Zeichen")
-                        }
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                MiniAppIconView(emoji: draft.emoji, iconSymbol: draft.iconSymbol, size: 44)
+                Text(draft.name)
+                    .font(.headline)
+                    .lineLimit(1)
+                if isStreaming {
+                    ProgressView().controlSize(.mini)
                 }
+                Spacer(minLength: 0)
             }
             HStack(spacing: 8) {
                 Button("Vorschau", action: onPreview)
@@ -676,10 +611,11 @@ private struct MiniAppCard: View {
                     .accessibilityIdentifier("preview-app")
                 if let onEditAI {
                     Button(action: onEditAI) {
-                        Label("KI", systemImage: "sparkles")
+                        Image(systemName: "sparkles")
                     }
                     .buttonStyle(.bordered)
                     .disabled(isStreaming)
+                    .accessibilityLabel("Im Chat bearbeiten")
                 }
                 Button("Behalten", action: onKeep)
                     .buttonStyle(.borderedProminent)
@@ -687,8 +623,8 @@ private struct MiniAppCard: View {
                     .accessibilityIdentifier("keep-app")
             }
         }
-        .padding(14)
+        .padding(Theme.space2)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
     }
 }

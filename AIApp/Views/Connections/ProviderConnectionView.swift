@@ -1,171 +1,6 @@
 import SwiftUI
 import UIKit
 
-/// Provider list separated by modality: Chat, Image, Video. Each section has
-/// its own active provider+model. Accounts are shared per provider; media is
-/// never configured as nested fields inside a chat provider.
-struct ConnectionsView: View {
-    @EnvironmentObject private var settingsStore: SettingsStore
-    @EnvironmentObject private var accountStore: AccountStore
-
-    var body: some View {
-        List {
-            Section {
-                Text("OpenRouter = hunderte Modelle mit einem Key. „Eigener Server“ = jede OpenAI-kompatible API (LiteLLM, vLLM, Azure, …). Ollama/LM Studio für den Heimserver.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                NavigationLink {
-                    ProviderConnectionView(presetId: "openrouter", modality: .chat)
-                } label: {
-                    Label("OpenRouter (alle Modelle)", systemImage: "globe")
-                }
-                NavigationLink {
-                    ProviderConnectionView(presetId: "custom-openai", modality: .chat)
-                } label: {
-                    Label("Beliebige OpenAI-API (URL + Key)", systemImage: "link")
-                }
-                NavigationLink {
-                    ProviderConnectionView(presetId: "ollama", modality: .chat)
-                } label: {
-                    Label("Ollama / lokal", systemImage: "desktopcomputer")
-                }
-                NavigationLink {
-                    ProviderConnectionView(presetId: "sub2api", modality: .chat)
-                } label: {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Label("Eigenes Abo-Gateway (sub2api)", systemImage: "server.rack")
-                        Text("Deine ChatGPT/Claude/Grok-Abos über deinen eigenen Server nutzen — Adresse + sk-…-Key eintragen.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            } header: {
-                Text("Schnellstart")
-            }
-
-            modalitySection(.chat)
-            modalitySection(.image)
-            modalitySection(.video)
-        }
-        .navigationTitle("Anbieter")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-
-    @ViewBuilder
-    private func modalitySection(_ modality: ModelModality) -> some View {
-        let presets = providers(for: modality)
-        let activeId = settingsStore.settings.activePresetId(for: modality)
-
-        Section {
-            // Active slot summary
-            if activeId.isEmpty {
-                Text(emptySlotText(modality))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            } else {
-                NavigationLink {
-                    ProviderConnectionView(presetId: activeId, modality: modality)
-                } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: modality.systemImage)
-                            .foregroundStyle(Color.accentColor)
-                            .font(.title3)
-                            .frame(width: 28)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(ProviderPreset.preset(for: activeId).label)
-                                .font(.headline)
-                            Text(activeSubtitle(modality: modality, presetId: activeId))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-            }
-
-            ForEach(presets.filter { $0.id != activeId }) { preset in
-                providerRow(preset, modality: modality)
-            }
-        } header: {
-            Label(modality.sectionTitle, systemImage: modality.systemImage)
-        } footer: {
-            Text(footer(for: modality))
-        }
-    }
-
-    private func providers(for modality: ModelModality) -> [ProviderPreset] {
-        ProviderPreset.catalog.filter { MediaCapability.supports(modality, presetId: $0.id) }
-    }
-
-    private func emptySlotText(_ modality: ModelModality) -> String {
-        switch modality {
-        case .chat: return "Noch kein Chat-Anbieter gewählt"
-        case .image: return "Kein Bild-Anbieter — unten einen wählen"
-        case .video: return "Kein Video-Anbieter — unten einen wählen"
-        }
-    }
-
-    private func footer(for modality: ModelModality) -> String {
-        switch modality {
-        case .chat:
-            return "Der Chat nutzt diesen Anbieter und das Chat-Modell. Tippe einen Anbieter an, um Konten und Modell zu verwalten."
-        case .image:
-            return "Unabhängig vom Chat. generate_image nutzt diesen Anbieter und das Bild-Modell."
-        case .video:
-            return "Unabhängig vom Chat. generate_video nutzt diesen Anbieter und das Video-Modell."
-        }
-    }
-
-    private func activeSubtitle(modality: ModelModality, presetId: String) -> String {
-        let model = settingsStore.settings.model(for: modality)
-        let modelPart = model.isEmpty ? "Kein Modell" : model
-        if ProviderPreset.preset(for: presetId).dialect == .mlx {
-            return "On-Device · \(modelPart)"
-        }
-        if let account = accountStore.activeAccount(for: presetId) {
-            let kind = account.isOAuth ? "Abo" : "API-Key"
-            return "\(account.label) · \(kind) · \(modelPart)"
-        }
-        return "Kein Konto · \(modelPart)"
-    }
-
-    private func providerRow(_ preset: ProviderPreset, modality: ModelModality) -> some View {
-        NavigationLink {
-            ProviderConnectionView(presetId: preset.id, modality: modality)
-        } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(preset.label)
-                    Text(statusText(for: preset)).font(.caption).foregroundStyle(.secondary)
-                }
-                Spacer()
-                if settingsStore.isActive(presetId: preset.id, for: modality) {
-                    Text("Aktiv")
-                        .font(.caption2.weight(.semibold))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Color.accentColor.opacity(0.15), in: Capsule())
-                        .foregroundStyle(Color.accentColor)
-                }
-            }
-        }
-    }
-
-    private func statusText(for preset: ProviderPreset) -> String {
-        if preset.dialect == .mlx { return "On-Device (MLX)" }
-        switch accountStore.accounts(for: preset.id).count {
-        case 0:
-            // OpenAI/Grok subscription login can't complete in-app (needs CLI
-            // impersonation) — present them as API-key providers.
-            if preset.id == "openai" || preset.id == "xai" { return "API-Key" }
-            // Claude subscription login works but is experimental; API key primary.
-            if preset.oauth?.flow == .pasteCode { return "API-Key (empfohlen) · Abo-Login möglich" }
-            return preset.oauthAvailable ? "API-Key oder Abo-Login" : "API-Key"
-        case 1: return "1 Konto"
-        case let count: return "\(count) Konten"
-        }
-    }
-}
-
 /// Manages one provider for a given modality: accounts (shared), and the model
 /// for that modality only. No nested image/video fields on chat.
 struct ProviderConnectionView: View {
@@ -244,7 +79,6 @@ struct ProviderConnectionView: View {
                     }
                 }
             }
-            Section { Text(footer).font(.footnote).foregroundStyle(.secondary) }
         }
         .navigationTitle(preset.label)
         .navigationBarTitleDisplayMode(.inline)
@@ -1079,27 +913,6 @@ struct ProviderConnectionView: View {
         }
     }
 
-    private var footer: String {
-        switch presetId {
-        case "mlx":
-            return "Modelle laufen komplett auf dem Gerät (Apple MLX) — offline, privat, kostenlos. Download einmalig über WLAN empfohlen. Im Simulator nicht verfügbar."
-        case "anthropic":
-            return "Empfohlen: eigener API-Key (console.anthropic.com/settings/keys) — offiziell und zuverlässig. Der Claude-Abo-Login ist experimentell und für Dritt-Apps nicht garantiert."
-        case "openrouter":
-            return "OAuth holt automatisch einen echten API-Key (Pay-as-you-go) — oder eigenen Key einfügen. Voll unterstützt."
-        case "openai":
-            return "Eigener API-Key (platform.openai.com/api-keys) — Standard Chat Completions. Dein ChatGPT-Abo geht nicht direkt hier, sondern über ein eigenes sub2api-Gateway (Schnellstart → „Eigenes Abo-Gateway“). Bild/Video brauchen einen API-Key."
-        case "xai":
-            return "Eigener API-Key (console.x.ai) — oder Grok per OpenRouter. Dein Grok-Abo geht nicht direkt hier, sondern über ein eigenes sub2api-Gateway (Schnellstart → „Eigenes Abo-Gateway“)."
-        case "sub2api":
-            return "Dein selbst-gehostetes Abo-Gateway. Host eintragen („/v1“ wird ergänzt), sk-…-Key als Konto hinzufügen, „Modelle laden“. Deine Abo-Konten (ChatGPT/Claude/Grok) verwaltest du in sub2api selbst — Link oben öffnet die Verwaltung."
-        default:
-            if preset.editableBaseURL {
-                return "Für eigene Server: Base-URL des kompatiblen Endpoints eintragen (Ollama, LM Studio, LocalAI, vLLM, LiteLLM …)."
-            }
-            return "Der API-Key wird nur im Geräte-Keychain gespeichert. Konten gelten für Chat, Bild und Video gemeinsam."
-        }
-    }
 }
 
 // PasteCodeSheet lives in Components/PasteCodeSheet.swift

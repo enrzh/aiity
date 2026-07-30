@@ -43,7 +43,7 @@ struct AppSheet<Content: View>: View {
     }
 }
 
-/// Reusable dismissible error / info banner for lists and chat.
+/// Reusable dismissible error / info banner — one visual line; full text for a11y.
 struct BannerView: View {
     enum Kind { case error, info, success }
 
@@ -68,66 +68,85 @@ struct BannerView: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: icon).foregroundStyle(color)
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .foregroundStyle(color)
+                .imageScale(.medium)
             Text(message)
-                .font(.footnote)
+                .font(.subheadline)
                 .foregroundStyle(kind == .error ? Color.red : Color.primary)
+                .lineLimit(2)
                 .textSelection(.enabled)
             Spacer(minLength: 0)
             if let onDismiss {
                 Button(action: onDismiss) {
-                    Image(systemName: "xmark.circle.fill")
+                    Image(systemName: "xmark")
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Schließen")
             }
         }
-        .padding(12)
-        .background(color.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal, Theme.space2)
+        .padding(.vertical, 10)
+        .background(color.opacity(0.08), in: RoundedRectangle(cornerRadius: Theme.chipRadius, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(message)
     }
 }
 
-/// Horizontal/vertical suggestion chips.
+/// Horizontal suggestion chips (minimal empty-state prompts).
 struct SuggestionList: View {
     let suggestions: [String]
     let onTap: (String) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ForEach(suggestions, id: \.self) { text in
-                Button {
-                    onTap(text)
-                } label: {
-                    Text(text)
-                        .font(.subheadline)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(suggestions, id: \.self) { text in
+                    Button {
+                        onTap(text)
+                    } label: {
+                        Text(text)
+                            .font(.subheadline)
+                            .lineLimit(1)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 9)
+                            .background(Color(.secondarySystemBackground), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("suggestion-chip")
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("suggestion-chip")
             }
         }
     }
 }
 
-/// Compact active model / provider label.
+/// Compact model pill for toolbar / quiet chrome.
 struct ActiveModelChip: View {
     let label: String
+    var compact: Bool = false
 
     var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "cpu").font(.caption2)
-            Text(label).font(.caption).lineLimit(1)
-            Spacer(minLength: 0)
+        HStack(spacing: 5) {
+            Image(systemName: "cpu")
+                .font(.caption2.weight(.semibold))
+            Text(label)
+                .font(.caption.weight(.medium))
+                .lineLimit(1)
+            if !compact {
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(.tertiary)
+            }
         }
         .foregroundStyle(.secondary)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 6)
-        .background(Color(.tertiarySystemBackground))
+        .padding(.horizontal, compact ? 10 : 12)
+        .padding(.vertical, compact ? 5 : 6)
+        .background(Color(.tertiarySystemBackground), in: Capsule())
         .accessibilityIdentifier("active-model-chip")
     }
 }

@@ -1,89 +1,61 @@
 import SwiftUI
 
-/// First-run wizard. Steps introduce chat, providers, skills, mini-apps.
+/// Minimal first-run: one welcome beat, then connect.
 struct OnboardingModal: View {
     @Binding var isPresented: Bool
     var onFinished: () -> Void
 
     @State private var page = 0
-    /// Provider setup opened straight from onboarding, so a new user lands on a
-    /// working model instead of being dropped into an unconfigured chat.
     @State private var setupPresetId: String?
-    // Passed explicitly into the setup sheet below — ProviderConnectionView
-    // requires both, and a missing environment object is a hard crash.
     @EnvironmentObject private var settingsStore: SettingsStore
     @EnvironmentObject private var accountStore: AccountStore
-
-    private let pages: [(icon: String, title: String, body: String)] = [
-        (
-            "sparkles",
-            "Willkommen bei aiity",
-            "Chat zuerst: stell Fragen oder lass Mini-Apps bauen. Alles läuft mit deinem eigenen API-Key oder lokalen Modell."
-        ),
-        (
-            "cpu",
-            "Modell verbinden",
-            "Unter Mehr → KI-Anbieter Key oder Ollama einrichten, dann „Modelle laden“ / „Verbindung testen“. Oben im Chat siehst du den aktiven Anbieter."
-        ),
-        (
-            "square.grid.2x2",
-            "Apps behalten",
-            "Wenn der Agent eine Mini-App baut: Vorschau → Behalten. Sie erscheint unter Apps. Zum Bearbeiten: langes Drücken → Im Chat bearbeiten."
-        ),
-        (
-            "cpu",
-            "Jetzt verbinden",
-            "Wähle unten, womit aiity arbeiten soll. Ohne Modell kann der Chat nichts beantworten — das dauert nur eine Minute."
-        ),
-    ]
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 24) {
-                TabView(selection: $page) {
-                    ForEach(pages.indices, id: \.self) { index in
-                        VStack(spacing: 16) {
-                            Image(systemName: pages[index].icon)
-                                .font(.system(size: 48))
-                                .foregroundStyle(Color.accentColor)
-                                .padding(.top, 24)
-                            Text(pages[index].title)
-                                .font(.title2.bold())
-                                .multilineTextAlignment(.center)
-                            Text(pages[index].body)
-                                .font(.body)
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal)
-                            Spacer()
-                        }
-                        .tag(index)
-                    }
-                }
-                .tabViewStyle(.page(indexDisplayMode: .always))
+            VStack(spacing: Theme.space4) {
+                Spacer(minLength: 12)
 
-                // On the last page offer the three real ways to get a working
-                // model, each opening its setup screen directly.
-                if page == pages.count - 1 {
-                    VStack(spacing: 8) {
-                        connectButton("API-Key eintragen", subtitle: "OpenAI, Anthropic, OpenRouter …",
+                if page == 0 {
+                    VStack(spacing: Theme.space3) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 44, weight: .semibold))
+                            .foregroundStyle(Theme.accent)
+                        Text("Dein KI-Chat.\nDeine Mini-Apps.")
+                            .font(.title.bold())
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .transition(.opacity)
+                } else {
+                    VStack(spacing: 10) {
+                        Text("Modell verbinden")
+                            .font(.title2.bold())
+                        connectButton("API-Key", subtitle: "OpenAI, Anthropic, OpenRouter…",
                                       systemImage: "key.fill", presetId: "openrouter")
-                        connectButton("Eigenes Gateway (sub2api)", subtitle: "Eigener Server mit deinen Abos",
+                        connectButton("Gateway", subtitle: "sub2api / eigener Server",
                                       systemImage: "server.rack", presetId: "sub2api")
-                        connectButton("Lokal (Ollama / On-Device)", subtitle: "Kostenlos, ohne Cloud",
+                        connectButton("Lokal", subtitle: "Ollama / On-Device",
                                       systemImage: "desktopcomputer", presetId: "ollama")
                     }
                     .padding(.horizontal)
+                    .transition(.opacity)
                 }
 
+                Spacer()
+
                 Button {
-                    if page < pages.count - 1 {
-                        withAnimation { page += 1 }
+                    if page == 0 {
+                        withAnimation(
+                            Theme.Motion.preferSpring(Theme.Motion.soft, reduceMotion: reduceMotion)
+                        ) {
+                            page = 1
+                        }
                     } else {
                         finish()
                     }
                 } label: {
-                    Text(page < pages.count - 1 ? "Weiter" : "Loslegen")
+                    Text(page == 0 ? "Weiter" : "Loslegen")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
@@ -91,50 +63,55 @@ struct OnboardingModal: View {
                 .padding(.horizontal)
                 .accessibilityIdentifier("onboarding-next")
 
-                if page < pages.count - 1 {
+                if page == 0 {
                     Button("Überspringen") { finish() }
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             }
-            .padding(.bottom, 24)
-            .navigationTitle("aiity")
+            .padding(.bottom, Theme.space4)
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Schließen") { finish() }
+                        .accessibilityIdentifier("onboarding-skip")
+                }
+            }
+            .sheet(item: Binding(
+                get: { setupPresetId.map(OnboardingPreset.init(id:)) },
+                set: { setupPresetId = $0?.id }
+            )) { preset in
+                NavigationStack {
+                    ProviderConnectionView(presetId: preset.id, modality: .chat)
+                }
+                .environmentObject(settingsStore)
+                .environmentObject(accountStore)
+            }
         }
         .interactiveDismissDisabled(true)
-        .sheet(item: Binding(
-            get: { setupPresetId.map(OnboardingPreset.init(id:)) },
-            set: { setupPresetId = $0?.id }
-        )) { preset in
-            NavigationStack {
-                ProviderConnectionView(presetId: preset.id, modality: .chat)
-            }
-            .environmentObject(settingsStore)
-            .environmentObject(accountStore)
-        }
     }
 
-    private func connectButton(
-        _ title: String, subtitle: String, systemImage: String, presetId: String
-    ) -> some View {
+    private func connectButton(_ title: String, subtitle: String, systemImage: String, presetId: String) -> some View {
         Button {
             setupPresetId = presetId
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: systemImage)
-                    .font(.title3)
-                    .foregroundStyle(Color.accentColor)
+                    .font(.body.weight(.semibold))
                     .frame(width: 28)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title).font(.subheadline.weight(.semibold))
-                    Text(subtitle).font(.caption).foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.body.weight(.semibold))
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
             }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 12)
-            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .padding(Theme.space2)
+            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
         }
         .buttonStyle(.plain)
     }
@@ -145,7 +122,6 @@ struct OnboardingModal: View {
     }
 }
 
-/// Identifiable wrapper so a preset id can drive a `sheet(item:)`.
 private struct OnboardingPreset: Identifiable {
     let id: String
 }

@@ -44,13 +44,16 @@ final class SettingsTourUITests: XCTestCase {
                       "OAuth add-account button should appear for Claude")
         attach(app, name: "connections-claude")
 
-        // Skills tab lists the built-ins.
-        app.tabBars.buttons["Skills"].tap()
+        // Skills lives in More so the primary tab bar stays focused.
+        app.tabBars.buttons["Mehr"].tap()
+        let skillsRow = app.buttons["open-skills"]
+        XCTAssertTrue(skillsRow.waitForExistence(timeout: 10))
+        skillsRow.tap()
         XCTAssertTrue(app.staticTexts["UI-Design Pro"].waitForExistence(timeout: 10), "builtin skills should be listed")
         attach(app, name: "skills")
     }
 
-    /// Visual tour of the navbar (Chat/Apps/Skills/Mehr) for review screenshots.
+    /// Visual tour of the focused navbar (Chat/Apps/Mehr) for review screenshots.
     func testAppTour() {
         let app = makeApp()
         app.launch()
@@ -62,15 +65,12 @@ final class SettingsTourUITests: XCTestCase {
         app.tabBars.buttons["Apps"].tap()
         attach(app, name: "tour-2-apps")
 
-        app.tabBars.buttons["Skills"].tap()
-        attach(app, name: "tour-3-skills")
-
         app.tabBars.buttons["Mehr"].tap()
-        attach(app, name: "tour-4-mehr")
+        attach(app, name: "tour-3-mehr")
 
         app.buttons["open-connections"].tap()
         XCTAssertTrue(app.navigationBars["Anbieter"].waitForExistence(timeout: 10))
-        attach(app, name: "tour-5-anbieter")
+        attach(app, name: "tour-4-anbieter")
     }
 
     /// Swipes up until the element exists (lazy List rows materialize only

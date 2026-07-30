@@ -1,22 +1,48 @@
 import SwiftUI
 
-/// Small design system for a cohesive "refined native" look: one brand accent
-/// (indigo → violet, mirrored by the AccentColor asset), consistent radii, and
-/// stable per-app tile gradients.
+/// Quiet native design tokens: one accent, tight radius scale, restrained motion.
 enum Theme {
     static let accent = Color.accentColor
 
-    /// Subtle indigo→violet gradient for accent surfaces (user bubbles, hero icons).
+    /// Accent gradient for **user bubbles and mini-app tiles only** — not chrome.
     static let accentGradient = LinearGradient(
         colors: [Color(red: 0.42, green: 0.30, blue: 0.95),
                  Color(red: 0.61, green: 0.42, blue: 1.00)],
         startPoint: .topLeading, endPoint: .bottomTrailing
     )
 
-    // Corner radii
-    static let cardRadius: CGFloat = 20
+    // Corner radii (chip / card / bubble)
+    static let chipRadius: CGFloat = 12
+    static let cardRadius: CGFloat = 16
     static let bubbleRadius: CGFloat = 22
-    static let tileRadius: CGFloat = 18
+    /// Alias kept for older call sites (tiles).
+    static let tileRadius: CGFloat = 16
+    /// Shared minimum for buttons, rows, and interactive controls.
+    static let controlHeight: CGFloat = 44
+
+    // Spacing (8pt grid)
+    static let space1: CGFloat = 8
+    static let space2: CGFloat = 12
+    static let space3: CGFloat = 16
+    static let space4: CGFloat = 24
+
+    // MARK: - Motion
+
+    enum Motion {
+        /// Chips, send button, toggles.
+        static let snappy = Animation.spring(response: 0.28, dampingFraction: 0.86)
+        /// Empty → content, soft layout shifts.
+        static let soft = Animation.spring(response: 0.4, dampingFraction: 0.9)
+        /// Banners / status fade.
+        static let fade = Animation.easeOut(duration: 0.2)
+        /// Scroll-to-latest while streaming.
+        static let scroll = Animation.easeOut(duration: 0.18)
+
+        /// Prefer fade when Reduce Motion is on.
+        static func preferSpring(_ spring: Animation, reduceMotion: Bool) -> Animation {
+            reduceMotion ? fade : spring
+        }
+    }
 
     /// Deterministic hue in [0,1) from a string (NOT String.hashValue — that is
     /// randomized per process, which would recolor tiles every launch).

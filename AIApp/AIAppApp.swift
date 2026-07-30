@@ -64,20 +64,15 @@ struct RootView: View {
                 .tabItem { Label("Apps", systemImage: "square.grid.2x2") }
                 .tag(1)
 
-            SkillsView()
-                .tabItem { Label("Skills", systemImage: "puzzlepiece.extension") }
-                .tag(2)
-
+            // Skills lives under Mehr — keep the main rail to three tabs.
             SettingsView()
                 .tabItem { Label("Mehr", systemImage: "gearshape") }
-                .tag(3)
+                .tag(2)
         }
         .environmentObject(session)
         .environmentObject(settingsStore)
         .environmentObject(accountStore)
-        // Refined-native look: brand accent + friendly rounded typography app-wide.
         .tint(Theme.accent)
-        .fontDesign(.rounded)
         .environment(\.openChatTab) {
             selectedTab = 0
         }
