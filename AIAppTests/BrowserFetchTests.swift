@@ -155,3 +155,34 @@ private final class NWListenerBox {
 
     func stop() { listener.cancel() }
 }
+
+/// The browser mini-app's open-target marker, and the invariant that a remote
+/// document must not be treated as our trusted shell.
+final class WebAppTargetTests: XCTestCase {
+    func testGeneratedBrowserAppDeclaresItsTarget() {
+        let html = WebAppBuilder.html(urlString: "x.com", name: "X")
+        XCTAssertEqual(WebAppBuilder.openTarget(in: html)?.absoluteString, "https://x.com")
+        XCTAssertTrue(html.contains("capability: browser"))
+    }
+
+    func testBareHostGetsHTTPS() {
+        let html = WebAppBuilder.html(urlString: "example.com")
+        XCTAssertEqual(WebAppBuilder.openTarget(in: html)?.scheme, "https")
+    }
+
+    /// Only http(s) may become a directly-loaded document.
+    func testNonWebSchemesAreNotOpenTargets() {
+        for raw in ["file:///etc/passwd", "javascript:alert(1)", "data:text/html,x"] {
+            XCTAssertNil(
+                WebAppBuilder.openTarget(in: "<!-- open: \(raw) -->"),
+                "must refuse \(raw)"
+            )
+        }
+    }
+
+    /// An ordinary generated mini-app has no marker, so it still renders its
+    /// own HTML rather than navigating anywhere.
+    func testPlainMiniAppHasNoOpenTarget() {
+        XCTAssertNil(WebAppBuilder.openTarget(in: "<html><body>hallo</body></html>"))
+    }
+}

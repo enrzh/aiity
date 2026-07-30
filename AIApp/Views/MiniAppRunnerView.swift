@@ -15,6 +15,22 @@ struct MiniAppRunnerView: UIViewRepresentable {
     let html: String
     var capability: MiniAppCapability = .offline
 
+    /// A browser app that only exists to open a site loads that site as its
+    /// document. Rendering the shell first cannot work: it has a null origin and
+    /// a `default-src 'none'` CSP, so its script is not permitted to navigate
+    /// away — which is why sites like x.com never appeared.
+    private func load(into webView: WKWebView) {
+        if capability == .browser, let target = WebAppBuilder.openTarget(in: html) {
+            // The document is now a REMOTE page, so it must never be treated as
+            // our trusted shell: the native bridge stays off. `beginTrustedLoad`
+            // turned it on for the shell case — undo that here rather than let
+            // x.com inherit storage/notify/openExternal.
+            webView.load(URLRequest(url: target))
+            return
+        }
+        webView.loadHTMLString(Sandbox.harden(html, capability: capability), baseURL: nil)
+    }
+
     func makeCoordinator() -> Coordinator {
         Coordinator(appId: appId, capability: capability)
     }
@@ -42,7 +58,10 @@ struct MiniAppRunnerView: UIViewRepresentable {
         context.coordinator.webView = webView
         context.coordinator.capability = capability
         context.coordinator.beginTrustedLoad()
-        webView.loadHTMLString(Sandbox.harden(html, capability: capability), baseURL: nil)
+        load(into: webView)
+        if capability == .browser, WebAppBuilder.openTarget(in: html) != nil {
+            context.coordinator.disableBridgeForRemoteDocument()
+        }
         return webView
     }
 
@@ -52,7 +71,10 @@ struct MiniAppRunnerView: UIViewRepresentable {
         if context.coordinator.loadedHTML != html || capabilityChanged {
             context.coordinator.loadedHTML = html
             context.coordinator.beginTrustedLoad()
-            webView.loadHTMLString(Sandbox.harden(html, capability: capability), baseURL: nil)
+            load(into: webView)
+            if capability == .browser, WebAppBuilder.openTarget(in: html) != nil {
+                context.coordinator.disableBridgeForRemoteDocument()
+            }
         }
     }
 
@@ -85,6 +107,12 @@ struct MiniAppRunnerView: UIViewRepresentable {
         func beginTrustedLoad() {
             pendingTrustedLoad = true
             bridgeActive = true
+        }
+
+        /// App-initiated, but the document is a third-party site — allow the
+        /// load without granting it the native bridge.
+        func disableBridgeForRemoteDocument() {
+            bridgeActive = false
         }
 
         private var storageKeyPrefix: String { "miniapp-storage-\(appId)-" }

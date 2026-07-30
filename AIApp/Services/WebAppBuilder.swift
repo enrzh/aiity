@@ -27,6 +27,7 @@ enum WebAppBuilder {
         <!doctype html>
         <!-- emoji: 🌐 -->
         <!-- capability: browser -->
+        <!-- open: \(url) -->
         <html lang="de"><head><meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
         <title>\(esc(title))</title>
@@ -37,6 +38,29 @@ enum WebAppBuilder {
         <script>location.replace(\(jsString(url)));</script>
         </body></html>
         """
+    }
+
+    /// The site a browser mini-app exists to open, declared as `<!-- open: URL -->`.
+    ///
+    /// The runner loads this directly instead of rendering the shell below. The
+    /// shell's own document has a null origin (loadHTMLString with no baseURL)
+    /// AND a `default-src 'none'` CSP, so a script inside it cannot navigate to
+    /// the site — it would have to escape its own policy. Loading the URL as the
+    /// document sidesteps that entirely; the shell stays only as a fallback for
+    /// older saved apps that have no marker.
+    static func openTarget(in html: String) -> URL? {
+        guard let range = html.range(of: #"<!--\s*open:\s*([^\s>]+)\s*-->"#, options: .regularExpression) else {
+            return nil
+        }
+        let raw = String(html[range])
+            .replacingOccurrences(of: "<!--", with: "")
+            .replacingOccurrences(of: "-->", with: "")
+            .replacingOccurrences(of: "open:", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let url = URL(string: raw),
+              let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https" else { return nil }
+        return url
     }
 
     /// Detects a bare "open a website" request so the chat can build the browser
