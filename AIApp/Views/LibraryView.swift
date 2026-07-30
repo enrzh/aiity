@@ -30,7 +30,11 @@ struct LibraryView: View {
                     }
                 }
             }
-            .navigationTitle("Meine Apps")
+            // No title: the tab bar already says "Apps" right below this screen,
+            // so a large "Meine Apps" header just repeated it and ate a row of
+            // grid space.
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {

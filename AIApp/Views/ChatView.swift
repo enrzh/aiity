@@ -218,11 +218,10 @@ struct ChatView: View {
                 .accessibilityIdentifier("chat-new")
                 .accessibilityLabel("Neuer Chat")
 
-                // Plain glyph, like its neighbours: a chip with its own capsule
+                // Plain glyphs, all three alike: a chip with its own capsule
                 // background clashes with the toolbar's own grouping, and the
                 // toolbar drops the chip's text when the title is long — which
-                // left a bare icon on a grey square. The model name lives in the
-                // menu header below instead.
+                // left a bare icon on a grey square.
                 Button {
                     showQuickProvider = true
                 } label: {
@@ -232,19 +231,15 @@ struct ChatView: View {
                 .accessibilityLabel("Modell: \(activeModelLabel)")
                 .accessibilityHint("Anbieter und Modell wählen")
 
-                Menu {
-                    Section("Modell: \(activeModelLabel)") {
-                        Button {
-                            showSkills = true
-                        } label: {
-                            Label("Skills", systemImage: "puzzlepiece.extension")
-                        }
-                    }
+                // Skills used to hide behind an overflow menu whose only other
+                // entry was the provider — which already has its own button.
+                Button {
+                    showSkills = true
                 } label: {
-                    Image(systemName: "ellipsis.circle")
+                    Image(systemName: "puzzlepiece.extension")
                 }
-                .accessibilityLabel("Mehr")
-                .accessibilityIdentifier("chat-more-menu")
+                .accessibilityIdentifier("chat-skills")
+                .accessibilityLabel("Skills")
             }
         }
         .sheet(item: $previewDraft) { draft in
