@@ -86,6 +86,8 @@ final class ChatSession: ObservableObject {
     - generate_image(prompt, size?) — creates a picture and shows it to the user inline. Use when they ask for an image/illustration/logo/artwork.
     After a generation tool runs, briefly tell the user what you made; the media is attached to your message automatically — do not paste base64 or URLs.
 
+    If an `ask_agent` tool is offered, the user has configured specialist agents. You are the lead: when a task matches one of their roles better than your own — deep research, review, translation, a second opinion from a different model — delegate it with ask_agent, then use the answer in your reply. Give the agent everything it needs in the task text; it cannot see this conversation. Do not delegate trivial work you can just do, and never announce a delegation you did not make.
+
     When the user has enabled agent skills (listed under "Installed skills"), treat them as hard requirements for matching work — especially design systems, games, and charts. Do not invent a conflicting style.
 
     When the user asks you to create or change an app, answer with a short explanation plus a mini-app. Prefer ONE ```html fence (all CSS/JS inline). For larger apps you may also emit companion fences: ```css:style.css and ```js:app.js — they are bundled automatically. Rules:
@@ -300,7 +302,8 @@ final class ChatSession: ObservableObject {
                 return
             }
             let provider = runSettings.makeProvider(apiKey: apiKey)
-            let tools = await ToolRegistry.makeTools(settings: runSettings, apiKey: apiKey)
+            // The lead chat is the only place `ask_agent` is offered.
+            let tools = await ToolRegistry.makeTools(settings: runSettings, apiKey: apiKey, delegating: true)
             await runTurn(provider: provider, tools: tools)
             if Task.isCancelled { return }
             finishLiveActivityAfterTurn()
@@ -699,6 +702,7 @@ final class ChatSession: ObservableObject {
         case "web_search": return "Sucht im Web…"
         case "fetch_url": return "Liest Seite…"
         case "generate_image": return "Erstellt Bild…"
+        case AskAgentTool.toolName: return "Fragt Agent…"
         default: return "Tool: \(call.name)"
         }
     }
@@ -710,6 +714,8 @@ final class ChatSession: ObservableObject {
         case "fetch_url": return arguments["url"] as? String ?? ""
         case "generate_image":
             return String((arguments["prompt"] as? String ?? "").prefix(60))
+        case AskAgentTool.toolName:
+            return arguments["agent"] as? String ?? ""
         default: return call.name
         }
     }

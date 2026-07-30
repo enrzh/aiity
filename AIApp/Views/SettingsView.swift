@@ -5,6 +5,7 @@ import SwiftData
 struct SettingsView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     @ObservedObject private var prefs = AppPreferences.shared
+    @ObservedObject private var sync = SyncStatus.shared
     @Query private var savedApps: [MiniApp]
     @State private var backupURL: URL?
     @State private var backupSummary = "…"
@@ -42,12 +43,26 @@ struct SettingsView: View {
                     }
                 }
 
-                Section("Backup") {
+                Section {
+                    AppSettingsRow(
+                        title: sync.title,
+                        subtitle: sync.detail,
+                        systemImage: sync.systemImage
+                    )
+                    .accessibilityIdentifier("sync-status")
+                } header: {
+                    Text("Daten")
+                }
+
+                // Kept alongside iCloud, not replaced by it: sync mirrors a
+                // deletion to every device, so an exportable copy is still the
+                // only thing that survives "I deleted it everywhere".
+                Section {
                     Button {
                         backupURL = BackupService.writeBackup(apps: savedApps, createdAt: .now)
                     } label: {
                         AppSettingsRow(
-                            title: "Backup erstellen",
+                            title: "Backup-Datei erstellen",
                             subtitle: backupSummary,
                             systemImage: "arrow.down.doc"
                         )
@@ -59,6 +74,8 @@ struct SettingsView: View {
                         }
                         .accessibilityIdentifier("share-backup")
                     }
+                } footer: {
+                    Text("Einmalige Kopie zum Weggeben oder Archivieren. iCloud spiegelt auch Löschungen — eine Datei nicht.")
                 }
 
                 Section("Anzeige") {

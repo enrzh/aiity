@@ -21,18 +21,46 @@ struct AIAppApp: App {
 
     /// Build the SwiftData store, recovering instead of fatally crashing at launch
     /// on a corrupt or schema-incompatible store (which would brick the app and
-    /// hide every saved mini-app). On failure: move the bad store files aside and
-    /// retry fresh; last resort is an in-memory store so the app still opens.
+    /// hide every saved mini-app).
+    ///
+    /// The ladder matters, and the order is deliberate: **relocating the store is
+    /// the step that loses the user's apps**, so it comes last, after every
+    /// non-destructive option has been tried. In particular a CloudKit failure
+    /// (no iCloud account, entitlement not yet provisioned, container missing)
+    /// must fall back to the same store *without* sync rather than throwing the
+    /// data away — the local file is perfectly good, it just isn't syncing.
     private static func makeContainer() -> ModelContainer {
-        do {
-            return try ModelContainer(for: MiniApp.self)
-        } catch {
-            relocateCorruptStore()
-            if let fresh = try? ModelContainer(for: MiniApp.self) { return fresh }
-            let inMemory = ModelConfiguration(isStoredInMemoryOnly: true)
-            if let mem = try? ModelContainer(for: MiniApp.self, configurations: inMemory) { return mem }
-            fatalError("unrecoverable ModelContainer failure: \(error)")
+        let schema = Schema([MiniApp.self])
+
+        // 1. Synced. `.automatic` only actually syncs when the entitlement is
+        //    present and an iCloud account is signed in; otherwise it throws
+        //    here and we drop to local-only.
+        let synced = ModelConfiguration(schema: schema, cloudKitDatabase: .automatic)
+        if let container = try? ModelContainer(for: schema, configurations: synced) {
+            SyncStatus.shared.report(.synced)
+            return container
         }
+
+        // 2. Same file, no sync. Covers "signed out of iCloud", "iCloud Drive
+        //    off", and a provisioning profile without the container.
+        let local = ModelConfiguration(schema: schema, cloudKitDatabase: .none)
+        if let container = try? ModelContainer(for: schema, configurations: local) {
+            SyncStatus.shared.report(.localOnly)
+            return container
+        }
+
+        // 3. Genuinely unreadable — only now is moving it aside justified.
+        relocateCorruptStore()
+        if let fresh = try? ModelContainer(for: schema, configurations: local) {
+            SyncStatus.shared.report(.recovered)
+            return fresh
+        }
+        let inMemory = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        if let mem = try? ModelContainer(for: schema, configurations: inMemory) {
+            SyncStatus.shared.report(.inMemory)
+            return mem
+        }
+        fatalError("unrecoverable ModelContainer failure")
     }
 
     private static func relocateCorruptStore() {
@@ -70,10 +98,14 @@ struct RootView: View {
                 .tabItem { Label("Apps", systemImage: "square.grid.2x2") }
                 .tag(1)
 
-            // Skills lives under Mehr — keep the main rail to three tabs.
+            AgentsView()
+                .tabItem { Label("Agenten", systemImage: "person.2") }
+                .tag(2)
+
+            // Skills lives under Mehr — keep the main rail focused.
             SettingsView()
                 .tabItem { Label("Mehr", systemImage: "gearshape") }
-                .tag(2)
+                .tag(3)
         }
         .environmentObject(session)
         .environmentObject(settingsStore)

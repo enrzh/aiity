@@ -23,7 +23,14 @@ protocol AgentTool {
 enum ToolRegistry {
     /// Chat tools always use the chat provider key. The image tool resolves its
     /// own modality slot (possibly a different provider + model).
-    static func makeTools(settings: ProviderSettings, apiKey: String) async -> [AgentTool] {
+    ///
+    /// `delegating` is false for worker agents: they get the ordinary tools but
+    /// never `ask_agent`, which is what keeps delegation exactly one level deep.
+    static func makeTools(
+        settings: ProviderSettings,
+        apiKey: String,
+        delegating: Bool = false
+    ) async -> [AgentTool] {
         // Local Ollama/LM Studio/MLX: no tools. Tool schemas make small models
         // invent fake <tool_call>/function JSON and answer nonsense.
         guard LocalRuntimePolicy.shouldSendTools(settings) else { return [] }
@@ -35,6 +42,12 @@ enum ToolRegistry {
         ]
         if let imageRoute = await MediaRoute.resolve(modality: .image, from: settings) {
             tools.append(ImageGenerationTool(route: imageRoute))
+        }
+        if delegating {
+            let agents = await MainActor.run { AgentStore.active() }
+            if !agents.isEmpty {
+                tools.append(AskAgentTool(agents: agents, chatSettings: settings))
+            }
         }
         return tools
     }

@@ -40,6 +40,10 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         # Live Activity for chat/build progress on Lock Screen + Dynamic Island.
         NSSupportsLiveActivities: true
+        # CloudKit pushes a silent notification when another device changes a
+        # record; without this background mode the store only syncs on launch.
+        UIBackgroundModes:
+          - remote-notification
         # aiity is a bring-your-own-endpoint client: users point it at self-hosted
         # gateways — Ollama/LM Studio on the LAN, a sub2api gateway over Tailscale,
         # etc. — that often speak plain http. Tailscale IPs (100.64/10 CGNAT) aren't
