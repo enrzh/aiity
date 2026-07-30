@@ -33,7 +33,7 @@ struct LaunchSplashView: View {
                 Spacer(minLength: 0)
 
                 VStack(spacing: 0) {
-                    Text("aiity")
+                    Text("Aiity")
                         .font(.system(size: 34, weight: .semibold, design: .rounded))
                         .tracking(titleTracking)
                         .foregroundStyle(.primary)
@@ -81,7 +81,7 @@ struct LaunchSplashView: View {
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("aiity wird gestartet")
+        .accessibilityLabel("Aiity wird gestartet")
         .onAppear(perform: runEntrance)
     }
 
