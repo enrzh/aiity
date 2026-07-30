@@ -47,11 +47,41 @@ struct FetchURLTool: AgentTool {
             }
             let contentType = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Type") ?? ""
             let raw = String(decoding: data.prefix(600_000), as: UTF8.self)
-            let text = contentType.contains("html") ? Self.extractText(fromHTML: raw) : raw
+            let isHTML = contentType.contains("html")
+            let text = isHTML ? Self.extractText(fromHTML: raw) : raw
+
+            // A near-empty HTML page almost always means the content is built
+            // client-side (or a bot wall was served). Re-fetch it in a real
+            // browser, which runs the page's JavaScript.
+            if isHTML, text.count < Self.thinPageThreshold {
+                if let rendered = await Self.renderedText(for: url, allowPrivateHosts: allowPrivateHosts),
+                   rendered.count > text.count {
+                    return ToolRunResult(String(rendered.prefix(Self.maxCharacters)))
+                }
+            }
+            guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                return ToolRunResult("Fetch returned no readable text for \(url.absoluteString).")
+            }
             return ToolRunResult(String(text.prefix(Self.maxCharacters)))
         } catch {
+            // Some sites reject non-browser clients outright; the browser path
+            // is the natural retry rather than surfacing the failure.
+            if let rendered = await Self.renderedText(for: url, allowPrivateHosts: allowPrivateHosts) {
+                return ToolRunResult(String(rendered.prefix(Self.maxCharacters)))
+            }
             return ToolRunResult("Fetch failed: \(error.localizedDescription)")
         }
+    }
+
+    /// Below this many characters an HTML page is treated as unrendered — a
+    /// real article virtually always clears it, a JS shell virtually never does.
+    static let thinPageThreshold = 600
+
+    /// Rendered text via WebKit. Returns nil on any failure so the caller can
+    /// fall back to whatever the plain fetch produced.
+    private static func renderedText(for url: URL, allowPrivateHosts: Bool) async -> String? {
+        let fetcher = await BrowserFetch()
+        return try? await fetcher.text(from: url, allowPrivateHosts: allowPrivateHosts)
     }
 
     /// Full block check: the string/range test below, plus non-standard IPv4
@@ -166,6 +196,14 @@ struct FetchURLTool: AgentTool {
         }
         return false
     }
+
+    #if DEBUG
+    /// Test seam: lets a test show what the cheap path WOULD have produced,
+    /// which is the whole point of the browser fallback.
+    static func extractTextForTesting(fromHTML html: String) -> String {
+        extractText(fromHTML: html)
+    }
+    #endif
 
     private static func extractText(fromHTML html: String) -> String {
         var text = html
