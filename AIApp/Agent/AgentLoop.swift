@@ -1042,29 +1042,65 @@ final class ChatSession: ObservableObject {
     }
 
     private func restore() {
-        if let data = try? Data(contentsOf: Self.storeURL),
-           let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data),
+        let stored = try? Data(contentsOf: Self.storeURL)
+        if let stored,
+           let snapshot = try? JSONDecoder().decode(Snapshot.self, from: stored),
            !snapshot.threads.isEmpty {
             threads = snapshot.threads
             activeThreadId = snapshot.threads.contains(where: { $0.id == snapshot.activeThreadId })
                 ? snapshot.activeThreadId
                 : snapshot.threads[0].id
-        } else if let data = try? Data(contentsOf: Self.legacyStoreURL),
-                  let legacy = try? JSONDecoder().decode(LegacySnapshot.self, from: data),
-                  !legacy.messages.isEmpty {
+            loadActiveThread()
+            return
+        }
+
+        // The file EXISTS but would not decode. Starting fresh here is what
+        // destroys a history: the very next persist() writes an empty snapshot
+        // over it. Keep the bytes under a timestamped name first, so a bad
+        // decode costs a restart instead of every conversation.
+        if let stored, stored.count > 1 {
+            quarantineChatStore(stored)
+        }
+
+        if let data = try? Data(contentsOf: Self.legacyStoreURL),
+           let legacy = try? JSONDecoder().decode(LegacySnapshot.self, from: data),
+           !legacy.messages.isEmpty {
             var thread = ChatThread(messages: legacy.messages, editingContext: legacy.editingContext)
             if let firstUser = legacy.messages.first(where: { $0.role == .user }) {
                 thread.title = String(firstUser.text.prefix(48))
             }
             threads = [thread]
             activeThreadId = thread.id
-            try? FileManager.default.removeItem(at: Self.legacyStoreURL)
-        } else {
-            let fresh = ChatThread()
-            threads = [fresh]
-            activeThreadId = fresh.id
+            loadActiveThread()
+            // Save the migrated copy BEFORE dropping the source. Deleting first
+            // means a crash in between loses both the old file and the new one.
+            persist()
+            if FileManager.default.fileExists(atPath: Self.storeURL.path) {
+                try? FileManager.default.removeItem(at: Self.legacyStoreURL)
+            }
+            return
         }
+
+        let fresh = ChatThread()
+        threads = [fresh]
+        activeThreadId = fresh.id
         loadActiveThread()
+    }
+
+    /// Move an undecodable chat archive aside instead of letting it be
+    /// overwritten. Named with a timestamp so repeated failures do not
+    /// overwrite each other's evidence.
+    private func quarantineChatStore(_ data: Data) {
+        let stamp = ISO8601DateFormatter().string(from: Date())
+            .replacingOccurrences(of: ":", with: "-")
+        let target = Self.storeURL.deletingLastPathComponent()
+            .appendingPathComponent("chat-threads.json.corrupt-\(stamp)")
+        guard (try? data.write(to: target, options: .atomic)) != nil else {
+            // Could not preserve it — do NOT continue, because continuing means
+            // the next persist() destroys the only copy.
+            return
+        }
+        try? FileManager.default.removeItem(at: Self.storeURL)
     }
 }
 
