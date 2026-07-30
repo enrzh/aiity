@@ -74,4 +74,97 @@ enum BackupService {
         guard let data = try? Data(contentsOf: url) else { return nil }
         return try? JSONSerialization.jsonObject(with: data)
     }
+
+    // MARK: - Import
+
+    struct RestoreResult {
+        var addedApps = 0
+        var skippedApps = 0
+        var restoredSkills = false
+        var restoredChats = false
+
+        var summary: String {
+            var parts: [String] = []
+            parts.append("\(addedApps) Mini-Apps ergänzt")
+            if skippedApps > 0 { parts.append("\(skippedApps) schon vorhanden") }
+            if restoredSkills { parts.append("Skills übernommen") }
+            if restoredChats { parts.append("Chats übernommen") }
+            return parts.joined(separator: " · ")
+        }
+    }
+
+    enum RestoreError: LocalizedError, Equatable {
+        case unreadable
+        case wrongFormat
+
+        var errorDescription: String? {
+            switch self {
+            case .unreadable: return "Die Datei konnte nicht gelesen werden."
+            case .wrongFormat: return "Das ist kein aiity-Backup."
+            }
+        }
+    }
+
+    /// Merge a backup into the current state. Deliberately **additive**: apps
+    /// already present (matched on id) are left untouched rather than
+    /// overwritten, so importing an old file can never silently roll back newer
+    /// work. Nothing is ever deleted by an import.
+    ///
+    /// Returns the decoded mini-apps for the caller to insert — this type has no
+    /// access to the SwiftData context, and inserting is the caller's job.
+    static func restore(from data: Data, existingIds: Set<UUID>) throws -> (result: RestoreResult, apps: [MiniApp]) {
+        guard let payload = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
+            throw RestoreError.unreadable
+        }
+        guard payload["format"] as? String == "aiity-backup" else {
+            throw RestoreError.wrongFormat
+        }
+
+        var result = RestoreResult()
+        var apps: [MiniApp] = []
+
+        for entry in payload["miniApps"] as? [[String: Any]] ?? [] {
+            guard let name = entry["name"] as? String,
+                  let html = entry["html"] as? String else { continue }
+            if let idString = entry["id"] as? String,
+               let id = UUID(uuidString: idString),
+               existingIds.contains(id) {
+                result.skippedApps += 1
+                continue
+            }
+            let symbol = entry["iconSymbol"] as? String
+            let app = MiniApp(
+                name: name,
+                emoji: entry["emoji"] as? String ?? "✨",
+                html: html,
+                filesJSON: entry["filesJSON"] as? String ?? "{}",
+                iconSymbol: (symbol?.isEmpty ?? true) ? nil : symbol
+            )
+            if let idString = entry["id"] as? String, let id = UUID(uuidString: idString) {
+                app.id = id
+            }
+            app.version = entry["version"] as? Int ?? 1
+            apps.append(app)
+            result.addedApps += 1
+        }
+
+        // Skills and chats are whole-file JSON; only write them when the device
+        // has none, so an import never clobbers a live conversation history.
+        if let skills = payload["skills"], writeIfAbsent(skills, toFile: "skills.json") {
+            result.restoredSkills = true
+        }
+        if let chats = payload["chats"], writeIfAbsent(chats, toFile: "chat-threads.json") {
+            result.restoredChats = true
+        }
+
+        return (result, apps)
+    }
+
+    /// True when the file was written (it did not exist or held nothing).
+    private static func writeIfAbsent(_ value: Any, toFile name: String) -> Bool {
+        let url = applicationSupport.appendingPathComponent(name)
+        if let existing = try? Data(contentsOf: url), existing.count > 2 { return false }
+        guard let data = try? JSONSerialization.data(withJSONObject: value) else { return false }
+        return (try? data.write(to: url, options: .atomic)) != nil
+    }
 }

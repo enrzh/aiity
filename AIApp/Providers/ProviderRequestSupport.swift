@@ -121,25 +121,13 @@ enum ProviderRequestSupport {
         } else if !apiKey.isEmpty {
             request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         }
-        // OpenRouter ranks apps that send these; harmless elsewhere.
+        // OpenRouter ranks apps that send these; harmless elsewhere. These
+        // identify aiity as itself — they are not a claim to be another client.
         if baseURL.contains("openrouter.ai") {
             request.setValue("https://aiity.app", forHTTPHeaderField: "HTTP-Referer")
             request.setValue("aiity", forHTTPHeaderField: "X-Title")
         }
-        // Grok's CLI proxy only accepts a subscription token when the request
-        // presents the grok-cli identity (values ported from the sub2api gateway).
-        if baseURL.contains("grok.com"), apiKey.hasPrefix(AuthStore.oauthMarker) {
-            request.setValue("xai-grok-cli", forHTTPHeaderField: "x-xai-token-auth")
-            request.setValue(GrokCLI.clientVersion, forHTTPHeaderField: "x-grok-client-version")
-            request.setValue(GrokCLI.userAgent, forHTTPHeaderField: "User-Agent")
-        }
     }
-}
-
-/// grok-cli client identity required by cli-chat-proxy.grok.com (from sub2api).
-enum GrokCLI {
-    static let clientVersion = "0.2.93"
-    static let userAgent = "grok-pager/\(clientVersion) grok-shell/\(clientVersion) (macos; aarch64)"
 }
 
 extension ProviderError {

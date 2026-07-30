@@ -58,6 +58,7 @@
 		7DBB3207B4E8ACA327538280 /* SkillsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB46AD8FB434B5CFCB76DD93 /* SkillsView.swift */; };
 		7DED930B741A78AC67DAF426 /* AIAppLiveActivityBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB298954AA86AB20388D0735 /* AIAppLiveActivityBundle.swift */; };
 		80862C128CB62D9B0BA431B6 /* ConnectionProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9FF8C6F144D582B46438129 /* ConnectionProbe.swift */; };
+		84373B534DBE51066F0488EF /* BackupRoundTripTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B5B359F8FEE6A340921B0B8 /* BackupRoundTripTests.swift */; };
 		8AD221FEF1B8C8AD26B41507 /* MediaStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 122F7974E96E74B9FF933BF7 /* MediaStore.swift */; };
 		8AEC23EB8B0C5535154E25F0 /* BackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F04C8896CDE2E3B7A606FC63 /* BackupService.swift */; };
 		8B4A39C25D38429571EA3572 /* AgentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 235A2D84903E13A3D8E7A10F /* AgentsView.swift */; };
@@ -172,6 +173,7 @@
 		1ECF26AD24A8A3ED8DD9E6AA /* WebSearchTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSearchTool.swift; sourceTree = "<group>"; };
 		22FCF2E8FDC1437D7606750E /* AddSkillSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddSkillSheet.swift; sourceTree = "<group>"; };
 		235A2D84903E13A3D8E7A10F /* AgentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentsView.swift; sourceTree = "<group>"; };
+		2B5B359F8FEE6A340921B0B8 /* BackupRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupRoundTripTests.swift; sourceTree = "<group>"; };
 		2C3071FF7163FA0580F35F6E /* LocalModelLocationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalModelLocationTests.swift; sourceTree = "<group>"; };
 		2C86F83176F788DEC5D87646 /* ModelCatalogCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelCatalogCache.swift; sourceTree = "<group>"; };
 		2DDE36E6528E669C90B4A5AE /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
@@ -368,6 +370,7 @@
 			isa = PBXGroup;
 			children = (
 				8BA342ADD82161221241ACE1 /* AgentDelegationTests.swift */,
+				2B5B359F8FEE6A340921B0B8 /* BackupRoundTripTests.swift */,
 				18BAB401436AAC0B0CA8FE9B /* ConnectionProbeTests.swift */,
 				2C3071FF7163FA0580F35F6E /* LocalModelLocationTests.swift */,
 				DA8466963EF2CD19656D9FEB /* LocalRuntimePolicyTests.swift */,
@@ -744,6 +747,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				75EBC17C6657C39B67F5B9A5 /* AgentDelegationTests.swift in Sources */,
+				84373B534DBE51066F0488EF /* BackupRoundTripTests.swift in Sources */,
 				CD53EF76E6E3BECAE16D7AA3 /* ConnectionProbeTests.swift in Sources */,
 				A2CDEE0A43C9ECB7CE541427 /* LocalModelLocationTests.swift in Sources */,
 				6AB254B91A2E253599524DD2 /* LocalRuntimePolicyTests.swift in Sources */,

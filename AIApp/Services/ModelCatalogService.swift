@@ -118,15 +118,10 @@ enum ModelCatalogService {
         settings: ProviderSettings,
         apiKey: String
     ) async throws -> [CatalogModel] {
-        // Never hit chatgpt.com Codex with /models — that path is inference-only.
-        var listBase = settings.effectiveBaseURL
-        if listBase.contains("chatgpt.com") || listBase.contains("cli-chat-proxy") {
-            listBase = settings.preset.defaultBaseURL
-        }
-        // OAuth xAI uses proxy for chat; models still come from api.x.ai when possible.
-        if settings.presetId == "xai", apiKey.hasPrefix(AuthStore.oauthMarker) {
-            listBase = settings.preset.defaultBaseURL
-        }
+        // Every provider now lists models from its own public base URL — no
+        // credential reroutes inference to a private backend any more, so there
+        // is no second address to fall back to.
+        let listBase = settings.effectiveBaseURL
         guard !listBase.isEmpty else {
             let fallback = ModelCatalogCache.defaultModels(for: settings.presetId)
             if !fallback.isEmpty { return fallback }

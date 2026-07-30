@@ -7,8 +7,12 @@ struct SettingsView: View {
     @ObservedObject private var prefs = AppPreferences.shared
     @ObservedObject private var sync = SyncStatus.shared
     @Query private var savedApps: [MiniApp]
+    @Environment(\.modelContext) private var modelContext
     @State private var backupURL: URL?
     @State private var backupSummary = "…"
+    @State private var showImporter = false
+    @State private var importSummary = "Aus einer Backup-Datei ergänzen"
+    @State private var needsRestartNotice = false
 
     var body: some View {
         NavigationStack {
@@ -44,6 +48,14 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    Toggle(isOn: $prefs.iCloudSyncEnabled) {
+                        Label("iCloud-Sync", systemImage: "icloud")
+                    }
+                    .accessibilityIdentifier("icloud-toggle")
+                    .onChange(of: prefs.iCloudSyncEnabled) { _, _ in
+                        needsRestartNotice = true
+                    }
+
                     AppSettingsRow(
                         title: sync.title,
                         subtitle: sync.detail,
@@ -52,6 +64,15 @@ struct SettingsView: View {
                     .accessibilityIdentifier("sync-status")
                 } header: {
                     Text("Daten")
+                } footer: {
+                    if needsRestartNotice {
+                        // Honest rather than convenient: the store is opened once
+                        // at launch and cannot switch modes while running.
+                        Text("Wird nach dem nächsten Start der App wirksam. Es geht nichts verloren — beide Modi öffnen denselben lokalen Speicher.")
+                            .foregroundStyle(Color.orange)
+                    } else {
+                        Text("Aus heißt: alles bleibt nur auf diesem Gerät. Es wird nichts gelöscht.")
+                    }
                 }
 
                 // Kept alongside iCloud, not replaced by it: sync mirrors a
@@ -74,8 +95,19 @@ struct SettingsView: View {
                         }
                         .accessibilityIdentifier("share-backup")
                     }
+
+                    Button {
+                        showImporter = true
+                    } label: {
+                        AppSettingsRow(
+                            title: "Backup einspielen",
+                            subtitle: importSummary,
+                            systemImage: "arrow.up.doc"
+                        )
+                    }
+                    .accessibilityIdentifier("import-backup")
                 } footer: {
-                    Text("Einmalige Kopie zum Weggeben oder Archivieren. iCloud spiegelt auch Löschungen — eine Datei nicht.")
+                    Text("Einmalige Kopie zum Weggeben oder Archivieren. iCloud spiegelt auch Löschungen — eine Datei nicht. Beim Einspielen wird nur ergänzt, nie überschrieben oder gelöscht.")
                 }
 
                 Section("Anzeige") {
@@ -104,6 +136,39 @@ struct SettingsView: View {
             }
             .navigationTitle("Mehr")
             .task { backupSummary = BackupService.summary(apps: savedApps) }
+            .fileImporter(
+                isPresented: $showImporter,
+                allowedContentTypes: [.json],
+                allowsMultipleSelection: false
+            ) { outcome in
+                importBackup(outcome)
+            }
+        }
+    }
+
+    /// Read the picked file and merge it. Files from the document picker are
+    /// security-scoped — without the access pair the read fails with a
+    /// permission error that looks like a corrupt backup.
+    private func importBackup(_ outcome: Result<[URL], Error>) {
+        guard case .success(let urls) = outcome, let url = urls.first else {
+            if case .failure(let error) = outcome {
+                importSummary = error.localizedDescription
+            }
+            return
+        }
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+
+        do {
+            let data = try Data(contentsOf: url)
+            let existing = Set(savedApps.map(\.id))
+            let (result, apps) = try BackupService.restore(from: data, existingIds: existing)
+            for app in apps { modelContext.insert(app) }
+            try? modelContext.save()
+            importSummary = result.summary
+            backupSummary = BackupService.summary(apps: savedApps)
+        } catch {
+            importSummary = error.localizedDescription
         }
     }
 

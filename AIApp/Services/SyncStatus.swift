@@ -14,8 +14,9 @@ final class SyncStatus: ObservableObject {
         /// CloudKit configuration accepted — records sync via the device's
         /// iCloud account. No sign-in of our own is involved.
         case synced
-        /// The store opened, but without sync: no iCloud account, iCloud Drive
-        /// off, or the entitlement isn't provisioned yet. Data is safe locally.
+        /// The store opened, but without sync: the user switched iCloud off, no
+        /// iCloud account, iCloud Drive off, or the entitlement isn't
+        /// provisioned yet. Data is safe locally either way.
         case localOnly
         /// The previous store could not be read and was moved aside.
         case recovered
@@ -50,7 +51,9 @@ final class SyncStatus: ObservableObject {
         case .synced:
             return "Mini-Apps synchronisieren über deine Apple-ID. Kein Login in der App nötig."
         case .localOnly:
-            return "Kein iCloud-Sync — melde dich in den iOS-Einstellungen bei iCloud an, oder aktiviere iCloud Drive. Deine Daten bleiben lokal erhalten."
+            return AppPreferences.iCloudSyncPreference
+                ? "Kein iCloud-Sync — melde dich in den iOS-Einstellungen bei iCloud an, oder aktiviere iCloud Drive. Deine Daten bleiben lokal erhalten."
+                : "iCloud ist ausgeschaltet. Deine Mini-Apps bleiben vollständig auf diesem Gerät."
         case .recovered:
             return "Der bisherige Datenspeicher war unlesbar und wurde zur Seite gelegt. Ein Backup kannst du unten einspielen."
         case .inMemory:

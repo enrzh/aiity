@@ -96,15 +96,57 @@ final class ProviderCompatTests: XCTestCase {
         }
     }
 
-    func testGrokCLIHeadersOnlyForProxyOAuth() {
-        var req = URLRequest(url: URL(string: "https://cli-chat-proxy.grok.com/v1/chat/completions")!)
-        ProviderRequestSupport.applyOpenAICompatHeaders(to: &req, apiKey: "oauth:tok", baseURL: "https://cli-chat-proxy.grok.com/v1")
-        XCTAssertEqual(req.value(forHTTPHeaderField: "x-xai-token-auth"), "xai-grok-cli")
-        XCTAssertTrue(req.value(forHTTPHeaderField: "User-Agent")?.contains("grok-pager") == true)
-        // A plain API key must NOT send the CLI identity.
-        var req2 = URLRequest(url: URL(string: "https://api.x.ai/v1/chat/completions")!)
-        ProviderRequestSupport.applyOpenAICompatHeaders(to: &req2, apiKey: "sk-plain", baseURL: "https://api.x.ai/v1")
-        XCTAssertNil(req2.value(forHTTPHeaderField: "x-xai-token-auth"))
+    /// aiity identifies as itself. No request may claim to be somebody else's
+    /// CLI — that was the reason the Grok/ChatGPT subscription paths were cut,
+    /// and the headers that did it must not creep back in.
+    func testOpenAICompatRequestsDoNotImpersonateAnotherClient() {
+        for (base, key) in [
+            ("https://api.x.ai/v1", "oauth:tok"),
+            ("https://api.x.ai/v1", "sk-plain"),
+            ("https://cli-chat-proxy.grok.com/v1", "oauth:tok"),
+            ("https://api.openai.com/v1", "sk-plain"),
+        ] {
+            var request = URLRequest(url: URL(string: base + "/chat/completions")!)
+            ProviderRequestSupport.applyOpenAICompatHeaders(to: &request, apiKey: key, baseURL: base)
+            XCTAssertNil(request.value(forHTTPHeaderField: "x-xai-token-auth"), base)
+            XCTAssertNil(request.value(forHTTPHeaderField: "x-grok-client-version"), base)
+            let agent = request.value(forHTTPHeaderField: "User-Agent") ?? ""
+            XCTAssertFalse(agent.contains("grok-pager"), base)
+            XCTAssertFalse(agent.contains("cli"), base)
+        }
+    }
+
+    /// OpenRouter's ranking headers are the one exception — they name aiity as
+    /// aiity, which is attribution rather than impersonation.
+    func testOpenRouterAttributionHeadersAreSent() {
+        var request = URLRequest(url: URL(string: "https://openrouter.ai/api/v1/chat/completions")!)
+        ProviderRequestSupport.applyOpenAICompatHeaders(
+            to: &request, apiKey: "sk-or", baseURL: "https://openrouter.ai/api/v1"
+        )
+        XCTAssertEqual(request.value(forHTTPHeaderField: "X-Title"), "aiity")
+    }
+
+    /// Every preset must build a sane chat endpoint from its own base URL —
+    /// no doubled `/v1`, no missing path.
+    func testEveryPresetBuildsAValidChatEndpoint() {
+        for preset in ProviderPreset.catalog where preset.dialect == .openai {
+            guard !preset.defaultBaseURL.isEmpty else { continue }  // BYO-URL presets
+            let url = ProviderRequestSupport.endpoint(
+                base: preset.defaultBaseURL, path: "/chat/completions"
+            )
+            let string = url?.absoluteString ?? ""
+            XCTAssertTrue(string.hasSuffix("/chat/completions"), "\(preset.id): \(string)")
+            XCTAssertFalse(string.contains("/v1/v1"), "\(preset.id) doubled /v1: \(string)")
+        }
+    }
+
+    /// A cloud preset with no default model leaves the user staring at an empty
+    /// picker before the catalog loads.
+    func testKeyedCloudPresetsShipADefaultModel() {
+        let byoURL: Set<String> = ["custom-openai", "custom-anthropic", "sub2api", "localai", "ollama", "lmstudio", "mlx"]
+        for preset in ProviderPreset.catalog where preset.needsKey && !byoURL.contains(preset.id) {
+            XCTAssertFalse(preset.defaultModel.isEmpty, "\(preset.id) has no default model")
+        }
     }
 
     func testLocalToolsGatedByPreference() {

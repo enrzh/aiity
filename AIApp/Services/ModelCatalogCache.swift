@@ -95,7 +95,10 @@ enum ModelCatalogCache {
         case "xai":
             return ids(["grok-3", "grok-3-mini", "grok-2-latest"])
         case "together":
-            return ids(["meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo"])
+            return ids([
+                "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+                "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
+            ])
         case "mlx":
             return LocalModel.catalog.map {
                 CatalogModel(id: $0.id, displayName: $0.displayName, supportsTools: true)

@@ -32,13 +32,17 @@ struct AIAppApp: App {
     private static func makeContainer() -> ModelContainer {
         let schema = Schema([MiniApp.self])
 
-        // 1. Synced. `.automatic` only actually syncs when the entitlement is
-        //    present and an iCloud account is signed in; otherwise it throws
-        //    here and we drop to local-only.
-        let synced = ModelConfiguration(schema: schema, cloudKitDatabase: .automatic)
-        if let container = try? ModelContainer(for: schema, configurations: synced) {
-            SyncStatus.shared.report(.synced)
-            return container
+        // 1. Synced — unless the user turned iCloud off. `.automatic` only
+        //    actually syncs when the entitlement is present and an iCloud
+        //    account is signed in; otherwise it throws here and we drop to
+        //    local-only. Both paths open the SAME store file, so switching the
+        //    preference never moves or loses data.
+        if AppPreferences.iCloudSyncPreference {
+            let synced = ModelConfiguration(schema: schema, cloudKitDatabase: .automatic)
+            if let container = try? ModelContainer(for: schema, configurations: synced) {
+                SyncStatus.shared.report(.synced)
+                return container
+            }
         }
 
         // 2. Same file, no sync. Covers "signed out of iCloud", "iCloud Drive
