@@ -58,24 +58,30 @@ final class FullFlowUITests: XCTestCase {
         XCTAssertTrue(keepEdited.waitForExistence(timeout: 10))
         keepEdited.tap()
 
-        // 5. Chat history must survive a restart (Chat tab is default on relaunch).
+        // 5. Chat history must survive a restart. After relaunch the Chat tab
+        //    shows the LIST, so the conversation has to be opened from a row.
         app.terminate()
         app.launch()
+        let rows = app.buttons.matching(identifier: "thread-row")
+        XCTAssertTrue(rows.firstMatch.waitForExistence(timeout: 15), "the chat list should show past conversations")
+        rows.firstMatch.tap()
         let restoredMessage = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Hintergrund blau'")).firstMatch
         XCTAssertTrue(restoredMessage.waitForExistence(timeout: 15), "chat history should be restored after relaunch")
 
-        // 6. Threads: a new chat starts empty, the old one stays reachable.
-        app.buttons["chat-new"].tap()
-        let emptyState = app.staticTexts["Was soll ich bauen?"]
-        XCTAssertTrue(emptyState.waitForExistence(timeout: 10), "new thread should show the empty state")
-        app.buttons["chat-threads"].tap()
-        let threadRows = app.buttons.matching(identifier: "thread-row")
-        XCTAssertTrue(threadRows.firstMatch.waitForExistence(timeout: 10), "threads list should show rows")
-        XCTAssertGreaterThanOrEqual(threadRows.count, 2, "old and new thread should both be listed")
-        let oldThread = app.buttons.matching(NSPredicate(format: "identifier == 'thread-row' AND label CONTAINS 'Notizen'")).firstMatch
+        // 6. A second chat is its own row; the first stays reachable.
+        backToChatList()
+        startFreshThread()
+        XCTAssertTrue(
+            app.staticTexts["Was soll ich bauen?"].waitForExistence(timeout: 10),
+            "a new chat should show the empty state"
+        )
+        backToChatList()
+        let oldThread = app.buttons.matching(
+            NSPredicate(format: "identifier == 'thread-row' AND label CONTAINS 'Notizen'")
+        ).firstMatch
         XCTAssertTrue(oldThread.waitForExistence(timeout: 10), "the editing thread should be listed by its title")
         oldThread.tap()
-        XCTAssertTrue(restoredMessage.waitForExistence(timeout: 10), "switching back should restore the old conversation")
+        XCTAssertTrue(restoredMessage.waitForExistence(timeout: 10), "reopening should restore that conversation")
     }
 
     /// Image generation: the stub scripts a generate_image tool call for a
@@ -164,10 +170,25 @@ final class FullFlowUITests: XCTestCase {
     /// Threads persist in the simulator across test runs; stale tool results
     /// in a restored thread would derail the stub's content-based script. Each
     /// test therefore begins in a brand-new conversation.
+    /// The Chat tab now opens the conversation LIST (WhatsApp-style), so every
+    /// flow has to create and enter a chat before it can type anything.
     private func startFreshThread() {
-        let newButton = app.buttons["chat-new"]
-        XCTAssertTrue(newButton.waitForExistence(timeout: 15), "new-thread button should exist")
-        newButton.tap()
+        let compose = app.buttons["new-chat"]
+        XCTAssertTrue(compose.waitForExistence(timeout: 15), "compose button should exist on the chat list")
+        compose.tap()
+        let solo = app.buttons["new-solo-chat"]
+        XCTAssertTrue(solo.waitForExistence(timeout: 10), "new-chat sheet should offer a solo chat")
+        solo.tap()
+        XCTAssertTrue(
+            app.descendants(matching: .any)["chat-input"].firstMatch.waitForExistence(timeout: 15),
+            "creating a chat should push into it"
+        )
+    }
+
+    /// Back out of an open conversation to the list.
+    private func backToChatList() {
+        let back = app.navigationBars.buttons.element(boundBy: 0)
+        if back.exists { back.tap() }
     }
 
     private func sendChatMessage(_ text: String) {

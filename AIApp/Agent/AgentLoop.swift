@@ -8,6 +8,64 @@ struct ChatThread: Codable, Identifiable, Equatable {
     var messages: [ChatMessage] = []
     var editingContext: ChatSession.EditingContext?
     var updatedAt = Date()
+    /// Agents taking part in this conversation. Empty = an ordinary one-on-one
+    /// chat with the assistant; one or more turns it into a group where those
+    /// agents answer alongside it.
+    var participantAgentIds: [UUID] = []
+
+    var isGroup: Bool { !participantAgentIds.isEmpty }
+
+    init(
+        id: UUID = UUID(),
+        title: String = "",
+        messages: [ChatMessage] = [],
+        editingContext: ChatSession.EditingContext? = nil,
+        updatedAt: Date = Date(),
+        participantAgentIds: [UUID] = []
+    ) {
+        self.id = id
+        self.title = title
+        self.messages = messages
+        self.editingContext = editingContext
+        self.updatedAt = updatedAt
+        self.participantAgentIds = participantAgentIds
+    }
+
+    // Hand-written so a NEW field can be added without orphaning every stored
+    // thread. Swift's synthesized decoder does NOT fall back to a property's
+    // default value — a missing key throws, one throw fails the whole array,
+    // and the app comes up with an empty chat list on top of a full file.
+    private enum CodingKeys: String, CodingKey {
+        case id, title, messages, editingContext, updatedAt, participantAgentIds
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        title = try values.decodeIfPresent(String.self, forKey: .title) ?? ""
+        messages = try values.decodeIfPresent([ChatMessage].self, forKey: .messages) ?? []
+        editingContext = try values.decodeIfPresent(ChatSession.EditingContext.self, forKey: .editingContext)
+        updatedAt = try values.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
+        participantAgentIds = try values.decodeIfPresent([UUID].self, forKey: .participantAgentIds) ?? []
+    }
+
+    /// One line of the most recent content, for the conversation list.
+    var preview: String {
+        for message in messages.reversed() {
+            guard !ChatSession.isSourcePinMessage(message) else { continue }
+            switch message.role {
+            case .user, .assistant:
+                let text = message.text
+                    .replacingOccurrences(of: "\n", with: " ")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                if !text.isEmpty { return String(text.prefix(140)) }
+                if !message.mediaIds.isEmpty { return "📷 Bild" }
+            case .tool, .system:
+                continue
+            }
+        }
+        return "Noch keine Nachrichten"
+    }
 }
 
 /// Drives one user turn: stream the model's answer, execute requested tools,
@@ -25,6 +83,8 @@ final class ChatSession: ObservableObject {
     /// it so the library can open the chat (incl. handing it a mini-app to edit).
     @Published var chatPresented = false
     @Published private(set) var threads: [ChatThread] = []
+    /// Drives the push from the conversation list into a chat. Nil = list shown.
+    @Published var openThreadId: UUID?
     private var activeThreadId = UUID()
 
     /// Set when the chat continues work on a saved mini-app.
@@ -722,19 +782,36 @@ final class ChatSession: ObservableObject {
 
     // MARK: - Threads
 
-    func newThread() {
-        guard !busy else { return }
+    @discardableResult
+    func newThread(participantAgentIds: [UUID] = [], title: String = "") -> UUID? {
+        guard !busy else { return nil }
         syncActiveIntoThreads()
-        let thread = ChatThread()
+        var thread = ChatThread()
+        thread.participantAgentIds = participantAgentIds
+        thread.title = title
         threads.insert(thread, at: 0)
         activeThreadId = thread.id
         loadActiveThread()
         persist()
+        return thread.id
     }
 
+    /// Open a conversation from the list: make it active and drive the push.
+    func open(threadId: UUID) {
+        switchTo(threadId: threadId)
+        openThreadId = threadId
+    }
+
+    /// Agents taking part in the open conversation (empty for a normal chat).
+    var activeParticipantIds: [UUID] {
+        threads.first(where: { $0.id == activeThreadId })?.participantAgentIds ?? []
+    }
+
+    var activeThreadIsGroup: Bool { !activeParticipantIds.isEmpty }
+
     func switchTo(threadId: UUID) {
-        guard !busy, threadId != activeThreadId,
-              threads.contains(where: { $0.id == threadId }) else { return }
+        guard threadId != activeThreadId else { return }
+        guard !busy, threads.contains(where: { $0.id == threadId }) else { return }
         syncActiveIntoThreads()
         activeThreadId = threadId
         loadActiveThread()

@@ -53,24 +53,29 @@ final class SettingsTourUITests: XCTestCase {
         attach(app, name: "skills")
     }
 
-    /// Visual tour of the focused navbar (Chat/Apps/Mehr) for review screenshots.
+    /// Visual tour of every tab (Chat/Apps/Agenten/Mehr) for review screenshots.
     func testAppTour() {
         let app = makeApp()
         app.launch()
 
-        // Chat is the default tab (chat-input is a text field).
-        XCTAssertTrue(app.descendants(matching: .any)["chat-input"].firstMatch.waitForExistence(timeout: 10))
-        attach(app, name: "tour-1-chat")
+        // The Chat tab opens the conversation LIST now, not a conversation —
+        // the compose button is what proves we are on it.
+        XCTAssertTrue(app.buttons["new-chat"].waitForExistence(timeout: 10),
+                      "the Chat tab should open the conversation list")
+        attach(app, name: "tour-1-chats")
 
         app.tabBars.buttons["Apps"].tap()
         attach(app, name: "tour-2-apps")
 
+        app.tabBars.buttons["Agenten"].tap()
+        attach(app, name: "tour-3-agenten")
+
         app.tabBars.buttons["Mehr"].tap()
-        attach(app, name: "tour-3-mehr")
+        attach(app, name: "tour-4-mehr")
 
         app.buttons["open-connections"].tap()
         XCTAssertTrue(app.navigationBars["Anbieter"].waitForExistence(timeout: 10))
-        attach(app, name: "tour-4-anbieter")
+        attach(app, name: "tour-5-anbieter")
     }
 
     /// Swipes up until the element exists (lazy List rows materialize only

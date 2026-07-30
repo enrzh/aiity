@@ -22,6 +22,44 @@ struct ChatMessage: Identifiable, Equatable, Codable {
     var toolName: String?
     /// Generated media (image/video) attached to this message, by MediaStore id.
     var mediaIds: [String] = []
+
+    init(
+        id: UUID = UUID(),
+        role: ChatRole,
+        text: String,
+        toolCalls: [ToolCallData] = [],
+        toolCallId: String? = nil,
+        toolName: String? = nil,
+        mediaIds: [String] = []
+    ) {
+        self.id = id
+        self.role = role
+        self.text = text
+        self.toolCalls = toolCalls
+        self.toolCallId = toolCallId
+        self.toolName = toolName
+        self.mediaIds = mediaIds
+    }
+
+    // Hand-written for the same reason as `ChatThread`: Swift's synthesized
+    // decoder treats a defaulted property as REQUIRED, so every field added
+    // here after the first release would make older stored messages — and with
+    // them their whole thread, and with that the entire history array —
+    // undecodable. Only `role` and `text` are genuinely mandatory.
+    private enum CodingKeys: String, CodingKey {
+        case id, role, text, toolCalls, toolCallId, toolName, mediaIds
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        role = try values.decode(ChatRole.self, forKey: .role)
+        text = try values.decodeIfPresent(String.self, forKey: .text) ?? ""
+        toolCalls = try values.decodeIfPresent([ToolCallData].self, forKey: .toolCalls) ?? []
+        toolCallId = try values.decodeIfPresent(String.self, forKey: .toolCallId)
+        toolName = try values.decodeIfPresent(String.self, forKey: .toolName)
+        mediaIds = try values.decodeIfPresent([String].self, forKey: .mediaIds) ?? []
+    }
 }
 
 struct ToolSpec {

@@ -9,7 +9,6 @@ struct ChatView: View {
     @Query private var savedApps: [MiniApp]
     @State private var input = ""
     @State private var previewDraft: MiniAppDraft?
-    @State private var showThreads = false
     @State private var showQuickProvider = false
     @State private var showSkills = false
     /// Measured height of the floating input bubble — drives the scroll
@@ -198,16 +197,6 @@ struct ChatView: View {
         .navigationTitle(session.activeThreadTitle.isEmpty ? "Chat" : session.activeThreadTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    showThreads = true
-                } label: {
-                    Image(systemName: "list.bullet")
-                }
-                .disabled(session.busy)
-                .accessibilityIdentifier("chat-threads")
-                .accessibilityLabel("Unterhaltungen")
-            }
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Button {
                     session.newThread()
@@ -251,9 +240,6 @@ struct ChatView: View {
                 iconSymbol: draft.iconSymbol
             )
             .environmentObject(session)
-        }
-        .sheet(isPresented: $showThreads) {
-            ThreadsSheet()
         }
         .sheet(isPresented: $showQuickProvider) {
             NavigationStack {

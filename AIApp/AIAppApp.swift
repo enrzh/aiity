@@ -91,12 +91,10 @@ struct RootView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            // Chat is the main product surface — not a buried full-screen card.
-            NavigationStack {
-                ChatView()
-            }
-            .tabItem { Label("Chat", systemImage: "bubble.left.and.bubble.right.fill") }
-            .tag(0)
+            // Conversations are the tab's root; opening one pushes it.
+            ChatListView()
+                .tabItem { Label("Chat", systemImage: "bubble.left.and.bubble.right.fill") }
+                .tag(0)
 
             LibraryView()
                 .tabItem { Label("Apps", systemImage: "square.grid.2x2") }
