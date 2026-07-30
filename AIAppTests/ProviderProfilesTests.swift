@@ -39,20 +39,16 @@ final class ProviderProfilesTests: XCTestCase {
         XCTAssertEqual(settings.model, ProviderPreset.preset(for: "anthropic").defaultModel)
     }
 
-    func testApplyDoesNotTouchImageVideoSlots() {
+    func testApplyDoesNotTouchImageSlot() {
         var settings = ProviderSettings()
         settings.imagePresetId = "openai"
         settings.imageModel = "gpt-image-1"
-        settings.videoPresetId = "openrouter"
-        settings.videoModel = "sora-2"
         var profile = ProviderProfile()
         profile.model = "claude-sonnet-4-5"
         ProviderProfiles.apply(profile, presetId: "anthropic", to: &settings)
         XCTAssertEqual(settings.presetId, "anthropic")
         XCTAssertEqual(settings.imagePresetId, "openai")
         XCTAssertEqual(settings.imageModel, "gpt-image-1")
-        XCTAssertEqual(settings.videoPresetId, "openrouter")
-        XCTAssertEqual(settings.videoModel, "sora-2")
     }
 
     func testCaptureStoresLastMediaModelsOnSlotProviders() {
@@ -61,13 +57,10 @@ final class ProviderProfilesTests: XCTestCase {
         settings.model = "claude-sonnet-4-5"
         settings.imagePresetId = "openai"
         settings.imageModel = "dall-e-3"
-        settings.videoPresetId = "openai"
-        settings.videoModel = "sora-2"
         ProviderProfiles.capture(from: settings)
 
         let openai = ProviderProfiles.profile(for: "openai")
         XCTAssertEqual(openai.lastImageModel, "dall-e-3")
-        XCTAssertEqual(openai.lastVideoModel, "sora-2")
         // Chat profile for anthropic should not get media fields as chat model
         let anthropic = ProviderProfiles.profile(for: "anthropic")
         XCTAssertEqual(anthropic.model, "claude-sonnet-4-5")
@@ -77,9 +70,9 @@ final class ProviderProfilesTests: XCTestCase {
         let json = """
         {"baseURL":"","model":"gpt-4o","localModelId":"","imageModel":"gpt-image-1","videoModel":"sora-2"}
         """.data(using: .utf8)!
+        // The dropped `videoModel` key must not break decoding of older blobs.
         let profile = try JSONDecoder().decode(ProviderProfile.self, from: json)
         XCTAssertEqual(profile.model, "gpt-4o")
         XCTAssertEqual(profile.lastImageModel, "gpt-image-1")
-        XCTAssertEqual(profile.lastVideoModel, "sora-2")
     }
 }

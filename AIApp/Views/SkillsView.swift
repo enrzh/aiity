@@ -5,7 +5,6 @@ struct SkillsView: View {
     @StateObject private var store = SkillStore()
     @State private var showingAdd = false
     @State private var showingImport = false
-    @State private var showUpgrade = false
     @State private var upgrading = false
 
     var body: some View {
@@ -62,11 +61,7 @@ struct SkillsView: View {
 
             Section("Installieren") {
                 Button {
-                    if FreeTier.canInstallSkill(currentCustomCount: store.skills.filter { !$0.builtin }.count) {
-                        showingImport = true
-                    } else {
-                        showUpgrade = true
-                    }
+                    showingImport = true
                 } label: {
                     Label("GitHub / Datei", systemImage: "arrow.down.app")
                 }
@@ -99,13 +94,6 @@ struct SkillsView: View {
         }
         .sheet(isPresented: $showingImport) {
             ImportSkillModal(store: store)
-        }
-        .sheet(isPresented: $showUpgrade) {
-            UpgradeModal(
-                title: "Skill-Limit",
-                message: FreeTier.skillLimitMessage,
-                onDismiss: { showUpgrade = false }
-            )
         }
     }
 
@@ -167,10 +155,6 @@ struct SkillsView: View {
     }
 
     private func installRecommendation(_ rec: SkillRecommendation) {
-        if !FreeTier.canInstallSkill(currentCustomCount: store.skills.filter { !$0.builtin }.count) {
-            showUpgrade = true
-            return
-        }
         upgrading = true
         store.errorMessage = nil
         store.lastInstallMessage = nil

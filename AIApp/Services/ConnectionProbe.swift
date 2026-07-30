@@ -155,13 +155,6 @@ enum ConnectionProbe {
                 )
             }
 
-            // ChatGPT subscription (OAuth) must be tested through the Codex
-            // backend, not api.openai.com — the latter checks *API* billing and
-            // returns a misleading 429 "quota" for a valid subscription token.
-            if settings.presetId == "openai", apiKey.hasPrefix(AuthStore.oauthMarker) {
-                return await codexProbe(settings: settings, apiKey: apiKey, models: models)
-            }
-
             guard let completionReq = completionRequest(
                 base: base, dialect: dialect, model: modelId, apiKey: apiKey
             ) else {
@@ -195,37 +188,6 @@ enum ConnectionProbe {
         }
     }
 
-    /// Test ChatGPT-subscription OAuth through the real Codex provider so the
-    /// result matches actual chat behavior (not an api.openai.com billing check).
-    private static func codexProbe(
-        settings: ProviderSettings, apiKey: String, models: [String]
-    ) async -> ConnectionProbeResult {
-        let provider = settings.makeProvider(apiKey: apiKey)  // OpenAICodexProvider
-        let messages = [
-            ChatMessage(role: .system, text: "You are a connection test."),
-            ChatMessage(role: .user, text: "Reply with exactly: ok"),
-        ]
-        do {
-            var gotOutput = false
-            for try await event in provider.streamChat(messages: messages, tools: []) {
-                if case .textDelta(let t) = event, !t.isEmpty { gotOutput = true }
-                if case .toolCall = event { gotOutput = true }
-                if case .done = event { break }
-                if gotOutput { break }
-            }
-            return ConnectionProbeResult(
-                ok: true, models: models,
-                reason: "Verbunden — \(models.count) Codex-Modelle, Test-Chat ok (ChatGPT-Abo).",
-                toolsLikely: true, chatOnly: false
-            )
-        } catch {
-            return ConnectionProbeResult(
-                ok: false, models: models,
-                reason: "ChatGPT-Abo-Login wird vom Backend abgewiesen — Abo-Zugriff für Dritt-Apps ist nicht garantiert. Zuverlässig: eigener API-Key (platform.openai.com/api-keys). (Technisch: \(NetworkErrorFriendly.message(for: error)))",
-                toolsLikely: false, chatOnly: true
-            )
-        }
-    }
 
     private static func legacyListModels(
         modelsURL: URL,

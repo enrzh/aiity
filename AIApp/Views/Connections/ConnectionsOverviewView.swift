@@ -1,22 +1,25 @@
 import SwiftUI
 
-/// Provider list grouped by chat, image, and video capability.
+/// Provider list grouped by chat and image capability.
 struct ConnectionsView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     @EnvironmentObject private var accountStore: AccountStore
 
     var body: some View {
         List {
-            Section("Schnellstart") {
+            // Leads with the paths we have actually run end to end.
+            Section {
                 quickLink("OpenRouter", icon: "globe", presetId: "openrouter")
+                quickLink("Gateway (sub2api)", icon: "server.rack", presetId: "sub2api")
+                quickLink("Auf dem Gerät", icon: "iphone", presetId: "mlx")
                 quickLink("Eigene API", icon: "link", presetId: "custom-openai")
                 quickLink("Ollama", icon: "desktopcomputer", presetId: "ollama")
-                quickLink("Gateway", icon: "server.rack", presetId: "sub2api")
+            } header: {
+                Text("Schnellstart")
             }
 
             modalitySection(.chat)
             modalitySection(.image)
-            modalitySection(.video)
         }
         .navigationTitle("Anbieter")
         .navigationBarTitleDisplayMode(.inline)
@@ -36,8 +39,8 @@ struct ConnectionsView: View {
 
     @ViewBuilder
     private func modalitySection(_ modality: ModelModality) -> some View {
-        let presets = providers(for: modality)
         let activeId = settingsStore.settings.activePresetId(for: modality)
+        let others = providers(for: modality).filter { $0.id != activeId }
 
         Section {
             if activeId.isEmpty {
@@ -56,27 +59,46 @@ struct ConnectionsView: View {
                 }
             }
 
-            ForEach(presets.filter { $0.id != activeId }) { preset in
-                NavigationLink {
-                    ProviderConnectionView(presetId: preset.id, modality: modality)
-                } label: {
-                    AppSettingsRow(
-                        title: preset.label,
-                        subtitle: ProviderConnectionModel.statusText(
-                            for: preset,
-                            accountCount: accountStore.accounts(for: preset.id).count
-                        )
-                    ) {
-                        if settingsStore.isActive(presetId: preset.id, for: modality) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(Color.accentColor)
-                                .accessibilityLabel("Aktiv")
-                        }
-                    }
-                }
+            ForEach(others.filter(\.isVerified)) { preset in
+                providerRow(preset, modality: modality)
             }
         } header: {
             Label(modality.sectionTitle, systemImage: modality.systemImage)
+        }
+
+        // Same code path as the tested ones — we just haven't run a request
+        // through them, and a picker that hides that difference is lying.
+        let untested = others.filter { !$0.isVerified }
+        if !untested.isEmpty {
+            Section {
+                ForEach(untested) { preset in
+                    providerRow(preset, modality: modality)
+                }
+            } header: {
+                Text("\(modality.sectionTitle) — weitere Anbieter")
+            } footer: {
+                Text("Gleiche Technik wie oben, von uns aber nicht getestet. Funktionieren normalerweise — mit „Verbindung testen“ prüfen.")
+            }
+        }
+    }
+
+    private func providerRow(_ preset: ProviderPreset, modality: ModelModality) -> some View {
+        NavigationLink {
+            ProviderConnectionView(presetId: preset.id, modality: modality)
+        } label: {
+            AppSettingsRow(
+                title: preset.label,
+                subtitle: ProviderConnectionModel.statusText(
+                    for: preset,
+                    accountCount: accountStore.accounts(for: preset.id).count
+                )
+            ) {
+                if settingsStore.isActive(presetId: preset.id, for: modality) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(Color.accentColor)
+                        .accessibilityLabel("Aktiv")
+                }
+            }
         }
     }
 
@@ -90,7 +112,6 @@ struct ConnectionsView: View {
         switch modality {
         case .chat: return "Kein Chat-Anbieter"
         case .image: return "Kein Bild-Anbieter"
-        case .video: return "Kein Video-Anbieter"
         }
     }
 

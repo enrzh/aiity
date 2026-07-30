@@ -58,8 +58,6 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: com.aiity.app
             CFBundleURLSchemes: [aiity, aiapp]
-        NSHealthShareUsageDescription: Mini-Apps können auf Wunsch Gesundheitsdaten (Schritte, Aktivität, Puls) anzeigen. Der Zugriff wird nur nach deiner Freigabe gelesen.
-        NSHealthUpdateUsageDescription: Diese App schreibt keine Gesundheitsdaten.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.aiity.app

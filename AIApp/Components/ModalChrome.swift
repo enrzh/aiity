@@ -125,32 +125,6 @@ struct SuggestionList: View {
     }
 }
 
-/// Compact model pill for toolbar / quiet chrome.
-struct ActiveModelChip: View {
-    let label: String
-    var compact: Bool = false
-
-    var body: some View {
-        HStack(spacing: 5) {
-            Image(systemName: "cpu")
-                .font(.caption2.weight(.semibold))
-            Text(label)
-                .font(.caption.weight(.medium))
-                .lineLimit(1)
-            if !compact {
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(.tertiary)
-            }
-        }
-        .foregroundStyle(.secondary)
-        .padding(.horizontal, compact ? 10 : 12)
-        .padding(.vertical, compact ? 5 : 6)
-        .background(Color(.tertiarySystemBackground), in: Capsule())
-        .accessibilityIdentifier("active-model-chip")
-    }
-}
-
 /// Confirm / cancel alert-style modal content for sheets.
 struct ConfirmModal: View {
     let title: String

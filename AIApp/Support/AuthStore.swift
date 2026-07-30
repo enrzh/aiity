@@ -2,12 +2,12 @@ import Foundation
 
 /// A bearer credential from a standard OAuth flow. Persisted as JSON in the
 /// Keychain slot of its account — `effectiveKey` hands the providers either
-/// the plain key or an "oauth:<token>" marker. `accountId` carries OpenAI's
-/// chatgpt_account_id (from the id_token) for the Codex responses backend.
+/// the plain key or an "oauth:<token>" marker.
 struct OAuthCredential: Codable, Equatable {
     var accessToken: String
     var refreshToken: String?
     var expiresAt: Date?
+    /// Provider-specific account identifier, when the flow returns one.
     var accountId: String?
 }
 
@@ -46,13 +46,6 @@ enum AuthStore {
         #endif
         guard let account = AccountStore.activeAccount(for: settings.presetId) else { return "" }
         return await effectiveKey(forKeychainKey: account.keychainKey, oauthConfig: settings.preset.oauth)
-    }
-
-    /// The OpenAI chatgpt_account_id of the active account, if it is an OAuth
-    /// login (needed for the Codex responses header).
-    static func activeAccountChatGPTId(for presetId: String) -> String? {
-        guard let account = AccountStore.activeAccount(for: presetId) else { return nil }
-        return storedOAuthCredential(account: account.keychainKey)?.accountId
     }
 
     private static func effectiveKey(forKeychainKey key: String, oauthConfig: OAuthProviderConfig?) async -> String {

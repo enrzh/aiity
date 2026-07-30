@@ -70,7 +70,6 @@ enum ModelCatalogCache {
     static func defaultModels(for presetId: String) -> [CatalogModel] {
         switch presetId {
         case "openai":
-            // API-key path defaults; OAuth/Codex uses `codexOAuthModels()`.
             return ids([
                 "gpt-4.1", "gpt-4.1-mini", "gpt-4o", "gpt-4o-mini",
                 "o3-mini", "o4-mini", "gpt-5", "gpt-5-mini",
@@ -105,15 +104,6 @@ enum ModelCatalogCache {
             // custom / ollama / lmstudio — no fixed list
             return []
         }
-    }
-
-    /// Models that work on ChatGPT-subscription Codex (not api.openai.com /models).
-    static func codexOAuthModels() -> [CatalogModel] {
-        ids([
-            "gpt-5.1-codex", "gpt-5.1", "gpt-5", "gpt-5-mini",
-            "gpt-4.1", "gpt-4.1-mini", "gpt-4o", "o3", "o3-mini", "o4-mini",
-            "codex-mini-latest",
-        ], tools: true)
     }
 
     private static func ids(_ list: [String], tools: Bool = true) -> [CatalogModel] {

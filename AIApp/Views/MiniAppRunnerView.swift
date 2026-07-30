@@ -5,7 +5,7 @@ import UIKit
 /// Runs one mini-app in a sandboxed WKWebView. Capability controls CSP and
 /// whether top-level navigation / frames are allowed.
 ///
-/// Security model: the native `bridge` (storage/health/notify/openExternal) is
+/// Security model: the native `bridge` (storage/notify/openExternal) is
 /// served ONLY while the web view is showing our trusted, CSP-hardened initial
 /// document. The moment the page navigates to remote or `data:` content (browser
 /// tier), the bridge is disabled so a remote/injected page cannot reach native
@@ -190,11 +190,6 @@ struct MiniAppRunnerView: UIViewRepresentable {
                     title: payload["title"] as? String ?? "",
                     body: payload["body"] as? String ?? "",
                     inSeconds: (payload["inSeconds"] as? NSNumber)?.doubleValue ?? 1
-                )
-            case "health.query":
-                return await MiniAppHealthService.query(
-                    type: payload["type"] as? String ?? "",
-                    days: (payload["days"] as? NSNumber)?.intValue ?? 7
                 )
             case "open.external":
                 // Opening Safari is a user-visible action — always confirm so a

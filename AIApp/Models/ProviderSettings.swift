@@ -3,9 +3,9 @@ import Foundation
 /// Non-secret provider configuration. The API key itself lives in the
 /// Keychain (see `Keychain.swift`), never in UserDefaults.
 ///
-/// Chat is one modality slot (`presetId` + `model`). Image and video are
-/// independent slots (`imagePresetId`/`imageModel`, `videoPresetId`/`videoModel`)
-/// so media is not configured “inside” the chat provider.
+/// Chat is one modality slot (`presetId` + `model`); image generation is an
+/// independent slot (`imagePresetId`/`imageModel`) so media is not configured
+/// “inside” the chat provider.
 struct ProviderSettings: Codable, Equatable {
     /// Active chat provider.
     var presetId: String = "anthropic"
@@ -28,9 +28,6 @@ struct ProviderSettings: Codable, Equatable {
     /// Provider used for `generate_image` (empty = not configured).
     var imagePresetId: String = ""
     var imageModel: String = "gpt-image-1"
-    /// Provider used for `generate_video` (empty = not configured).
-    var videoPresetId: String = ""
-    var videoModel: String = "sora-2"
 
     static let storageKey = "provider-settings-v1"
 
@@ -41,7 +38,7 @@ struct ProviderSettings: Codable, Equatable {
     // storage and existing test configs) still maps onto a preset.
     private enum CodingKeys: String, CodingKey {
         case presetId, kind, baseURL, model, searchEndpoint, localModelId
-        case imageModel, videoModel, imagePresetId, videoPresetId
+        case imageModel, imagePresetId
         case searchBackend, searchBraveKey, searchTavilyKey
     }
 
@@ -66,9 +63,9 @@ struct ProviderSettings: Codable, Equatable {
         searchTavilyKey = try values.decodeIfPresent(String.self, forKey: .searchTavilyKey) ?? ""
         localModelId = try values.decodeIfPresent(String.self, forKey: .localModelId) ?? LocalModel.defaultId
         imageModel = try values.decodeIfPresent(String.self, forKey: .imageModel) ?? "gpt-image-1"
-        videoModel = try values.decodeIfPresent(String.self, forKey: .videoModel) ?? "sora-2"
         imagePresetId = try values.decodeIfPresent(String.self, forKey: .imagePresetId) ?? ""
-        videoPresetId = try values.decodeIfPresent(String.self, forKey: .videoPresetId) ?? ""
+        // Stored `videoModel`/`videoPresetId` from older builds are ignored —
+        // decoding is key-by-key, so they simply drop out on the next save.
     }
 
     func encode(to encoder: Encoder) throws {
@@ -82,9 +79,7 @@ struct ProviderSettings: Codable, Equatable {
         // Keychain only, never written to the UserDefaults settings blob.
         try container.encode(localModelId, forKey: .localModelId)
         try container.encode(imageModel, forKey: .imageModel)
-        try container.encode(videoModel, forKey: .videoModel)
         try container.encode(imagePresetId, forKey: .imagePresetId)
-        try container.encode(videoPresetId, forKey: .videoPresetId)
     }
 
     static func load() -> ProviderSettings {
@@ -129,7 +124,6 @@ struct ProviderSettings: Codable, Equatable {
         switch modality {
         case .chat: return presetId
         case .image: return imagePresetId
-        case .video: return videoPresetId
         }
     }
 
@@ -137,7 +131,6 @@ struct ProviderSettings: Codable, Equatable {
         switch modality {
         case .chat: return effectiveModel
         case .image: return imageModel.isEmpty ? ModelModality.image.defaultModel : imageModel
-        case .video: return videoModel.isEmpty ? ModelModality.video.defaultModel : videoModel
         }
     }
 
@@ -145,7 +138,6 @@ struct ProviderSettings: Codable, Equatable {
         switch modality {
         case .chat: presetId = id
         case .image: imagePresetId = id
-        case .video: videoPresetId = id
         }
     }
 
@@ -153,12 +145,12 @@ struct ProviderSettings: Codable, Equatable {
         switch modality {
         case .chat: model = value
         case .image: imageModel = value
-        case .video: videoModel = value
         }
     }
 
     /// Snapshot of a provider’s connection fields (base URL, dialect) from its
-    /// profile — used when image/video run on a different provider than chat.
+    /// profile — used when image generation runs on a different provider than
+    /// chat.
     static func connectionSnapshot(presetId: String) -> ProviderSettings {
         var s = ProviderSettings()
         let profile = ProviderProfiles.profile(for: presetId)
@@ -259,14 +251,11 @@ struct ProviderSettings: Codable, Equatable {
         }
     }
 
-    /// Base URL to use for a given credential. OAuth subscription tokens may
-    /// need a different endpoint than API keys (Grok's CLI proxy).
+    /// Base URL to use for a given credential. Every supported credential — API
+    /// key or OAuth token — talks to the provider's normal endpoint; no
+    /// credential type reroutes to a private first-party backend.
     func baseURL(forKey apiKey: String) -> String {
-        if apiKey.hasPrefix(AuthStore.oauthMarker), baseURL.isEmpty,
-           let override = preset.oauth?.inferenceBaseURL {
-            return override
-        }
-        return effectiveBaseURL
+        effectiveBaseURL
     }
 
     var effectiveModel: String {
@@ -275,20 +264,6 @@ struct ProviderSettings: Codable, Equatable {
     }
 
     func makeProvider(apiKey: String) -> LLMProvider {
-        let isOAuthToken = apiKey.hasPrefix(AuthStore.oauthMarker)
-        // A ChatGPT-subscription OAuth token must go through the Codex backend,
-        // not the plain chat-completions endpoint.
-        if presetId == "openai", isOAuthToken {
-            var codexModel = effectiveModel
-            if codexModel.isEmpty {
-                codexModel = ModelCatalogCache.codexOAuthModels().first?.id ?? "gpt-4.1"
-            }
-            return OpenAICodexProvider(
-                accessToken: String(apiKey.dropFirst(AuthStore.oauthMarker.count)),
-                accountId: AuthStore.activeAccountChatGPTId(for: presetId),
-                model: codexModel
-            )
-        }
         switch preset.dialect {
         case .anthropic:
             return AnthropicProvider(baseURL: baseURL(forKey: apiKey), apiKey: apiKey, model: effectiveModel)

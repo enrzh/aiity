@@ -20,16 +20,62 @@ final class MLXRuntime: @unchecked Sendable {
         HubApi(downloadBase: LocalModelLocation.baseDirectory)
     }
 
+    /// Multi-gigabyte downloads over a phone connection get interrupted — a
+    /// dropped Wi-Fi packet or an idle timeout kills the whole transfer. Retry a
+    /// few times instead of surfacing the first `-1001`/`-1005` as a dead end;
+    /// completed files stay on disk, so each attempt resumes where the last
+    /// stopped rather than starting from zero.
+    private static let downloadAttempts = 4
+
     func ensureDownloaded(modelId: String, onProgress: @escaping (Double) -> Void) async throws {
         // Limit the Metal cache before the first model touches the GPU.
         MLX.GPU.set(cacheLimit: 20 * 1024 * 1024)
+        var lastError: Error?
+        for attempt in 1...Self.downloadAttempts {
+            do {
+                let container = try await load(modelId: modelId, onProgress: onProgress)
+                lock.lock()
+                containers[modelId] = container
+                lock.unlock()
+                return
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                if Task.isCancelled { throw CancellationError() }
+                lastError = error
+                guard attempt < Self.downloadAttempts, Self.isRetriable(error) else { break }
+                // Back off a little so a flapping connection has time to settle.
+                try? await Task.sleep(nanoseconds: UInt64(attempt) * 2_000_000_000)
+            }
+        }
+        // Don't leave a half-written model that `isDownloaded` might later
+        // mistake for a usable one.
+        LocalModelLocation.removeIncomplete(modelId)
+        throw lastError ?? ProviderError.badResponse(0, "Download fehlgeschlagen.")
+    }
+
+    private func load(modelId: String, onProgress: @escaping (Double) -> Void) async throws -> ModelContainer {
         let configuration = ModelConfiguration(id: modelId)
-        let container = try await LLMModelFactory.shared.loadContainer(hub: hub(), configuration: configuration) { progress in
+        return try await LLMModelFactory.shared.loadContainer(hub: hub(), configuration: configuration) { progress in
             onProgress(progress.fractionCompleted)
         }
-        lock.lock()
-        containers[modelId] = container
-        lock.unlock()
+    }
+
+    /// Transport-level failures worth another attempt; a 404 for a bad model id
+    /// or a full disk is not.
+    private static func isRetriable(_ error: Error) -> Bool {
+        let ns = error as NSError
+        guard ns.domain == NSURLErrorDomain else { return false }
+        return [
+            NSURLErrorTimedOut,
+            NSURLErrorNetworkConnectionLost,
+            NSURLErrorNotConnectedToInternet,
+            NSURLErrorCannotConnectToHost,
+            NSURLErrorCannotFindHost,
+            NSURLErrorDNSLookupFailed,
+            NSURLErrorResourceUnavailable,
+            NSURLErrorDataNotAllowed,
+        ].contains(ns.code)
     }
 
     func container(for modelId: String) async throws -> ModelContainer {

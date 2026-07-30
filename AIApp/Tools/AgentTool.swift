@@ -21,8 +21,8 @@ protocol AgentTool {
 }
 
 enum ToolRegistry {
-    /// Chat tools always use the chat provider key. Image/video tools resolve
-    /// their own modality slots (possibly a different provider + model).
+    /// Chat tools always use the chat provider key. The image tool resolves its
+    /// own modality slot (possibly a different provider + model).
     static func makeTools(settings: ProviderSettings, apiKey: String) async -> [AgentTool] {
         // Local Ollama/LM Studio/MLX: no tools. Tool schemas make small models
         // invent fake <tool_call>/function JSON and answer nonsense.
@@ -35,9 +35,6 @@ enum ToolRegistry {
         ]
         if let imageRoute = await MediaRoute.resolve(modality: .image, from: settings) {
             tools.append(ImageGenerationTool(route: imageRoute))
-        }
-        if let videoRoute = await MediaRoute.resolve(modality: .video, from: settings) {
-            tools.append(VideoGenerationTool(route: videoRoute))
         }
         return tools
     }

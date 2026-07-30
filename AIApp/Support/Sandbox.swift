@@ -18,7 +18,7 @@ enum Sandbox {
         return "<!doctype html><html><head>\(injection)</head><body>\(html)</body></html>"
     }
 
-    /// Promise-based bridge: storage, haptics, notify, health, openExternal.
+    /// Promise-based bridge: storage, haptics, notify, openExternal.
     static let bridgeScript = """
     (function () {
       let nextCallId = 1;
@@ -37,9 +37,6 @@ enum Sandbox {
         },
         haptic: () => { call('haptic', {}); },
         notify: (title, body, inSeconds) => call('notify.schedule', { title, body, inSeconds }),
-        health: {
-          query: (type, days) => call('health.query', { type, days }),
-        },
         /** Open a URL in Safari. Prompts the user for confirmation first; the
             returned {ok} reflects whether they allowed it. Use for external links. */
         openExternal: (url) => call('open.external', { url }),

@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 /// Manages one provider for a given modality: accounts (shared), and the model
-/// for that modality only. No nested image/video fields on chat.
+/// for that modality only. No nested image fields on chat.
 struct ProviderConnectionView: View {
     let presetId: String
     var modality: ModelModality = .chat
@@ -34,9 +34,6 @@ struct ProviderConnectionView: View {
     private var accounts: [Account] { accountStore.accounts(for: presetId) }
     private var activeAccount: Account? { accountStore.activeAccount(for: presetId) }
     private var availableModelIds: [String] { catalogModels.map(\.id) }
-    private var isOpenAIOAuth: Bool {
-        presetId == "openai" && (activeAccount?.isOAuth == true)
-    }
 
     /// Connection settings for this preset (chat-active uses live store; else profile).
     private var connectionSettings: ProviderSettings {
@@ -55,7 +52,7 @@ struct ProviderConnectionView: View {
                     if isActiveForModality { testConnectionSection }
                 } else {
                     Section {
-                        Text("On-Device MLX unterstützt nur Chat, keine Bild-/Videogenerierung.")
+                        Text("On-Device MLX unterstützt nur Chat, keine Bildgenerierung.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
@@ -101,9 +98,6 @@ struct ProviderConnectionView: View {
     }
 
     private var oauthPasteHint: String {
-        if presetId == "openai" {
-            return "Browser öffnet ChatGPT-Login. Nach Freigabe erscheint oft eine leere Seite oder localhost-URL — kopiere den gesamten Code (oder die URL mit ?code=…) und füge ihn hier ein. Danach stehen Codex-Modelle sofort bereit."
-        }
         if presetId == "anthropic" {
             return "Nach der Autorisierung den angezeigten Code (manchmal als code#state) hier einfügen."
         }
@@ -132,9 +126,6 @@ struct ProviderConnectionView: View {
             case .image:
                 modelDraft = profile.lastImageModel.isEmpty
                     ? ModelModality.image.defaultModel : profile.lastImageModel
-            case .video:
-                modelDraft = profile.lastVideoModel.isEmpty
-                    ? ModelModality.video.defaultModel : profile.lastVideoModel
             }
         }
     }
@@ -170,20 +161,12 @@ struct ProviderConnectionView: View {
                         Label(ModelModality.image.useButtonTitle, systemImage: ModelModality.image.systemImage)
                     }
                 }
-                if MediaCapability.supportsVideoGeneration(presetId: presetId),
-                   settingsStore.settings.videoPresetId != presetId {
-                    Button {
-                        settingsStore.useForVideo(presetId)
-                    } label: {
-                        Label(ModelModality.video.useButtonTitle, systemImage: ModelModality.video.systemImage)
-                    }
-                }
             }
         } header: {
             Text(modality.sectionTitle)
         } footer: {
             if modality == .chat {
-                Text("Konten gelten für alle Nutzungsarten dieses Anbieters. Bild- und Video-Modelle werden in den Abschnitten Bild / Video gewählt.")
+                Text("Konten gelten für alle Nutzungsarten dieses Anbieters. Das Bild-Modell wird im Abschnitt Bild gewählt.")
             }
         }
     }
@@ -365,26 +348,22 @@ struct ProviderConnectionView: View {
                 .disabled(oauth.busy)
                 .accessibilityIdentifier("oauth-add-account")
             }
-            // Only shown where an in-app subscription login actually completes
-            // (Claude). OpenAI/Grok are excluded — their tokens need CLI
-            // impersonation aiity doesn't do; a note steers those to a gateway.
-            if showsOAuthButton, preset.oauth?.flow == .pasteCode {
-                VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 4) {
+                if preset.oauth?.flow == .pasteCode {
                     Text("Der Claude-Abo-Login funktioniert meist, ist aber für Dritt-Apps nicht offiziell garantiert. Für volle Zuverlässigkeit: ein eigener API-Key (Pay-as-you-go).")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    if let url = apiKeyURL {
-                        Link(apiKeyLinkTitle, destination: url)
-                            .font(.caption.weight(.semibold))
-                    }
+                } else if presetId == "openai" || presetId == "xai" {
+                    Text("Für \(presetId == "openai" ? "ChatGPT" : "Grok") gibt es hier keinen Abo-Login — das Abo-Token wird nur vom jeweiligen CLI-Backend akzeptiert. Nutze einen API-Key, oder dein eigenes sub2api-Gateway (Schnellstart → Gateway).")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .padding(.vertical, 2)
-            } else if preset.id == "openai" || preset.id == "xai" {
-                Text("Dein \(preset.id == "openai" ? "ChatGPT" : "Grok")-Abo geht nicht direkt hier — nutze einen API-Key oben, oder dein eigenes sub2api-Gateway (Schnellstart → „Eigenes Abo-Gateway“).")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 2)
+                if let url = apiKeyURL {
+                    Link(apiKeyLinkTitle, destination: url)
+                        .font(.caption.weight(.semibold))
+                }
             }
+            .padding(.vertical, 2)
             if let authError {
                 Text(authError).font(.caption).foregroundStyle(.red)
             }
@@ -401,21 +380,15 @@ struct ProviderConnectionView: View {
         preset.label.components(separatedBy: " ").first ?? preset.label
     }
 
-    /// Whether to offer the in-app subscription sign-in button. OpenAI/Grok are
-    /// excluded: their subscription tokens only work against first-party backends
-    /// with CLI impersonation aiity doesn't do, so the sign-in can't complete —
-    /// don't advertise a dead end. Claude works; OpenRouter is a real key exchange.
-    private var showsOAuthButton: Bool {
-        guard preset.oauth != nil else { return false }
-        return presetId != "openai" && presetId != "xai"
-    }
+    /// Whether to offer the in-app sign-in button. A preset only carries an
+    /// OAuth config when that sign-in actually completes and yields a usable
+    /// credential (Claude subscription, OpenRouter key exchange).
+    private var showsOAuthButton: Bool { preset.oauth != nil }
 
     /// Provider-specific sign-in verb (avoids awkward "Konto per xAI hinzufügen").
     private var oauthButtonTitle: String {
         switch presetId {
-        case "openai": return "Mit ChatGPT-Abo anmelden"
         case "anthropic": return "Mit Claude-Abo anmelden"
-        case "xai": return "Mit Grok-Abo anmelden"
         case "openrouter": return "Mit OpenRouter anmelden"
         default: return "Konto per \(oauthVerb) hinzufügen"
         }
@@ -494,22 +467,12 @@ struct ProviderConnectionView: View {
 
     private var openAIPathSection: some View {
         Section {
-            if isOpenAIOAuth {
-                Label {
-                    Text("ChatGPT-Abo (Codex): experimentell und für Dritt-Apps nicht garantiert — kann jederzeit abgewiesen werden. Zuverlässig ist ein API-Key-Konto (platform.openai.com/api-keys). Bild/Video brauchen ohnehin einen API-Key.")
-                        .font(.footnote)
-                } icon: {
-                    Image(systemName: "exclamationmark.triangle")
-                        .foregroundStyle(.orange)
-                }
-            } else {
-                Label {
-                    Text("API-Key — Standard Chat Completions (api.openai.com). Nach „Modelle laden“ ein verfügbares Modell wählen.")
-                        .font(.footnote)
-                } icon: {
-                    Image(systemName: "key.fill")
-                        .foregroundStyle(Color.accentColor)
-                }
+            Label {
+                Text("API-Key — Standard Chat Completions (api.openai.com). Nach „Modelle laden“ ein verfügbares Modell wählen.")
+                    .font(.footnote)
+            } icon: {
+                Image(systemName: "key.fill")
+                    .foregroundStyle(Color.accentColor)
             }
         } header: {
             Text("OpenAI-Pfad")
@@ -592,12 +555,10 @@ struct ProviderConnectionView: View {
             return preset.defaultModel.isEmpty ? "Modell-ID" : "Modell (Standard: \(preset.defaultModel))"
         case .image:
             return "Bild-Modell (z. B. gpt-image-1)"
-        case .video:
-            return "Video-Modell (z. B. sora-2)"
         }
     }
 
-    /// Prefer generative ids for image/video pickers when the catalog is rich.
+    /// Prefer generative ids for the image picker when the catalog is rich.
     private var filteredCatalogModels: [CatalogModel] {
         switch modality {
         case .chat:
@@ -613,45 +574,24 @@ struct ProviderConnectionView: View {
                     || $0.id.lowercased().contains("imagen")
             }
             return gen.isEmpty ? catalogModels : gen
-        case .video:
-            let gen = catalogModels.filter {
-                $0.id.lowercased().contains("sora")
-                    || $0.id.lowercased().contains("video")
-                    || MediaCapability.modelLooksGenerative(id: $0.id.lowercased())
-            }
-            return gen.isEmpty ? catalogModels : gen
         }
     }
 
     private var modelFooter: String {
         switch modality {
         case .chat:
-            if isOpenAIOAuth {
-                return "ChatGPT-Abo nutzt Codex-Modelle (Liste vorinstalliert). Kein api.openai.com/models — bei Fehlern anderes Codex-Modell wählen oder API-Key-Konto."
-            }
             if isLocalWizard {
                 return "Liste erscheint sofort aus Cache; „Aktualisieren“ holt frische Modelle vom Server."
             }
             return "Modelle sind vorab geladen (Cache/Standard). „Aktualisieren“ holt die Live-Liste vom Anbieter."
         case .image:
             return "Nur das Bild-Modell für generate_image. Unabhängig vom Chat-Modell."
-        case .video:
-            return "Nur das Video-Modell für generate_video. Unabhängig vom Chat-Modell."
         }
     }
 
     /// Show cached/default models immediately; refresh from network without blocking UI.
     private func bootstrapModels() {
         let seed = ModelCatalogCache.modelsForDisplay(presetId: presetId)
-        // OpenAI OAuth: always show Codex curated list (never empty).
-        if isOpenAIOAuth || (presetId == "openai" && activeAccount?.isOAuth == true) {
-            catalogModels = ModelCatalogCache.codexOAuthModels()
-            if modelDraft.isEmpty, let first = catalogModels.first {
-                modelDraft = first.id
-                commitModel(first.id)
-            }
-            return
-        }
         if !seed.isEmpty {
             catalogModels = seed
             if modelDraft.isEmpty || !seed.map(\.id).contains(modelDraft) {
@@ -710,11 +650,6 @@ struct ProviderConnectionView: View {
             ProviderProfiles.update(presetId: presetId) { $0.lastImageModel = trimmed }
             if isActiveForModality {
                 settingsStore.settings.imageModel = trimmed
-            }
-        case .video:
-            ProviderProfiles.update(presetId: presetId) { $0.lastVideoModel = trimmed }
-            if isActiveForModality {
-                settingsStore.settings.videoModel = trimmed
             }
         }
     }
@@ -799,24 +734,10 @@ struct ProviderConnectionView: View {
                 if case .credential(let credential) = try await oauth.completePasteFlow(pending, pasted: code) {
                     accountStore.addOAuthAccount(presetId: presetId, label: label, credential: credential)
                     pendingPaste = nil
-                    // Immediately surface models (Codex curated or live list).
-                    if presetId == "openai" {
-                        catalogModels = ModelCatalogCache.codexOAuthModels()
-                        ModelCatalogCache.save(presetId: presetId, models: catalogModels)
-                        if let first = catalogModels.first {
-                            modelDraft = first.id
-                            commitModel(first.id)
-                        }
-                        if !isChatActive { settingsStore.useForChat(presetId) }
-                    } else {
-                        bootstrapModels()
-                    }
+                    bootstrapModels()
                 }
             } catch {
                 authError = NetworkErrorFriendly.message(for: error)
-                    + (presetId == "openai"
-                       ? " — Tipp: gesamten Callback-Link mit code= einfügen, Code muss frisch sein (einmalig)."
-                       : "")
             }
         }
     }

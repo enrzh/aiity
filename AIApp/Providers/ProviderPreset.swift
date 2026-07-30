@@ -9,14 +9,18 @@ enum ProviderDialect: String, Codable {
     case mlx
 }
 
-/// OAuth flow shape. Ported from the sub2api gateway:
+/// OAuth flow shape. Two are supported, both of which mint a credential aiity
+/// can use as an ordinary client:
 /// - `openRouterKeyExchange`: browser redirect (custom scheme) -> code mints
 ///   a plain API key.
-/// - `pasteCode`: the CLI subscription flow used by Codex CLI / Claude Code /
-///   grok-cli. The provider redirects to a localhost or hosted callback that
-///   shows an authorization code; the user copies it back into the app, which
-///   runs the PKCE token exchange. This is how a personal ChatGPT / Claude /
-///   Grok subscription authenticates a first-party CLI client.
+/// - `pasteCode`: the provider redirects to a hosted callback showing an
+///   authorization code; the user copies it back into the app, which runs the
+///   PKCE token exchange. Used by the Claude subscription login.
+///
+/// Subscription logins whose tokens only work against a first-party backend
+/// that checks for its own CLI (ChatGPT/Codex, Grok) are deliberately absent —
+/// reaching them requires impersonating that CLI, which aiity does not do.
+/// Those providers are API-key only.
 struct OAuthProviderConfig: Equatable {
     enum Flow { case pasteCode, openRouterKeyExchange }
     enum TokenBody { case json, form }
@@ -28,21 +32,16 @@ struct OAuthProviderConfig: Equatable {
     let redirectURI: String
     let scope: String
     let tokenBody: TokenBody
-    let usesNonce: Bool
-    /// Extra authorize-URL params (Codex simplified flow, xAI plan, …).
+    /// Extra authorize-URL params (Claude asks for `code=true`).
     let extraAuthParams: [String: String]
-    /// Base URL to talk to once authenticated with the OAuth token, when it
-    /// differs from the API-key base URL (Grok's CLI proxy).
-    let inferenceBaseURL: String?
     /// Send `state` in the token-exchange body. Standard OAuth does NOT (state
     /// is only the authorize/callback CSRF check) — only Claude's flow echoes
-    /// code#state and wants it back. Sending it to OpenAI/Grok breaks the swap.
+    /// code#state and wants it back.
     let stateInTokenExchange: Bool
 
     init(flow: Flow, clientId: String, authorizeURL: String, tokenURL: String,
          redirectURI: String, scope: String, tokenBody: TokenBody = .form,
-         usesNonce: Bool = false, extraAuthParams: [String: String] = [:],
-         inferenceBaseURL: String? = nil, stateInTokenExchange: Bool = false) {
+         extraAuthParams: [String: String] = [:], stateInTokenExchange: Bool = false) {
         self.flow = flow
         self.clientId = clientId
         self.authorizeURL = authorizeURL
@@ -50,11 +49,21 @@ struct OAuthProviderConfig: Equatable {
         self.redirectURI = redirectURI
         self.scope = scope
         self.tokenBody = tokenBody
-        self.usesNonce = usesNonce
         self.extraAuthParams = extraAuthParams
-        self.inferenceBaseURL = inferenceBaseURL
         self.stateInTokenExchange = stateInTokenExchange
     }
+}
+
+/// How much we actually know about a provider working end to end.
+///
+/// Everything here runs on the same two wire dialects, so an untested entry is
+/// very likely fine — but "likely fine" and "we ran a chat through it" are not
+/// the same claim, and the picker shouldn't present them as equal.
+enum ProviderMaturity {
+    /// A real request has been run through this provider from the app.
+    case verified
+    /// Same code path, never exercised by us. Offered, but labelled honestly.
+    case untested
 }
 
 /// One known provider.
@@ -67,10 +76,11 @@ struct ProviderPreset: Identifiable, Equatable {
     let editableBaseURL: Bool
     let defaultModel: String
     let oauth: OAuthProviderConfig?
+    let maturity: ProviderMaturity
 
     init(id: String, label: String, dialect: ProviderDialect, defaultBaseURL: String,
          needsKey: Bool, editableBaseURL: Bool, defaultModel: String,
-         oauth: OAuthProviderConfig? = nil) {
+         oauth: OAuthProviderConfig? = nil, maturity: ProviderMaturity = .untested) {
         self.id = id
         self.label = label
         self.dialect = dialect
@@ -79,9 +89,15 @@ struct ProviderPreset: Identifiable, Equatable {
         self.editableBaseURL = editableBaseURL
         self.defaultModel = defaultModel
         self.oauth = oauth
+        self.maturity = maturity
     }
 
     var oauthAvailable: Bool { oauth != nil }
+    var isVerified: Bool { maturity == .verified }
+
+    static func catalog(maturity: ProviderMaturity) -> [ProviderPreset] {
+        catalog.filter { $0.maturity == maturity }
+    }
 
     static let catalog: [ProviderPreset] = [
         ProviderPreset(id: "anthropic", label: "Anthropic (Claude)", dialect: .anthropic,
@@ -98,27 +114,12 @@ struct ProviderPreset: Identifiable, Equatable {
                            extraAuthParams: ["code": "true"],
                            stateInTokenExchange: true
                        )),
-        // ChatGPT-subscription OAuth (Codex CLI flow). The token works only
-        // against chatgpt.com's Codex responses backend, so OpenAICodexProvider
-        // impersonates the Codex CLI (UA/originator/instructions) — see there.
+        // API-key only. A ChatGPT-subscription token is accepted solely by the
+        // Codex backend, which serves the Codex CLI — reaching it means posing
+        // as that CLI, so aiity doesn't offer the subscription login at all.
         ProviderPreset(id: "openai", label: "OpenAI (ChatGPT)", dialect: .openai,
                        defaultBaseURL: "https://api.openai.com/v1", needsKey: true,
-                       editableBaseURL: false, defaultModel: "gpt-4.1",
-                       oauth: OAuthProviderConfig(
-                           flow: .pasteCode,
-                           clientId: "app_EMoamEEZ73f0CkXaXp7hrann",
-                           authorizeURL: "https://auth.openai.com/oauth/authorize",
-                           tokenURL: "https://auth.openai.com/oauth/token",
-                           redirectURI: "http://localhost:1455/auth/callback",
-                           scope: "openid profile email offline_access api.connectors.read api.connectors.invoke",
-                           tokenBody: .form,
-                           extraAuthParams: [
-                               "id_token_add_organizations": "true",
-                               "codex_cli_simplified_flow": "true",
-                               "originator": "codex_cli_rs",
-                           ],
-                           inferenceBaseURL: "https://chatgpt.com/backend-api/codex"
-                       )),
+                       editableBaseURL: false, defaultModel: "gpt-4.1"),
         ProviderPreset(id: "openrouter", label: "OpenRouter (alle Modelle)", dialect: .openai,
                        defaultBaseURL: "https://openrouter.ai/api/v1", needsKey: true,
                        editableBaseURL: false, defaultModel: "openai/gpt-4o-mini",
@@ -129,7 +130,8 @@ struct ProviderPreset: Identifiable, Equatable {
                            tokenURL: "https://openrouter.ai/api/v1/auth/keys",
                            redirectURI: "aiapp://oauth/openrouter",
                            scope: ""
-                       )),
+                       ),
+                       maturity: .verified),
         ProviderPreset(id: "gemini", label: "Google Gemini", dialect: .openai,
                        defaultBaseURL: "https://generativelanguage.googleapis.com/v1beta/openai", needsKey: true,
                        editableBaseURL: false, defaultModel: "gemini-2.0-flash"),
@@ -142,21 +144,11 @@ struct ProviderPreset: Identifiable, Equatable {
         ProviderPreset(id: "deepseek", label: "DeepSeek", dialect: .openai,
                        defaultBaseURL: "https://api.deepseek.com/v1", needsKey: true,
                        editableBaseURL: false, defaultModel: "deepseek-chat"),
+        // API-key only, for the same reason as OpenAI: the Grok subscription
+        // token is only accepted by the grok-cli proxy.
         ProviderPreset(id: "xai", label: "xAI (Grok)", dialect: .openai,
                        defaultBaseURL: "https://api.x.ai/v1", needsKey: true,
-                       editableBaseURL: false, defaultModel: "grok-3",
-                       oauth: OAuthProviderConfig(
-                           flow: .pasteCode,
-                           clientId: "b1a00492-073a-47ea-816f-4c329264a828",
-                           authorizeURL: "https://auth.x.ai/oauth2/authorize",
-                           tokenURL: "https://auth.x.ai/oauth2/token",
-                           redirectURI: "http://127.0.0.1:56121/callback",
-                           scope: "openid profile email offline_access grok-cli:access api:access",
-                           tokenBody: .form,
-                           usesNonce: true,
-                           extraAuthParams: ["plan": "generic"],
-                           inferenceBaseURL: "https://cli-chat-proxy.grok.com/v1"
-                       )),
+                       editableBaseURL: false, defaultModel: "grok-3"),
         ProviderPreset(id: "together", label: "Together AI", dialect: .openai,
                        defaultBaseURL: "https://api.together.xyz/v1", needsKey: true,
                        editableBaseURL: false, defaultModel: ""),
@@ -171,7 +163,8 @@ struct ProviderPreset: Identifiable, Equatable {
                        editableBaseURL: true, defaultModel: ""),
         ProviderPreset(id: "sub2api", label: "sub2api (Abo-Gateway, self-hosted)", dialect: .openai,
                        defaultBaseURL: "", needsKey: true,
-                       editableBaseURL: true, defaultModel: ""),
+                       editableBaseURL: true, defaultModel: "",
+                       maturity: .verified),
         ProviderPreset(id: "custom-openai", label: "Beliebige OpenAI-API (URL + Key)", dialect: .openai,
                        defaultBaseURL: "", needsKey: true,
                        editableBaseURL: true, defaultModel: ""),
@@ -180,7 +173,8 @@ struct ProviderPreset: Identifiable, Equatable {
                        editableBaseURL: true, defaultModel: ""),
         ProviderPreset(id: "mlx", label: "Lokal auf dem Gerät (MLX)", dialect: .mlx,
                        defaultBaseURL: "", needsKey: false,
-                       editableBaseURL: false, defaultModel: ""),
+                       editableBaseURL: false, defaultModel: "",
+                       maturity: .verified),
     ]
 
     static func preset(for id: String) -> ProviderPreset {

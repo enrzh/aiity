@@ -10,7 +10,6 @@ struct ChatView: View {
     @State private var input = ""
     @State private var previewDraft: MiniAppDraft?
     @State private var showThreads = false
-    @State private var showUpgrade = false
     @State private var showQuickProvider = false
     @State private var showSkills = false
     /// Measured height of the floating input bubble — drives the scroll
@@ -219,25 +218,27 @@ struct ChatView: View {
                 .accessibilityIdentifier("chat-new")
                 .accessibilityLabel("Neuer Chat")
 
+                // Plain glyph, like its neighbours: a chip with its own capsule
+                // background clashes with the toolbar's own grouping, and the
+                // toolbar drops the chip's text when the title is long — which
+                // left a bare icon on a grey square. The model name lives in the
+                // menu header below instead.
                 Button {
                     showQuickProvider = true
                 } label: {
-                    ActiveModelChip(label: activeModelLabel, compact: true)
+                    Image(systemName: "cpu")
                 }
-                .buttonStyle(.plain)
+                .accessibilityIdentifier("chat-provider")
                 .accessibilityLabel("Modell: \(activeModelLabel)")
                 .accessibilityHint("Anbieter und Modell wählen")
 
                 Menu {
-                    Button {
-                        showSkills = true
-                    } label: {
-                        Label("Skills", systemImage: "puzzlepiece.extension")
-                    }
-                    Button {
-                        showQuickProvider = true
-                    } label: {
-                        Label("Anbieter", systemImage: "cpu")
+                    Section("Modell: \(activeModelLabel)") {
+                        Button {
+                            showSkills = true
+                        } label: {
+                            Label("Skills", systemImage: "puzzlepiece.extension")
+                        }
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
@@ -258,13 +259,6 @@ struct ChatView: View {
         }
         .sheet(isPresented: $showThreads) {
             ThreadsSheet()
-        }
-        .sheet(isPresented: $showUpgrade) {
-            UpgradeModal(
-                title: "Mini-App-Limit",
-                message: FreeTier.miniAppLimitMessage,
-                onDismiss: { showUpgrade = false }
-            )
         }
         .sheet(isPresented: $showQuickProvider) {
             NavigationStack {
@@ -404,11 +398,6 @@ struct ChatView: View {
                 return
             }
         }
-        guard FreeTier.canSaveMiniApp(currentCount: savedApps.count) else {
-            showUpgrade = true
-            Analytics.track("freemium_gate", ["kind": "miniapp"])
-            return
-        }
         modelContext.insert(MiniApp(
             name: draft.name,
             emoji: draft.emoji,
@@ -491,7 +480,6 @@ private struct MessageBubble: View {
         case "web_search": return args["query"] as? String ?? "Suche"
         case "fetch_url": return args["url"] as? String ?? "URL"
         case "generate_image": return args["prompt"] as? String ?? "Bild"
-        case "generate_video": return args["prompt"] as? String ?? "Video"
         default: return call.name
         }
     }
@@ -520,7 +508,6 @@ private struct ToolChip: View {
         case "web_search": return "magnifyingglass"
         case "fetch_url": return "doc.text"
         case "generate_image": return "photo"
-        case "generate_video": return "video"
         default: return "wrench.and.screwdriver"
         }
     }
@@ -530,7 +517,6 @@ private struct ToolChip: View {
         case "web_search": return "Web"
         case "fetch_url": return "Seite"
         case "generate_image": return "Bild"
-        case "generate_video": return "Video"
         default: return name
         }
     }

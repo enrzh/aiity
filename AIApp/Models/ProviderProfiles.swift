@@ -1,21 +1,19 @@
 import Foundation
 
 /// Per-provider non-secret fields so switching providers doesn't wipe the
-/// model/base URL the user already configured. Image/video models live on the
-/// global modality slots in `ProviderSettings`, not nested here.
+/// model/base URL the user already configured. The image model lives on the
+/// global modality slot in `ProviderSettings`, not nested here.
 struct ProviderProfile: Codable, Equatable {
     var baseURL: String = ""
     var model: String = ""
     var localModelId: String = LocalModel.defaultId
     /// Last image model chosen when this provider was the image slot (hint only).
     var lastImageModel: String = ""
-    /// Last video model chosen when this provider was the video slot (hint only).
-    var lastVideoModel: String = ""
 
     // Legacy decode keys from when media models lived on the profile.
     private enum CodingKeys: String, CodingKey {
-        case baseURL, model, localModelId, lastImageModel, lastVideoModel
-        case imageModel, videoModel
+        case baseURL, model, localModelId, lastImageModel
+        case imageModel
     }
 
     init() {}
@@ -28,9 +26,6 @@ struct ProviderProfile: Codable, Equatable {
         lastImageModel = try c.decodeIfPresent(String.self, forKey: .lastImageModel)
             ?? c.decodeIfPresent(String.self, forKey: .imageModel)
             ?? ""
-        lastVideoModel = try c.decodeIfPresent(String.self, forKey: .lastVideoModel)
-            ?? c.decodeIfPresent(String.self, forKey: .videoModel)
-            ?? ""
     }
 
     func encode(to encoder: Encoder) throws {
@@ -39,7 +34,6 @@ struct ProviderProfile: Codable, Equatable {
         try c.encode(model, forKey: .model)
         try c.encode(localModelId, forKey: .localModelId)
         try c.encode(lastImageModel, forKey: .lastImageModel)
-        try c.encode(lastVideoModel, forKey: .lastVideoModel)
     }
 }
 
@@ -79,21 +73,16 @@ enum ProviderProfiles {
             profile.model = settings.model
             profile.localModelId = settings.localModelId
         }
-        // Remember last media models on their slot providers (if set).
+        // Remember the last image model on its slot provider (if set).
         if !settings.imagePresetId.isEmpty {
             update(presetId: settings.imagePresetId) { profile in
                 profile.lastImageModel = settings.imageModel
             }
         }
-        if !settings.videoPresetId.isEmpty {
-            update(presetId: settings.videoPresetId) { profile in
-                profile.lastVideoModel = settings.videoModel
-            }
-        }
     }
 
     /// Apply a stored profile onto chat settings when switching chat provider.
-    /// Does not touch image/video modality slots.
+    /// Does not touch the image modality slot.
     static func apply(_ profile: ProviderProfile, presetId: String, to settings: inout ProviderSettings) {
         settings.presetId = presetId
         settings.baseURL = profile.baseURL

@@ -179,20 +179,6 @@ final class SkillStore: ObservableObject {
 
     @discardableResult
     func installPackage(markdown: String, source: String? = nil) -> AgentSkill? {
-        let customCount = skills.filter { !$0.builtin }.count
-        if let doc = SkillPackage.parse(markdown: markdown, source: source) {
-            // Only a true in-place replace is exempt from the limit. A same-name
-            // install from a different origin FORKS (keeps both), so it must be
-            // gated like any other new skill.
-            let existing = skills.first { !$0.builtin && $0.name == doc.name }
-            let replaces = existing.map {
-                Self.replacesExisting($0, instructions: doc.instructions, source: source ?? doc.source)
-            } ?? false
-            if !replaces, !FreeTier.canInstallSkill(currentCustomCount: customCount) {
-                errorMessage = FreeTier.skillLimitMessage
-                return nil
-            }
-        }
         guard let doc = SkillPackage.parse(markdown: markdown, source: source) else {
             errorMessage = "Kein gültiges Skill-Paket (SKILL.md leer oder unlesbar)."
             return nil

@@ -212,18 +212,20 @@ final class ProviderCompatTests: XCTestCase {
         }
     }
 
-    func testMediaModelResolutionNeverCrossesModality() {
-        // A configured, explicit choice is never silently swapped…
+    func testMediaModelResolutionKeepsExplicitChoice() {
+        // A configured, explicit choice is never silently swapped for a
+        // catalog entry, even when the cache doesn't list it.
         XCTAssertEqual(
             MediaRoute.resolveModel("my-custom-image", presetId: "sub2api", modality: .image),
             "my-custom-image"
         )
-        // …and a video slot must never fall back to an image model.
-        let videoResolved = MediaRoute.resolveModel(
-            ModelModality.video.defaultModel, presetId: "sub2api", modality: .video
+        // The image slot must never fall back to a video model.
+        let resolved = MediaRoute.resolveModel(
+            ModelModality.image.defaultModel, presetId: "sub2api", modality: .image
         )
-        XCTAssertFalse(videoResolved.lowercased().contains("image"),
-                       "video slot must not resolve to an image model, got \(videoResolved)")
+        let lower = resolved.lowercased()
+        XCTAssertFalse(lower.contains("sora") || lower.contains("veo"),
+                       "image slot must not resolve to a video model, got \(resolved)")
     }
 
     @MainActor

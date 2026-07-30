@@ -99,42 +99,6 @@ final class ToolCallParsingTests: XCTestCase {
         XCTAssertEqual(settings.baseURL(forKey: "sk-abc"), "https://ki.dong-fang.de/v1")
     }
 
-    func testCodexBuildBodyShapesResponsesRequest() {
-        let messages = [
-            ChatMessage(role: .system, text: "be helpful"),
-            ChatMessage(role: .user, text: "hi"),
-            ChatMessage(role: .assistant, text: "", toolCalls: [ToolCallData(id: "c1", name: "web_search", argumentsJSON: "{\"q\":\"x\"}")]),
-            ChatMessage(role: .tool, text: "result", toolCallId: "c1", toolName: "web_search"),
-        ]
-        let body = OpenAICodexProvider.buildBody(messages: messages, tools: [], model: "gpt-5.2")
-        XCTAssertEqual(body["model"] as? String, "gpt-5.2")
-        XCTAssertEqual(body["instructions"] as? String, "be helpful")
-        XCTAssertEqual(body["store"] as? Bool, false)
-        XCTAssertEqual(body["stream"] as? Bool, true)
-        let input = body["input"] as! [[String: Any]]
-        // user message, function_call, function_call_output — no system role.
-        XCTAssertEqual(input.count, 3)
-        XCTAssertEqual(input[0]["role"] as? String, "user")
-        XCTAssertEqual(input[1]["type"] as? String, "function_call")
-        XCTAssertEqual(input[1]["call_id"] as? String, "c1")
-        XCTAssertEqual(input[2]["type"] as? String, "function_call_output")
-        XCTAssertFalse(input.contains { ($0["role"] as? String) == "system" })
-    }
-
-    func testCodexParseEventTextAndToolCall() {
-        let textEvents = OpenAICodexProvider.parseEvent(#"{"type":"response.output_text.delta","delta":"Hel"}"#)
-        guard case .textDelta(let t) = textEvents.first else { return XCTFail("expected text delta") }
-        XCTAssertEqual(t, "Hel")
-
-        let toolEvents = OpenAICodexProvider.parseEvent(#"{"type":"response.output_item.done","item":{"type":"function_call","name":"web_search","arguments":"{\"q\":\"a\"}","call_id":"c9"}}"#)
-        guard case .toolCall(let call) = toolEvents.first else { return XCTFail("expected tool call") }
-        XCTAssertEqual(call.name, "web_search")
-        XCTAssertEqual(call.id, "c9")
-
-        // Unrelated lifecycle events yield nothing.
-        XCTAssertTrue(OpenAICodexProvider.parseEvent(#"{"type":"response.created"}"#).isEmpty)
-    }
-
     func testParseDuckDuckGoLiteResults() {
         let html = """
         <table>

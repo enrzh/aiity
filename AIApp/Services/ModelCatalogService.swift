@@ -43,21 +43,6 @@ enum ModelCatalogService {
     // MARK: - Public API
 
     static func fetchModels(settings: ProviderSettings, apiKey: String) async throws -> [CatalogModel] {
-        // ChatGPT OAuth (Codex) has no public /models — curated list only.
-        if settings.presetId == "openai", apiKey.hasPrefix(AuthStore.oauthMarker) {
-            let models = ModelCatalogCache.codexOAuthModels()
-            ModelCatalogCache.save(presetId: settings.presetId, models: models)
-            return models
-        }
-        // Grok subscription authenticates only against the CLI proxy; api.x.ai's
-        // /models rejects the subscription token — use a curated list instead.
-        if settings.presetId == "xai", apiKey.hasPrefix(AuthStore.oauthMarker) {
-            let models = ["grok-4", "grok-3", "grok-3-mini"].map {
-                CatalogModel(id: $0, supportsTools: true)
-            }
-            ModelCatalogCache.save(presetId: settings.presetId, models: models)
-            return models
-        }
         do {
             let models: [CatalogModel]
             switch settings.preset.dialect {
@@ -328,60 +313,46 @@ enum ModelCatalogService {
     }
 }
 
-/// Which providers can host image/video generation (separate modality slots).
+/// Which providers can host image generation (its own modality slot).
 enum MediaCapability {
     /// Cloud / gateway presets that expose OpenAI-style `/images` (or routing).
     static let imagePresetIds: Set<String> = [
         "openai", "openrouter", "custom-openai", "sub2api", "xai", "gemini",
-    ]
-    /// Video jobs are rarer; stick to known OpenAI-style video hosts.
-    static let videoPresetIds: Set<String> = [
-        "openai", "openrouter", "custom-openai", "sub2api",
     ]
 
     static func supportsImageGeneration(presetId: String) -> Bool {
         imagePresetIds.contains(presetId)
     }
 
-    static func supportsVideoGeneration(presetId: String) -> Bool {
-        videoPresetIds.contains(presetId)
-    }
-
     static func supports(_ modality: ModelModality, presetId: String) -> Bool {
         switch modality {
         case .chat: return true
         case .image: return supportsImageGeneration(presetId: presetId)
-        case .video: return supportsVideoGeneration(presetId: presetId)
         }
     }
 
-    /// True when this connection can actually call image/video APIs with the given key.
+    /// True when this connection can actually call the image API with the given key.
     static func canUseMedia(presetId: String, apiKey: String, modality: ModelModality) -> Bool {
         guard supports(modality, presetId: presetId) else { return false }
         let preset = ProviderPreset.preset(for: presetId)
         if preset.dialect == .mlx { return false }
-        // Pure LAN runtimes rarely implement /images or /videos.
+        // Pure LAN runtimes rarely implement /images.
         if ["ollama", "lmstudio", "localai"].contains(presetId) { return false }
-        // ChatGPT OAuth uses Codex — no /images or /videos on that path.
-        if presetId == "openai", apiKey.hasPrefix(AuthStore.oauthMarker) {
-            return false
-        }
         return true
     }
 
     /// Legacy helper: chat provider used for media (tests / catalog enrich).
     static func supportsImageOrVideo(settings: ProviderSettings, apiKey: String) -> Bool {
         canUseMedia(presetId: settings.presetId, apiKey: apiKey, modality: .image)
-            || canUseMedia(presetId: settings.presetId, apiKey: apiKey, modality: .video)
     }
 
     static func modelLooksGenerative(id: String) -> Bool {
-        id.contains("gpt-image") || id.contains("dall-e") || id.contains("sora")
+        id.contains("gpt-image") || id.contains("dall-e")
             || id.contains("image") || id.contains("flux")
     }
 }
 
-/// Resolved endpoint for image or video generation (independent of chat).
+/// Resolved endpoint for image generation (independent of chat).
 struct MediaRoute: Equatable {
     var presetId: String
     var baseURL: String
@@ -391,7 +362,7 @@ struct MediaRoute: Equatable {
     /// Resolves the modality slot. Empty slot falls back to the chat provider
     /// when that provider can do media (migration path for older installs).
     static func resolve(modality: ModelModality, from settings: ProviderSettings) async -> MediaRoute? {
-        guard modality == .image || modality == .video else { return nil }
+        guard modality == .image else { return nil }
 
         var presetId = settings.activePresetId(for: modality)
         if presetId.isEmpty {
@@ -430,15 +401,14 @@ struct MediaRoute: Equatable {
         // is kept even when absent from a possibly-stale cache — silently swapping
         // an explicit choice is worse than a clear "model not found" error.
         guard configured == modality.defaultModel else { return configured }
-        let generative = catalog.filter { MediaCapability.modelLooksGenerative(id: $0.lowercased()) }
+        // A video model is not an acceptable substitute for the image slot.
         let isVideo: (String) -> Bool = {
             let l = $0.lowercased()
             return l.contains("video") || l.contains("sora") || l.contains("veo")
         }
-        // Never cross modality: a video slot must not fall back to an image model.
-        let pool = modality == .video
-            ? generative.filter(isVideo)
-            : generative.filter { !isVideo($0) }
-        return pool.first ?? configured
+        let generative = catalog
+            .filter { MediaCapability.modelLooksGenerative(id: $0.lowercased()) }
+            .filter { !isVideo($0) }
+        return generative.first ?? configured
     }
 }

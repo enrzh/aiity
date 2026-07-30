@@ -84,7 +84,6 @@ final class ChatSession: ObservableObject {
 
     You can also generate media with tools:
     - generate_image(prompt, size?) — creates a picture and shows it to the user inline. Use when they ask for an image/illustration/logo/artwork.
-    - generate_video(prompt) — creates a short video (slow, provider-dependent). Only on an explicit video request.
     After a generation tool runs, briefly tell the user what you made; the media is attached to your message automatically — do not paste base64 or URLs.
 
     When the user has enabled agent skills (listed under "Installed skills"), treat them as hard requirements for matching work — especially design systems, games, and charts. Do not invent a conflicting style.
@@ -101,7 +100,6 @@ final class ChatSession: ObservableObject {
       * `await miniapp.storage.get(key)` / `await miniapp.storage.set(key, value)`
       * `miniapp.haptic()`
       * `await miniapp.notify(title, body, inSeconds)`
-      * `await miniapp.health.query(type, days)` — type: steps | activeEnergy | heartRate
       * `await miniapp.openExternal(url)` — opens Safari for a link
       * `miniapp.capability` — current tier string
 
@@ -285,21 +283,9 @@ final class ChatSession: ObservableObject {
                     persist()
                 }
             }
-            var runSettings = settings
+            let runSettings = settings
             let apiKey = await AuthStore.effectiveKey(for: runSettings)
             if Task.isCancelled { return }
-            // ChatGPT OAuth: ensure a Codex-safe model id is selected.
-            if runSettings.presetId == "openai", apiKey.hasPrefix(AuthStore.oauthMarker) {
-                let codexIds = ModelCatalogCache.codexOAuthModels().map(\.id)
-                let current = runSettings.effectiveModel
-                if current.isEmpty {
-                    runSettings.model = codexIds.first ?? "gpt-4.1"
-                } else if !codexIds.contains(current),
-                          (current.contains("gpt-3") || current.contains("davinci") || current == "gpt-4") {
-                    // Obvious non-Codex ids → swap to a known Codex model for this turn.
-                    runSettings.model = codexIds.first(where: { $0.contains("4.1") }) ?? codexIds.first ?? "gpt-4.1"
-                }
-            }
             if runSettings.preset.dialect != .mlx,
                runSettings.effectiveModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 errorMessage = "Kein Modell gewählt — Mehr → KI-Anbieter → Modell aus der Liste wählen."
@@ -312,14 +298,6 @@ final class ChatSession: ObservableObject {
                 busy = false
                 AgentLiveActivityController.shared.fail(message: errorMessage ?? "Kein Key")
                 return
-            }
-            if runSettings.presetId == "openai",
-               apiKey.hasPrefix(AuthStore.oauthMarker),
-               AuthStore.activeAccountChatGPTId(for: "openai") == nil {
-                // Still try — some tokens work without account header; warn softly.
-                #if DEBUG
-                print("OpenAI OAuth: missing chatgpt_account_id — Codex may reject")
-                #endif
             }
             let provider = runSettings.makeProvider(apiKey: apiKey)
             let tools = await ToolRegistry.makeTools(settings: runSettings, apiKey: apiKey)
@@ -721,7 +699,6 @@ final class ChatSession: ObservableObject {
         case "web_search": return "Sucht im Web…"
         case "fetch_url": return "Liest Seite…"
         case "generate_image": return "Erstellt Bild…"
-        case "generate_video": return "Erstellt Video…"
         default: return "Tool: \(call.name)"
         }
     }
@@ -731,7 +708,7 @@ final class ChatSession: ObservableObject {
         switch call.name {
         case "web_search": return arguments["query"] as? String ?? ""
         case "fetch_url": return arguments["url"] as? String ?? ""
-        case "generate_image", "generate_video":
+        case "generate_image":
             return String((arguments["prompt"] as? String ?? "").prefix(60))
         default: return call.name
         }

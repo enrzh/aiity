@@ -213,8 +213,38 @@ enum LocalModelLocation {
         baseDirectory.appendingPathComponent("models/\(modelId)", isDirectory: true)
     }
 
+    /// A model counts as downloaded only when its weights are on disk, not just
+    /// `config.json`. The Hub writes the small metadata files first, so an
+    /// interrupted download otherwise looks complete — the UI shows "ready" and
+    /// every generation then fails with an opaque network error while MLX tries
+    /// to fetch the missing tensors.
     static func isDownloaded(_ modelId: String) -> Bool {
-        FileManager.default.fileExists(atPath: directory(for: modelId).appendingPathComponent("config.json").path)
+        isComplete(directory: directory(for: modelId))
+    }
+
+    static func isComplete(directory: URL) -> Bool {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: directory.appendingPathComponent("config.json").path),
+              let entries = try? fm.contentsOfDirectory(
+                  at: directory, includingPropertiesForKeys: [.fileSizeKey]
+              ) else {
+            return false
+        }
+        let weights = entries.filter {
+            ["safetensors", "npz", "gguf", "bin"].contains($0.pathExtension.lowercased())
+        }
+        guard !weights.isEmpty else { return false }
+        // A zero-byte placeholder is what a killed download leaves behind.
+        return weights.allSatisfy { url in
+            let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+            return size > 0
+        }
+    }
+
+    /// Remove a partially downloaded model so the next attempt starts clean.
+    static func removeIncomplete(_ modelId: String) {
+        guard !isDownloaded(modelId) else { return }
+        try? FileManager.default.removeItem(at: directory(for: modelId))
     }
 }
 

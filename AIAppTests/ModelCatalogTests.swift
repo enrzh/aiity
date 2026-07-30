@@ -43,30 +43,19 @@ final class ModelCatalogTests: XCTestCase {
         XCTAssertTrue(ModelCatalogService.inferTools(id: "gpt-4o", presetId: "openai"))
     }
 
-    func testMediaCapabilityHidesForLocalAndOAuthOpenAI() {
+    func testMediaCapabilityHidesForLocalRuntimes() {
         var settings = ProviderSettings()
         settings.presetId = "ollama"
         XCTAssertFalse(MediaCapability.supportsImageOrVideo(settings: settings, apiKey: "x"))
         XCTAssertFalse(MediaCapability.supportsImageGeneration(presetId: "ollama"))
 
         settings.presetId = "openai"
-        XCTAssertFalse(MediaCapability.supportsImageOrVideo(
-            settings: settings,
-            apiKey: AuthStore.oauthMarker + "token"
-        ))
         XCTAssertTrue(MediaCapability.supportsImageOrVideo(settings: settings, apiKey: "sk-test"))
         XCTAssertTrue(MediaCapability.supportsImageGeneration(presetId: "openai"))
-        XCTAssertTrue(MediaCapability.supportsVideoGeneration(presetId: "openai"))
 
         settings.presetId = "anthropic"
         XCTAssertFalse(MediaCapability.supportsImageOrVideo(settings: settings, apiKey: "sk-ant"))
         XCTAssertFalse(MediaCapability.supportsImageGeneration(presetId: "anthropic"))
-    }
-
-    func testCodexOAuthModelsAreNonEmpty() {
-        let models = ModelCatalogCache.codexOAuthModels()
-        XCTAssertFalse(models.isEmpty)
-        XCTAssertTrue(models.contains(where: { $0.id.contains("gpt") || $0.id.contains("o") }))
     }
 
     func testCatalogCacheRoundtrip() {
@@ -82,13 +71,10 @@ final class ModelCatalogTests: XCTestCase {
         settings.model = "claude-sonnet-4-5"
         settings.imagePresetId = "openai"
         settings.imageModel = "gpt-image-1"
-        settings.videoPresetId = "openrouter"
-        settings.videoModel = "openai/sora"
         XCTAssertEqual(settings.activePresetId(for: .chat), "anthropic")
         XCTAssertEqual(settings.activePresetId(for: .image), "openai")
-        XCTAssertEqual(settings.activePresetId(for: .video), "openrouter")
+        XCTAssertEqual(settings.model(for: .chat), "claude-sonnet-4-5")
         XCTAssertEqual(settings.model(for: .image), "gpt-image-1")
-        XCTAssertEqual(settings.model(for: .video), "openai/sora")
     }
 
 

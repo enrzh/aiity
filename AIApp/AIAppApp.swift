@@ -6,6 +6,12 @@ import Foundation
 struct AIAppApp: App {
     private let container = AIAppApp.makeContainer()
 
+    init() {
+        #if DEBUG
+        MLXSelfTest.runIfRequested()
+        #endif
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()

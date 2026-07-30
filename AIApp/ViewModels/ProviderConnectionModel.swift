@@ -8,9 +8,8 @@ enum ProviderConnectionModel {
 
         switch accountCount {
         case 0:
-            if preset.id == "openai" || preset.id == "xai" {
-                return "API-Key"
-            }
+            // OpenAI/xAI fall through to plain "API-Key" on their own now that
+            // they carry no OAuth config.
             if preset.oauth?.flow == .pasteCode {
                 return "API-Key · Abo optional"
             }

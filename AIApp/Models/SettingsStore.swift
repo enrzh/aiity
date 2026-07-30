@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Shared, observable wrapper around provider settings. Chat, image, and video
-/// each have an independent active provider; per-provider baseURL/model history
+/// Shared, observable wrapper around provider settings. Chat and image each
+/// have an independent active provider; per-provider baseURL/model history
 /// lives in `ProviderProfiles`.
 @MainActor
 final class SettingsStore: ObservableObject {
@@ -27,7 +27,7 @@ final class SettingsStore: ObservableObject {
     }
 
     /// Switch which provider the chat talks to, restoring that provider's last
-    /// model/base URL. Image/video slots stay as they are.
+    /// model/base URL. The image slot stays as it is.
     func useForChat(_ presetId: String) {
         guard settings.presetId != presetId else { return }
         ProviderProfiles.capture(from: settings)
@@ -53,26 +53,10 @@ final class SettingsStore: ObservableObject {
         Analytics.track("provider_switch", ["to": presetId, "modality": "image"])
     }
 
-    /// Assign a provider as the video-generation slot (and optional model).
-    func useForVideo(_ presetId: String, model: String? = nil) {
-        let previous = settings.videoPresetId
-        var updated = settings
-        updated.videoPresetId = presetId
-        if let model, !model.isEmpty {
-            updated.videoModel = model
-        } else if updated.videoModel.isEmpty || previous != presetId {
-            let hint = ProviderProfiles.profile(for: presetId).lastVideoModel
-            updated.videoModel = hint.isEmpty ? ModelModality.video.defaultModel : hint
-        }
-        settings = updated
-        Analytics.track("provider_switch", ["to": presetId, "modality": "video"])
-    }
-
     func use(for modality: ModelModality, presetId: String, model: String? = nil) {
         switch modality {
         case .chat: useForChat(presetId)
         case .image: useForImage(presetId, model: model)
-        case .video: useForVideo(presetId, model: model)
         }
     }
 
