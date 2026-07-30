@@ -83,8 +83,12 @@ struct MiniAppRunnerView: UIViewRepresentable {
     }
 
     /// Stable per-app data-store id for persistent browser sessions (iOS 17+).
+    /// Per-app cookie jar. Saved apps have UUID ids and keep theirs; a preview
+    /// app is keyed by a content hash, which used to fall back to ONE shared
+    /// constant — so every previewed browser app saw each other's sessions.
+    /// Deriving keeps them isolated while still stable across opens.
     static func sessionStoreID(for appId: String) -> UUID {
-        UUID(uuidString: appId) ?? UUID(uuidString: "3F2504E0-4F89-41D3-9A0C-0305E82C3301")!
+        StableIdentifier.uuid(fromPossibleUUID: appId)
     }
 
     final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {

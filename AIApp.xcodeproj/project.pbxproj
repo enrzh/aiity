@@ -103,6 +103,7 @@
 		D1648B3A22D7A36F129DEC96 /* SkillRecommendations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AC44973E1220CAA6251212E /* SkillRecommendations.swift */; };
 		D24150977C8342B8713F34B4 /* NetworkTargetValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A47B41787BB9423ACFDFFCFB /* NetworkTargetValidator.swift */; };
 		D31DECDB34565EF98BA3E315 /* AIAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D8C4C9C0DF446132CF6E371 /* AIAppApp.swift */; };
+		D3ADCA306B892B0C7BC75965 /* StableIdentifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 606201DE5D7BE5724535193B /* StableIdentifier.swift */; };
 		D40F1A002B6985FCBF8E06BB /* RepositoryError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3146C66FBE0536895AA0C01 /* RepositoryError.swift */; };
 		D49A77918D8926AE6BBF05AE /* ProviderConnectionModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A10B5B3D37AD8FCF3B4DE0E /* ProviderConnectionModelTests.swift */; };
 		D701D54437E614671F4B8352 /* ImportSkillModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CDEE0662D6422273000A263 /* ImportSkillModal.swift */; };
@@ -210,6 +211,7 @@
 		5CB909ED9CD414C11FD42797 /* MiniAppRunnerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniAppRunnerView.swift; sourceTree = "<group>"; };
 		5E788FCA5BA9AE97A20E3AB3 /* Analytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Analytics.swift; sourceTree = "<group>"; };
 		5E9D07F0FA14E5D801DDC06F /* AppScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppScreen.swift; sourceTree = "<group>"; };
+		606201DE5D7BE5724535193B /* StableIdentifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StableIdentifier.swift; sourceTree = "<group>"; };
 		625099991BC035FAF50720AE /* MiniAppSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniAppSheet.swift; sourceTree = "<group>"; };
 		63D2679C540EB651BD2325AF /* ModalChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModalChrome.swift; sourceTree = "<group>"; };
 		663370337C8CA56C965C2B3D /* AgentModelPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentModelPicker.swift; sourceTree = "<group>"; };
@@ -514,6 +516,7 @@
 				1D251FBE571B441140F3B945 /* NetworkErrorFriendly.swift */,
 				D666B7BFBCD64AD9FAB95FB3 /* PlainPasteboard.swift */,
 				930330240594778A07B89596 /* Sandbox.swift */,
+				606201DE5D7BE5724535193B /* StableIdentifier.swift */,
 				2DDE36E6528E669C90B4A5AE /* Theme.swift */,
 			);
 			path = Support;
@@ -790,6 +793,7 @@
 				D1648B3A22D7A36F129DEC96 /* SkillRecommendations.swift in Sources */,
 				C87AB0E41867A2E3C24F981B /* SkillStore.swift in Sources */,
 				7DBB3207B4E8ACA327538280 /* SkillsView.swift in Sources */,
+				D3ADCA306B892B0C7BC75965 /* StableIdentifier.swift in Sources */,
 				0C0552BB218774258410AB62 /* SubAgentRunner.swift in Sources */,
 				E0CE34C7AD86D9B4F85A3A54 /* SyncStatus.swift in Sources */,
 				4A479301F6198310DA7077A7 /* Theme.swift in Sources */,

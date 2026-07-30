@@ -226,3 +226,42 @@ final class NetworkTargetValidatorTests: XCTestCase {
         XCTAssertNil(NetworkTargetValidator.refusalReason(for: url, allowPrivate: true))
     }
 }
+
+/// Guards the per-mini-app session isolation.
+final class StableIdentifierTests: XCTestCase {
+    func testDerivationIsStableAcrossCalls() {
+        XCTAssertEqual(StableIdentifier.uuid(from: "app-a"), StableIdentifier.uuid(from: "app-a"))
+    }
+
+    /// The bug this exists to fix: different apps must not share a store.
+    func testDifferentValuesGetDifferentIdentifiers() {
+        XCTAssertNotEqual(StableIdentifier.uuid(from: "app-a"), StableIdentifier.uuid(from: "app-b"))
+    }
+
+    /// Existing saved apps keep their identity, so their sessions survive.
+    func testRealUUIDsPassThroughUnchanged() {
+        let existing = "3F2504E0-4F89-41D3-9A0C-0305E82C3301"
+        XCTAssertEqual(
+            StableIdentifier.uuid(fromPossibleUUID: existing).uuidString.uppercased(),
+            existing
+        )
+    }
+
+    func testDerivedIdentifierIsAWellFormedV5UUID() {
+        let uuid = StableIdentifier.uuid(from: "irgendwas")
+        let string = uuid.uuidString
+        XCTAssertEqual(string.count, 36)
+        // Version nibble, then RFC 4122 variant.
+        let version = string[string.index(string.startIndex, offsetBy: 14)]
+        XCTAssertEqual(version, "5")
+        let variant = string[string.index(string.startIndex, offsetBy: 19)]
+        XCTAssertTrue("89ABab".contains(variant), "variant nibble was \(variant)")
+    }
+
+    /// Two previewed browser apps must land in separate cookie jars.
+    func testPreviewAppsGetDistinctSessionStores() {
+        let a = MiniAppRunnerView.sessionStoreID(for: MiniAppConsent.previewId(html: "<html>A</html>"))
+        let b = MiniAppRunnerView.sessionStoreID(for: MiniAppConsent.previewId(html: "<html>B</html>"))
+        XCTAssertNotEqual(a, b, "different preview apps must not share a session store")
+    }
+}
