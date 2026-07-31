@@ -1,0 +1,76 @@
+import Foundation
+
+/// How much latitude the agent has before it acts.
+///
+/// The distinction is about *irreversibility*, not capability: searching the
+/// web is cheap and undoable, but building and keeping things, spending tokens
+/// on long tool chains, or acting on a half-understood request are not. The
+/// mode says how much of that the user wants to see coming.
+enum ChatMode: String, CaseIterable, Identifiable, Codable {
+    /// Think first, act after the user agrees. The agent lays out what it
+    /// intends to do and waits.
+    case approval
+    /// Plan only — never uses tools, never builds. For thinking a problem
+    /// through before committing to anything.
+    case plan
+    /// Get on with it. The current behaviour, and the default.
+    case auto
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .approval: return "Nachfragen"
+        case .plan: return "Nur planen"
+        case .auto: return "Automatisch"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .approval: return "hand.raised"
+        case .plan: return "list.bullet.rectangle"
+        case .auto: return "bolt"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .approval: return "Sagt erst, was es vorhat, und wartet auf dein OK."
+        case .plan: return "Denkt nur mit — nutzt keine Tools und baut nichts."
+        case .auto: return "Arbeitet direkt los."
+        }
+    }
+
+    /// Whether the agent may call tools at all in this mode.
+    ///
+    /// Plan mode withholds them outright rather than asking the model not to
+    /// use them: a prompt is a request, an empty tool list is a guarantee.
+    var allowsTools: Bool { self != .plan }
+
+    /// Appended to the system prompt.
+    var instructions: String {
+        switch self {
+        case .auto:
+            return ""
+        case .approval:
+            return """
+
+            # Modus: Nachfragen
+            Bevor du Tools benutzt, eine Mini-App baust oder etwas Aufwendiges startest: \
+            beschreibe in zwei bis drei Sätzen, was du vorhast und warum, und frag, ob du loslegen sollst. \
+            Warte auf ein Ja. Reine Antworten, Erklärungen und Rückfragen brauchen keine Freigabe — \
+            frag nicht für Dinge, die du einfach beantworten kannst.
+            """
+        case .plan:
+            return """
+
+            # Modus: Nur planen
+            Du hast in diesem Modus KEINE Tools und baust nichts. Erarbeite stattdessen einen Plan: \
+            was zu tun ist, in welcher Reihenfolge, was vorher geklärt werden muss und woran es scheitern könnte. \
+            Sag ausdrücklich, wenn du etwas nicht ohne Recherche beantworten kannst, statt zu raten. \
+            Wenn der Nutzer die Umsetzung will, weise auf den Moduswechsel hin.
+            """
+        }
+    }
+}

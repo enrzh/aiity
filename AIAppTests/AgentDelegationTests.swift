@@ -179,3 +179,37 @@ final class GroupPerspectiveTests: XCTestCase {
         }
     }
 }
+
+/// The chat mode decides how much the agent does before asking.
+final class ChatModeTests: XCTestCase {
+    /// Plan mode is enforced by withholding tools, not by asking nicely —
+    /// a prompt is a request, an empty tool list is a guarantee.
+    func testOnlyPlanModeWithholdsTools() {
+        XCTAssertFalse(ChatMode.plan.allowsTools)
+        XCTAssertTrue(ChatMode.approval.allowsTools)
+        XCTAssertTrue(ChatMode.auto.allowsTools)
+    }
+
+    /// Auto is the current behaviour and must add nothing to the prompt.
+    func testAutoAddsNoInstructions() {
+        XCTAssertTrue(ChatMode.auto.instructions.isEmpty)
+        XCTAssertFalse(ChatMode.approval.instructions.isEmpty)
+        XCTAssertFalse(ChatMode.plan.instructions.isEmpty)
+    }
+
+    /// Approval must not turn into "ask before answering anything" — that
+    /// would make ordinary conversation unusable.
+    func testApprovalExemptsPlainAnswers() {
+        XCTAssertTrue(ChatMode.approval.instructions.contains("beantworten"))
+    }
+
+    func testEveryModeIsSelectableAndLabelled() {
+        XCTAssertEqual(ChatMode.allCases.count, 3)
+        for mode in ChatMode.allCases {
+            XCTAssertFalse(mode.title.isEmpty, mode.rawValue)
+            XCTAssertFalse(mode.detail.isEmpty, mode.rawValue)
+            XCTAssertFalse(mode.systemImage.isEmpty, mode.rawValue)
+            XCTAssertEqual(ChatMode(rawValue: mode.rawValue), mode, "must round-trip for persistence")
+        }
+    }
+}

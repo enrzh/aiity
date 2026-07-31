@@ -10,6 +10,17 @@ final class AppPreferences: ObservableObject {
     private static let keepScreenKey = "prefs.keepScreenAwakeWhileBuilding.v1"
     static let allowLocalToolsKey = "prefs.allowLocalTools.v1"
     static let iCloudSyncKey = "prefs.iCloudSync.v1"
+    private static let chatModeKey = "prefs.chatMode.v1"
+
+    /// How much the agent asks before acting. Sticky across launches — a user
+    /// who wants to be asked wants that every time, not until the next restart.
+    @Published var chatMode: ChatMode {
+        didSet { UserDefaults.standard.set(chatMode.rawValue, forKey: Self.chatModeKey) }
+    }
+
+    nonisolated static var storedChatMode: ChatMode {
+        ChatMode(rawValue: UserDefaults.standard.string(forKey: chatModeKey) ?? "") ?? .auto
+    }
 
     /// Whether the SwiftData store is opened with CloudKit. Read once at launch
     /// by the container ladder — a container cannot switch between synced and
@@ -50,6 +61,7 @@ final class AppPreferences: ObservableObject {
         }
         allowLocalTools = UserDefaults.standard.bool(forKey: Self.allowLocalToolsKey)
         iCloudSyncEnabled = Self.iCloudSyncPreference
+        chatMode = Self.storedChatMode
     }
 }
 

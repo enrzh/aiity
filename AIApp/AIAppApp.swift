@@ -99,7 +99,11 @@ struct RootView: View {
         ZStack {
             if splashFinished {
                 mainInterface
-                    .transition(.opacity.combined(with: .scale(scale: 0.985)))
+                    // Opacity only. Scaling a view that owns a navigation bar
+                    // makes the bar's height animate from the scaled geometry,
+                    // which read as the navbar sitting too high for a moment
+                    // right after launch.
+                    .transition(.opacity)
             } else {
                 LaunchSplashView()
                     .transition(.opacity)

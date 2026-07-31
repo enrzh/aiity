@@ -324,10 +324,13 @@ final class ChatSession: ObservableObject {
             editing: editingContext,
             userText: text
         )
+        // The mode is part of the system prompt, refreshed every turn so a
+        // change applies to the next message rather than the next thread.
+        let systemWithMode = system + AppPreferences.storedChatMode.instructions
         if let idx = messages.firstIndex(where: { $0.role == .system }) {
-            messages[idx].text = system
+            messages[idx].text = systemWithMode
         } else {
-            messages.insert(ChatMessage(role: .system, text: system), at: 0)
+            messages.insert(ChatMessage(role: .system, text: systemWithMode), at: 0)
         }
         // Pin full mini-app HTML into the conversation (hidden in UI) so the
         // model always sees it — even when OAuth trims the system prompt.
@@ -368,8 +371,13 @@ final class ChatSession: ObservableObject {
                 return
             }
             let provider = runSettings.makeProvider(apiKey: apiKey)
-            // The lead chat is the only place `ask_agent` is offered.
-            let tools = await ToolRegistry.makeTools(settings: runSettings, apiKey: apiKey, delegating: true)
+            // Plan mode withholds tools entirely rather than asking the model
+            // not to use them — a prompt is a request, an empty list is a
+            // guarantee. The lead chat is the only place `ask_agent` is offered.
+            let mode = AppPreferences.storedChatMode
+            let tools = mode.allowsTools
+                ? await ToolRegistry.makeTools(settings: runSettings, apiKey: apiKey, delegating: true)
+                : []
             await runTurn(provider: provider, tools: tools)
             if Task.isCancelled { return }
             finishLiveActivityAfterTurn()

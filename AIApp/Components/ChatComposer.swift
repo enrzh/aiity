@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct ChatComposer: View {
+    @ObservedObject private var prefs = AppPreferences.shared
+
     @Binding var text: String
     let placeholder: String
     let isBusy: Bool
@@ -11,6 +13,24 @@ struct ChatComposer: View {
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 10) {
+            // Left of the input: how much the agent asks before acting.
+            Menu {
+                Picker("Modus", selection: $prefs.chatMode) {
+                    ForEach(ChatMode.allCases) { mode in
+                        Label(mode.title, systemImage: mode.systemImage).tag(mode)
+                    }
+                }
+            } label: {
+                Image(systemName: prefs.chatMode.systemImage)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(prefs.chatMode == .auto ? Color.secondary : Theme.accent)
+                    .frame(width: 34, height: 34)
+                    .background(Color(.tertiarySystemBackground), in: Circle())
+            }
+            .accessibilityIdentifier("chat-mode")
+            .accessibilityLabel("Modus: \(prefs.chatMode.title)")
+            .accessibilityHint(prefs.chatMode.detail)
+
             TextField(placeholder, text: $text, axis: .vertical)
                 .lineLimit(1...6)
                 .textFieldStyle(.plain)
