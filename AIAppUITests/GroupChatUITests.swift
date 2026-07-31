@@ -33,10 +33,7 @@ final class GroupChatUITests: XCTestCase {
         createAgent(named: second, role: "Sucht Schwachstellen in Plänen.")
 
         // Start a group with both of them.
-        app.tabBars.buttons["Chat"].firstMatch.tap()
-        _ = app.buttons["new-chat"].waitForExistence(timeout: 10)
-        let compose = app.buttons["new-chat"]
-        XCTAssertTrue(compose.waitForExistence(timeout: 10))
+        let compose = openChatList()
         compose.tap()
 
         // Select BY NAME, not by index: the roster contains agents from earlier
@@ -77,6 +74,27 @@ final class GroupChatUITests: XCTestCase {
             app.buttons["continue-group"].waitForExistence(timeout: 20),
             "a group chat should offer another round rather than looping by itself"
         )
+    }
+
+    /// Reach the conversation LIST and return its compose button.
+    ///
+    /// The Chat tab can come up already pushed into a conversation (the session
+    /// restores an open thread), in which case the compose button lives one
+    /// level up and the test would wait for something that is not on screen.
+    @discardableResult
+    private func openChatList() -> XCUIElement {
+        app.tabBars.buttons["Chat"].firstMatch.tap()
+        let compose = app.buttons["new-chat"]
+        if compose.waitForExistence(timeout: 5) { return compose }
+
+        // Pushed into a chat — pop back to the list.
+        let back = app.navigationBars.buttons.element(boundBy: 0)
+        if back.exists { back.tap() }
+        XCTAssertTrue(
+            compose.waitForExistence(timeout: 10),
+            "the Chat tab should show the conversation list with a compose button"
+        )
+        return compose
     }
 
     private func createAgent(named name: String, role: String) {
