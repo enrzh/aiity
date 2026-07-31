@@ -9,6 +9,7 @@ struct AIAppApp: App {
     init() {
         #if DEBUG
         MLXSelfTest.runIfRequested()
+        GroupSelfTest.runIfRequested()
         #endif
     }
 

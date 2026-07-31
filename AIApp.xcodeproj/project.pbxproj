@@ -20,6 +20,7 @@
 		112C36316BB40B56BD4B71DE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D162B8EE335555B362AF1558 /* Assets.xcassets */; };
 		113BB5E66114F5F8205438E5 /* AgentStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 456F1A9EC7D1CCDD45775BA5 /* AgentStore.swift */; };
 		11B0F73A9C0A1B025CCECF8B /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001ACFE23DC3902551F49327 /* SettingsStore.swift */; };
+		130394E1C126FFCCE6DC49AF /* GroupSelfTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE1DB4A73CD1F26E08C12318 /* GroupSelfTest.swift */; };
 		1727FB2E5293C87E82385CC9 /* AgentModelPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 663370337C8CA56C965C2B3D /* AgentModelPicker.swift */; };
 		1C99875F3564B076392F5868 /* MiniAppValidatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D6A69B321F0B9D850477143 /* MiniAppValidatorTests.swift */; };
 		2313637FF6ED7049FDBC8801 /* ModalChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63D2679C540EB651BD2325AF /* ModalChrome.swift */; };
@@ -272,6 +273,7 @@
 		D666B7BFBCD64AD9FAB95FB3 /* PlainPasteboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlainPasteboard.swift; sourceTree = "<group>"; };
 		D6D341DD6A5EC5D8D7359130 /* AgentRoleWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentRoleWriter.swift; sourceTree = "<group>"; };
 		DA8466963EF2CD19656D9FEB /* LocalRuntimePolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalRuntimePolicyTests.swift; sourceTree = "<group>"; };
+		DE1DB4A73CD1F26E08C12318 /* GroupSelfTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupSelfTest.swift; sourceTree = "<group>"; };
 		DF3AC7A4A0BA71623D3D51B0 /* ProviderPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderPreset.swift; sourceTree = "<group>"; };
 		E122081B01645D87980F6F32 /* GroupChatRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupChatRunner.swift; sourceTree = "<group>"; };
 		E3146C66FBE0536895AA0C01 /* RepositoryError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryError.swift; sourceTree = "<group>"; };
@@ -518,6 +520,7 @@
 			isa = PBXGroup;
 			children = (
 				3F007D44D78D3E579B415CC0 /* AuthStore.swift */,
+				DE1DB4A73CD1F26E08C12318 /* GroupSelfTest.swift */,
 				0F3FDEE8823CCA1871942F2F /* Keychain.swift */,
 				122F7974E96E74B9FF933BF7 /* MediaStore.swift */,
 				A5A7EBC99589ED208D3D8121 /* MiniAppServices.swift */,
@@ -757,6 +760,7 @@
 				B9F5D3A9F8438BCD8D21FD36 /* EmptyStateView.swift in Sources */,
 				A7030245B606406BD37BCF11 /* FetchURLTool.swift in Sources */,
 				544FBA93BAB7AE6A62F00B33 /* GroupChatRunner.swift in Sources */,
+				130394E1C126FFCCE6DC49AF /* GroupSelfTest.swift in Sources */,
 				0507A6B7D7F51C36D2B2A319 /* HTTPPolicy.swift in Sources */,
 				F206DAD2CFE1E06CECA4FC55 /* ImageGenerationTool.swift in Sources */,
 				D701D54437E614671F4B8352 /* ImportSkillModal.swift in Sources */,
