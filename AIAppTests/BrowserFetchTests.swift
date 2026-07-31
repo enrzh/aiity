@@ -287,3 +287,46 @@ final class OpenTargetValidationTests: XCTestCase {
         XCTAssertTrue(NetworkTargetValidator.isAllowed(target, allowPrivate: false))
     }
 }
+
+/// The transport rules the plan pulls into one place.
+final class HTTPPolicyTests: XCTestCase {
+    /// A streaming answer legitimately takes minutes; metadata must not.
+    func testStreamingGetsFarMoreTimeThanMetadata() {
+        XCTAssertGreaterThan(HTTPPolicy.streamingTimeout, HTTPPolicy.metadataTimeout * 10)
+        XCTAssertGreaterThanOrEqual(HTTPPolicy.streamingTimeout, 600)
+    }
+
+    func testOnlyTransportFailuresAreRetriable() {
+        let timeout = NSError(domain: NSURLErrorDomain, code: NSURLErrorTimedOut)
+        let lost = NSError(domain: NSURLErrorDomain, code: NSURLErrorNetworkConnectionLost)
+        XCTAssertTrue(HTTPPolicy.isRetriable(timeout))
+        XCTAssertTrue(HTTPPolicy.isRetriable(lost))
+
+        // A bad file, a bad model id, a full disk: retrying only hides the error.
+        let cocoa = NSError(domain: NSCocoaErrorDomain, code: NSFileWriteOutOfSpaceError)
+        let badURL = NSError(domain: NSURLErrorDomain, code: NSURLErrorUnsupportedURL)
+        XCTAssertFalse(HTTPPolicy.isRetriable(cocoa))
+        XCTAssertFalse(HTTPPolicy.isRetriable(badURL))
+    }
+
+    func testBackoffGrowsWithAttempts() {
+        XCTAssertLessThan(HTTPPolicy.backoff(forAttempt: 1), HTTPPolicy.backoff(forAttempt: 3))
+    }
+
+    /// Cleartext is about WHO chose the address: the user's own LAN box, yes;
+    /// a public host, never.
+    func testCleartextOnlyForTheUsersOwnNetwork() {
+        for raw in ["http://192.168.1.10:11434/v1", "http://127.0.0.1:8090", "http://100.93.237.25:8090"] {
+            XCTAssertTrue(HTTPPolicy.allowsCleartext(for: URL(string: raw)!), raw)
+            XCTAssertNil(HTTPPolicy.cleartextRefusal(for: URL(string: raw)!))
+        }
+        for raw in ["http://api.openai.com/v1", "http://example.com"] {
+            XCTAssertFalse(HTTPPolicy.allowsCleartext(for: URL(string: raw)!), raw)
+            XCTAssertNotNil(HTTPPolicy.cleartextRefusal(for: URL(string: raw)!))
+        }
+    }
+
+    func testHTTPSIsAlwaysFine() {
+        XCTAssertTrue(HTTPPolicy.allowsCleartext(for: URL(string: "https://api.openai.com/v1")!))
+    }
+}

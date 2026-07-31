@@ -11,6 +11,7 @@
 		041108F0C7528C8C362E0851 /* ModelModality.swift in Sources */ = {isa = PBXBuildFile; fileRef = A120211BC81051181BFFD2A9 /* ModelModality.swift */; };
 		04C099ACB532769F8003BEE9 /* SkillPackageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F94421697B05F7E0BE1255D1 /* SkillPackageTests.swift */; };
 		04C2620AD2CD89F256CB508D /* MiniAppCapability.swift in Sources */ = {isa = PBXBuildFile; fileRef = A160BDDE100B930F17D58C54 /* MiniAppCapability.swift */; };
+		0507A6B7D7F51C36D2B2A319 /* HTTPPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 120505D3D47D96F5141DD1F2 /* HTTPPolicy.swift */; };
 		050EB5C5467F332850E67A3A /* ProviderCompatTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C6B1D27DAE42B985CF36BE1 /* ProviderCompatTests.swift */; };
 		05C67F5BC53BDA986CBCCC95 /* AtomicFileStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFB08135CC0ED3BF168B18F2 /* AtomicFileStoreTests.swift */; };
 		0644A61CAA43A24596FEB946 /* Analytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E788FCA5BA9AE97A20E3AB3 /* Analytics.swift */; };
@@ -174,6 +175,7 @@
 		0D6A69B321F0B9D850477143 /* MiniAppValidatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniAppValidatorTests.swift; sourceTree = "<group>"; };
 		0E1D030F8EEC25B7DD8590D0 /* SubAgentRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubAgentRunner.swift; sourceTree = "<group>"; };
 		0F3FDEE8823CCA1871942F2F /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
+		120505D3D47D96F5141DD1F2 /* HTTPPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPPolicy.swift; sourceTree = "<group>"; };
 		122F7974E96E74B9FF933BF7 /* MediaStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaStore.swift; sourceTree = "<group>"; };
 		12758331C27403CB5D849CC4 /* AccountStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountStore.swift; sourceTree = "<group>"; };
 		1392287F6C0E834FAA71B8B6 /* MiniAppBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniAppBundle.swift; sourceTree = "<group>"; };
@@ -308,6 +310,7 @@
 		2498C8ECE757D4229B2691AF /* Networking */ = {
 			isa = PBXGroup;
 			children = (
+				120505D3D47D96F5141DD1F2 /* HTTPPolicy.swift */,
 				A47B41787BB9423ACFDFFCFB /* NetworkTargetValidator.swift */,
 			);
 			path = Networking;
@@ -750,6 +753,7 @@
 				B9F5D3A9F8438BCD8D21FD36 /* EmptyStateView.swift in Sources */,
 				A7030245B606406BD37BCF11 /* FetchURLTool.swift in Sources */,
 				544FBA93BAB7AE6A62F00B33 /* GroupChatRunner.swift in Sources */,
+				0507A6B7D7F51C36D2B2A319 /* HTTPPolicy.swift in Sources */,
 				F206DAD2CFE1E06CECA4FC55 /* ImageGenerationTool.swift in Sources */,
 				D701D54437E614671F4B8352 /* ImportSkillModal.swift in Sources */,
 				73D7A6B9747AF7E9E8F416E2 /* Keychain.swift in Sources */,
