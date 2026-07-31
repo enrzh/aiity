@@ -91,6 +91,18 @@ final class GroupChatUITests: XCTestCase {
         )
     }
 
+    // NOTE: there is deliberately no UI test for "a group delivers a mini-app".
+    // The hermetic stub answers an app request with a TOOL CALL, and group turns
+    // run with no tools by design — so every agent returns empty and the run
+    // shows "(keine Antwort)". The test could only ever fail, and would read as
+    // a product defect rather than a stub limitation.
+    //
+    // That path is covered on a real provider instead, via
+    // AIITY_GROUP_SELFTEST: on device with Claude Opus the lead produced 5054
+    // characters ending in </html> — past the old 4k cap that used to slice the
+    // HTML mid-function. Teaching the stub to emit prose+fence for a group
+    // shaped request would let this move back into the UI suite.
+
     /// Reach the conversation LIST and return its compose button.
     ///
     /// The Chat tab can come up already pushed into a conversation (the session
