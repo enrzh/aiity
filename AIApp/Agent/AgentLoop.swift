@@ -723,6 +723,14 @@ final class ChatSession: ObservableObject {
             // Always surface a draft card if we have usable HTML.
             if validation.isValid || runnable.count >= 80 {
                 draftMiniApp = draft
+                // Follow-up edits must build on THIS version, not the original.
+                // The pin used to refresh only on "Behalten", so a user who said
+                // "still not right" without keeping got the model editing the
+                // old source again — it discussed a fix and produced the same
+                // app, which reads as having done nothing.
+                if editingContext != nil {
+                    updateEditingSource(html: runnable, name: bundle.name)
+                }
                 Analytics.track("miniapp_draft", ["multi": bundle.isMultiFile ? "1" : "0"])
                 if !validation.issues.isEmpty {
                     lastMiniAppWarnings = validation.issues

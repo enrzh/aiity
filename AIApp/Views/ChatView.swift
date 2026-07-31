@@ -74,6 +74,29 @@ struct ChatView: View {
                 editingBanner(ctx)
             }
 
+            // Pinned under the header rather than trailing the transcript: the
+            // conversation keeps scrolling underneath while the app you are
+            // building stays reachable, instead of being pushed off-screen by
+            // the next few messages.
+            if let draft = session.draftMiniApp {
+                MiniAppCard(
+                    draft: draft,
+                    isStreaming: session.busy,
+                    onPreview: { previewDraft = draft },
+                    onKeep: { keep(draft) },
+                    onEditAI: {
+                        session.startEditingDraft(
+                            name: draft.name,
+                            html: draft.html,
+                            emoji: draft.emoji
+                        )
+                    }
+                )
+                .padding(.horizontal, Theme.space3)
+                .padding(.bottom, Theme.space2)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: Theme.space2) {
@@ -118,22 +141,6 @@ struct ChatView: View {
                             .accessibilityIdentifier("continue-group")
                             .padding(.top, 4)
                         }
-                        if let draft = session.draftMiniApp {
-                            MiniAppCard(
-                                draft: draft,
-                                isStreaming: session.busy,
-                                onPreview: { previewDraft = draft },
-                                onKeep: { keep(draft) },
-                                onEditAI: {
-                                    session.startEditingDraft(
-                                        name: draft.name,
-                                        html: draft.html,
-                                        emoji: draft.emoji
-                                    )
-                                }
-                            )
-                            .id("mini-app-card")
-                        }
                         if let error = session.errorMessage {
                             VStack(alignment: .leading, spacing: 8) {
                                 BannerView(message: error, kind: .error) {
@@ -163,6 +170,18 @@ struct ChatView: View {
                         value: visibleMessages.count
                     )
                 }
+                // Count as well as text: a NEW message (another agent taking
+                // its turn, a tool result) left the view parked where it was,
+                // because only the last message's text was being watched.
+                .onChange(of: visibleMessages.count) {
+                    if let lastId = visibleMessages.last?.id {
+                        withAnimation(
+                            Theme.Motion.preferSpring(Theme.Motion.scroll, reduceMotion: reduceMotion)
+                        ) {
+                            proxy.scrollTo(lastId, anchor: .bottom)
+                        }
+                    }
+                }
                 .onChange(of: visibleMessages.last?.text) {
                     if let lastId = visibleMessages.last?.id {
                         withAnimation(
@@ -177,11 +196,7 @@ struct ChatView: View {
                         proxy.scrollTo("status-line", anchor: .bottom)
                     }
                 }
-                .onChange(of: session.draftMiniApp) {
-                    if session.draftMiniApp != nil {
-                        proxy.scrollTo("mini-app-card", anchor: .bottom)
-                    }
-                }
+
                 .scrollDismissesKeyboard(.immediately)
             }
         }
