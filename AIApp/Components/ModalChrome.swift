@@ -40,6 +40,10 @@ struct AppSheet<Content: View>: View {
         content()
             .presentationDetents(detents)
             .presentationDragIndicator(.visible)
+            // Glass sheet: the content behind stays visible through it, which
+            // is what makes a sheet read as lifted rather than as a new opaque
+            // screen. Replaces the default solid system background.
+            .presentationBackground(.regularMaterial)
     }
 }
 

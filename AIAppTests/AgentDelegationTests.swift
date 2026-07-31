@@ -231,3 +231,27 @@ final class ChatModeTests: XCTestCase {
         }
     }
 }
+
+/// Auto drives the discussion itself; the others hand back to the user.
+final class GroupRoundBudgetTests: XCTestCase {
+    func testAutoRunsSeveralRoundsWithoutAsking() {
+        XCTAssertGreaterThan(ChatMode.auto.automaticGroupRounds, 1)
+        XCTAssertEqual(ChatMode.approval.automaticGroupRounds, 1)
+        XCTAssertEqual(ChatMode.plan.automaticGroupRounds, 1)
+    }
+
+    /// The manual affordance would be redundant in auto — it already continues.
+    func testContinueButtonHiddenOnlyInAuto() {
+        XCTAssertFalse(ChatMode.auto.showsContinueDiscussion)
+        XCTAssertTrue(ChatMode.approval.showsContinueDiscussion)
+        XCTAssertTrue(ChatMode.plan.showsContinueDiscussion)
+    }
+
+    /// Bounded in every mode — a self-continuing discussion is a running bill.
+    func testEveryModeBoundsItsRounds() {
+        for mode in ChatMode.allCases {
+            XCTAssertGreaterThanOrEqual(mode.automaticGroupRounds, 1, mode.rawValue)
+            XCTAssertLessThanOrEqual(mode.automaticGroupRounds, 5, mode.rawValue)
+        }
+    }
+}

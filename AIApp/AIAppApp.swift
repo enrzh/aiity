@@ -149,6 +149,10 @@ struct RootView: View {
         .environmentObject(settingsStore)
         .environmentObject(accountStore)
         .tint(Theme.accent)
+        // Let content scroll UNDER the tab bar so its glass has something to
+        // refract. With an opaque bar the effect has nothing behind it and
+        // reads as a solid black pill.
+        .toolbarBackground(.hidden, for: .tabBar)
         .environment(\.openChatTab) {
             selectedTab = 0
         }

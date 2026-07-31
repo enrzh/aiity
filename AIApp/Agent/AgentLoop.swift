@@ -844,7 +844,12 @@ final class ChatSession: ObservableObject {
     /// Post the user's message, then let every participant speak once.
     private func sendToGroup(_ text: String, settings: ProviderSettings) {
         messages.append(ChatMessage(role: .user, text: text))
+        groupRoundsThisTurn = 0
         persist()
+        // The group branch returns before send()'s own start(), so without this
+        // a group conversation ran with no Live Activity at all — no Dynamic
+        // Island, nothing on the Lock Screen while the agents worked.
+        AgentLiveActivityController.shared.start(prompt: text)
         runGroupRound(settings: settings)
     }
 
@@ -853,8 +858,13 @@ final class ChatSession: ObservableObject {
     /// themselves.
     func continueGroupDiscussion(settings: ProviderSettings) {
         guard !busy, activeThreadIsGroup, !messages.isEmpty else { return }
+        // A manual round is its own budget, not a continuation of the last one.
+        groupRoundsThisTurn = 0
         runGroupRound(settings: settings)
     }
+
+    /// Group rounds already run for the current user message.
+    private var groupRoundsThisTurn = 0
 
     private func runGroupRound(settings: ProviderSettings) {
         let participants = activeParticipants
@@ -868,6 +878,7 @@ final class ChatSession: ObservableObject {
             errorMessage = "Keine aktiven Agenten in dieser Gruppe — im Tab „Agenten“ anlegen oder wieder einschalten."
             busy = false
             statusLine = nil
+            AgentLiveActivityController.shared.fail(message: "Keine aktiven Agenten")
             return
         }
         busy = true
@@ -884,7 +895,9 @@ final class ChatSession: ObservableObject {
                 isCancelled: { Task.isCancelled },
                 onStart: { agent in
                     Task { @MainActor in
-                        self.statusLine = "\(agent.emoji) \(agent.name) schreibt…"
+                        let phase = "\(agent.emoji) \(agent.name) schreibt…"
+                        self.statusLine = phase
+                        AgentLiveActivityController.shared.update(phase: phase, progress: 0.5)
                     }
                 },
                 onTurn: { turn in
@@ -908,10 +921,22 @@ final class ChatSession: ObservableObject {
                     self.persistPublic()
                     return
                 }
+                self.groupRoundsThisTurn += 1
+                self.persistPublic()
+
+                // Auto keeps the discussion going by itself rather than making
+                // the user tap for each round — still bounded.
+                let mode = AppPreferences.storedChatMode
+                if self.groupRoundsThisTurn < mode.automaticGroupRounds {
+                    self.runGroupRound(settings: settings)
+                    return
+                }
                 self.busy = false
                 self.statusLine = nil
                 ScreenWake.shared.setAgentBusy(false)
-                self.persistPublic()
+                AgentLiveActivityController.shared.complete(
+                    summary: "\(participants.count) Agenten, \(self.groupRoundsThisTurn) Runden"
+                )
             }
         }
     }

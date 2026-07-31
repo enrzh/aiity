@@ -60,6 +60,23 @@ enum ChatMode: String, CaseIterable, Identifiable, Codable {
         }
     }
 
+    /// Group rounds the agents run on their own before handing back.
+    ///
+    /// Auto continues by itself — that is what "don't stop to ask me" means for
+    /// a discussion. The others hand back after one round so the user decides
+    /// whether it is worth another. Bounded in every mode: a conversation that
+    /// never yields is a bill that never stops.
+    var automaticGroupRounds: Int {
+        switch self {
+        case .auto: return 3
+        case .approval, .plan: return 1
+        }
+    }
+
+    /// Whether the UI should offer a manual "keep talking" affordance. In auto
+    /// it would be redundant — the group already continues on its own.
+    var showsContinueDiscussion: Bool { self != .auto }
+
     /// Whether a repair round should run even for a substantial document.
     /// Outside auto, only an obviously-truncated app is auto-repaired; auto
     /// fixes real apps too, which is the point of it.

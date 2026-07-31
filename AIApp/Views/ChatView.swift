@@ -74,28 +74,6 @@ struct ChatView: View {
                 editingBanner(ctx)
             }
 
-            // Pinned under the header rather than trailing the transcript: the
-            // conversation keeps scrolling underneath while the app you are
-            // building stays reachable, instead of being pushed off-screen by
-            // the next few messages.
-            if let draft = session.draftMiniApp {
-                MiniAppCard(
-                    draft: draft,
-                    isStreaming: session.busy,
-                    onPreview: { previewDraft = draft },
-                    onKeep: { keep(draft) },
-                    onEditAI: {
-                        session.startEditingDraft(
-                            name: draft.name,
-                            html: draft.html,
-                            emoji: draft.emoji
-                        )
-                    }
-                )
-                .padding(.horizontal, Theme.space3)
-                .padding(.bottom, Theme.space2)
-                .transition(.move(edge: .top).combined(with: .opacity))
-            }
 
             ScrollViewReader { proxy in
                 ScrollView {
@@ -130,7 +108,10 @@ struct ChatView: View {
                         }
                         // Another round is a deliberate tap: the agents never
                         // decide to keep talking (and spending) on their own.
-                        if session.activeThreadIsGroup, !session.busy, !visibleMessages.isEmpty {
+                        if session.activeThreadIsGroup,
+                           AppPreferences.shared.chatMode.showsContinueDiscussion,
+                           !session.busy,
+                           !visibleMessages.isEmpty {
                             Button {
                                 session.continueGroupDiscussion(settings: settingsStore.settings)
                             } label: {
@@ -173,6 +154,29 @@ struct ChatView: View {
                 // Count as well as text: a NEW message (another agent taking
                 // its turn, a tool result) left the view parked where it was,
                 // because only the last message's text was being watched.
+                // Overlaid rather than stacked above: the transcript has to pass
+                // BEHIND the card for its glass to refract anything — in a VStack
+                // it sat on the window background and read as a solid block.
+                .overlay(alignment: .top) {
+                    if let draft = session.draftMiniApp {
+                        MiniAppCard(
+                            draft: draft,
+                            isStreaming: session.busy,
+                            onPreview: { previewDraft = draft },
+                            onKeep: { keep(draft) },
+                            onEditAI: {
+                                session.startEditingDraft(
+                                    name: draft.name,
+                                    html: draft.html,
+                                    emoji: draft.emoji
+                                )
+                            }
+                        )
+                        .padding(.horizontal, Theme.space3)
+                        .padding(.top, Theme.space2)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+                }
                 .onChange(of: visibleMessages.count) {
                     if let lastId = visibleMessages.last?.id {
                         withAnimation(
