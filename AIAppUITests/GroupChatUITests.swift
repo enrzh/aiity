@@ -22,8 +22,15 @@ final class GroupChatUITests: XCTestCase {
     func testGroupChatLetsEveryAgentSpeak() {
         app.launch()
 
-        createAgent(named: "Planer", role: "Plant Schritte und Reihenfolge.")
-        createAgent(named: "Kritiker", role: "Sucht Schwachstellen in Plänen.")
+        // Unique per run: agents.json persists in the simulator container, so
+        // fixed names accumulated duplicates across runs and the test ended up
+        // selecting two DIFFERENT agents that were both called "Planer" —
+        // reporting "the second agent never spoke" when it had.
+        let run = UUID().uuidString.prefix(4)
+        let first = "Planer\(run)"
+        let second = "Kritiker\(run)"
+        createAgent(named: first, role: "Plant Schritte und Reihenfolge.")
+        createAgent(named: second, role: "Sucht Schwachstellen in Plänen.")
 
         // Start a group with both of them.
         app.tabBars.buttons["Chat"].firstMatch.tap()
@@ -32,11 +39,19 @@ final class GroupChatUITests: XCTestCase {
         XCTAssertTrue(compose.waitForExistence(timeout: 10))
         compose.tap()
 
-        let options = app.buttons.matching(identifier: "group-agent-option")
-        XCTAssertTrue(options.firstMatch.waitForExistence(timeout: 10), "both agents should be selectable")
-        XCTAssertGreaterThanOrEqual(options.count, 2)
-        options.element(boundBy: 0).tap()
-        options.element(boundBy: 1).tap()
+        // Select BY NAME, not by index: the roster contains agents from earlier
+        // runs, so positional taps pick arbitrary ones.
+        let firstOption = app.buttons.matching(
+            NSPredicate(format: "identifier == 'group-agent-option' AND label CONTAINS %@", first)
+        ).firstMatch
+        XCTAssertTrue(firstOption.waitForExistence(timeout: 10), "the first agent should be selectable")
+        firstOption.tap()
+
+        let secondOption = app.buttons.matching(
+            NSPredicate(format: "identifier == 'group-agent-option' AND label CONTAINS %@", second)
+        ).firstMatch
+        XCTAssertTrue(secondOption.waitForExistence(timeout: 10), "the second agent should be selectable")
+        secondOption.tap()
         app.buttons["start-group-chat"].tap()
 
         // One message from the user…
@@ -48,14 +63,14 @@ final class GroupChatUITests: XCTestCase {
 
         // …and both agents answer, each labelled with its own name.
         let planner = app.staticTexts.matching(
-            NSPredicate(format: "label CONTAINS 'Planer'")
+            NSPredicate(format: "label CONTAINS %@", first)
         ).firstMatch
-        XCTAssertTrue(planner.waitForExistence(timeout: 40), "the first agent should speak, attributed")
+        XCTAssertTrue(planner.waitForExistence(timeout: 60), "the first agent should speak, attributed")
 
         let critic = app.staticTexts.matching(
-            NSPredicate(format: "label CONTAINS 'Kritiker'")
+            NSPredicate(format: "label CONTAINS %@", second)
         ).firstMatch
-        XCTAssertTrue(critic.waitForExistence(timeout: 40), "the second agent should speak too")
+        XCTAssertTrue(critic.waitForExistence(timeout: 60), "the second agent should speak too")
 
         // Another round is available and explicit — never automatic.
         XCTAssertTrue(

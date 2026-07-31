@@ -832,6 +832,9 @@ final class ChatSession: ObservableObject {
 
     private func runGroupRound(settings: ProviderSettings) {
         let participants = activeParticipants
+        #if DEBUG
+        print("AIITY-GROUP ids=\(activeParticipantIds.count) resolved=\(participants.count) names=\(participants.map(\.name))")
+        #endif
         guard !participants.isEmpty else {
             // Reachable whenever every member was deleted or switched off; the
             // user's message is already in the thread, so failing silently would
