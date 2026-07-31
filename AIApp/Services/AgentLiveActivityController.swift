@@ -18,6 +18,14 @@ final class AgentLiveActivityController {
 
     private init() {}
 
+    /// How long the system should keep presenting the activity before treating
+    /// it as stale. The old 120s/90s were shorter than the work: a group round
+    /// is minutes, and three auto rounds far more — so the activity went stale
+    /// mid-run and stopped showing, which looks exactly like it never started.
+    /// Every update pushes the window out again, so it stays live while the
+    /// agent is actually working.
+    private static let staleWindow: TimeInterval = 15 * 60
+
     var isSupported: Bool {
         ActivityAuthorizationInfo().areActivitiesEnabled
     }
@@ -30,7 +38,19 @@ final class AgentLiveActivityController {
         isAgentBusy = true
         ScreenWake.shared.setAgentBusy(true)
 
-        guard #available(iOS 16.2, *), isSupported else { return }
+        guard #available(iOS 16.2, *) else { return }
+        guard isSupported else {
+            // Silently returning here is why "no Live Activity" was
+            // indistinguishable from a bug: the user can switch them off per
+            // app in Settings → aiity → Live-Aktivitäten, and nothing said so.
+            #if DEBUG
+            print("AIITY-LA disabled: Live Activities are off for this app (Settings → aiity)")
+            #endif
+            return
+        }
+        #if DEBUG
+        print("AIITY-LA start")
+        #endif
         // End any stale activity from a previous crash/suspend.
         for existing in Activity<AgentActivityAttributes>.activities {
             Task { await existing.end(nil, dismissalPolicy: .immediate) }
@@ -48,7 +68,7 @@ final class AgentLiveActivityController {
         do {
             activity = try Activity.request(
                 attributes: attributes,
-                content: .init(state: state, staleDate: Date().addingTimeInterval(120)),
+                content: .init(state: state, staleDate: Date().addingTimeInterval(Self.staleWindow)),
                 pushType: nil
             )
         } catch {
@@ -71,7 +91,7 @@ final class AgentLiveActivityController {
         )
         Task {
             await activity.update(
-                ActivityContent(state: next, staleDate: Date().addingTimeInterval(90))
+                ActivityContent(state: next, staleDate: Date().addingTimeInterval(Self.staleWindow))
             )
         }
     }
