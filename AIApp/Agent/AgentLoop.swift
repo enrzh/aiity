@@ -127,7 +127,8 @@ final class ChatSession: ObservableObject {
     /// Tool rounds before we force a final answer (without tools).
     private static let maxToolRounds = 5
     /// At most one automatic validate→repair pass per user turn.
-    private var repairUsedThisTurn = false
+    /// Validate → fix rounds already spent this turn (see ChatMode).
+    private var repairPassesThisTurn = 0
     private var lastUserTextForRepair: String?
     /// Soft issues from last mini-app validate (shown as banner, draft still kept).
     private var lastMiniAppWarnings: [String] = []
@@ -316,7 +317,7 @@ final class ChatSession: ObservableObject {
             buildWebApp(url: openURL, userText: text)
             return
         }
-        repairUsedThisTurn = false
+        repairPassesThisTurn = 0
         lastUserTextForRepair = text
         // Always refresh system prompt so provider/skills changes apply immediately.
         let system = Self.buildSystemPrompt(
@@ -728,10 +729,17 @@ final class ChatSession: ObservableObject {
                     // Soft banner — does not block keep/preview.
                     errorMessage = "Mini-App bereit (Hinweise: " + validation.issues.prefix(2).joined(separator: "; ") + ")"
                 }
-                // Optional one repair if hard structural issues remain and HTML tiny
-                if !validation.isValid, !repairUsedThisTurn, runnable.count < 200 {
-                    repairUsedThisTurn = true
-                    statusLine = "Korrigiert Mini-App…"
+                // Keep fixing while the mode allows it. Auto keeps going until
+                // the app validates or the budget runs out; the other modes get
+                // one pass, and only for an obviously-truncated document.
+                let mode = AppPreferences.storedChatMode
+                if !validation.isValid,
+                   repairPassesThisTurn < mode.maxRepairPasses,
+                   runnable.count < 200 || mode.repairsCompleteApps {
+                    repairPassesThisTurn += 1
+                    statusLine = mode.maxRepairPasses > 1
+                        ? "Korrigiert Mini-App (\(repairPassesThisTurn)/\(mode.maxRepairPasses))…"
+                        : "Korrigiert Mini-App…"
                     AgentLiveActivityController.shared.update(phase: "Korrigiert Mini-App…", progress: 0.75)
                     let repair = MiniAppValidator.repairPrompt(
                         originalUserRequest: lastUserTextForRepair,
@@ -744,12 +752,14 @@ final class ChatSession: ObservableObject {
                 }
                 return
             }
-            if repairUsedThisTurn {
+            if repairPassesThisTurn >= AppPreferences.storedChatMode.maxRepairPasses {
                 draftMiniApp = draft
-                errorMessage = "Mini-App-Prüfung: " + validation.issues.joined(separator: "; ")
+                // Say the budget ran out rather than implying the app is fine.
+                errorMessage = "Mini-App-Prüfung nach \(repairPassesThisTurn) Versuchen: "
+                    + validation.issues.joined(separator: "; ")
                 return
             }
-            repairUsedThisTurn = true
+            repairPassesThisTurn += 1
             statusLine = "Korrigiert Mini-App…"
             AgentLiveActivityController.shared.update(phase: "Korrigiert Mini-App…", progress: 0.75)
             let repair = MiniAppValidator.repairPrompt(

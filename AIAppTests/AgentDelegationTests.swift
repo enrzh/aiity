@@ -190,6 +190,24 @@ final class ChatModeTests: XCTestCase {
         XCTAssertTrue(ChatMode.auto.allowsTools)
     }
 
+    /// "Always approve" means finish the job: auto keeps sending the agent
+    /// back to fix the app, where the other modes stop after one pass.
+    func testAutoIteratesUntilTheAppIsSound() {
+        XCTAssertGreaterThan(ChatMode.auto.maxRepairPasses, ChatMode.approval.maxRepairPasses)
+        XCTAssertEqual(ChatMode.approval.maxRepairPasses, 1)
+        XCTAssertTrue(ChatMode.auto.repairsCompleteApps)
+        XCTAssertFalse(ChatMode.approval.repairsCompleteApps)
+    }
+
+    /// Bounded on purpose — a model that cannot fix the issue would otherwise
+    /// loop on the user's credits forever.
+    func testAutoRepairIsStillBounded() {
+        XCTAssertLessThanOrEqual(ChatMode.auto.maxRepairPasses, 6)
+        for mode in ChatMode.allCases {
+            XCTAssertGreaterThanOrEqual(mode.maxRepairPasses, 1, mode.rawValue)
+        }
+    }
+
     /// Auto is the current behaviour and must add nothing to the prompt.
     func testAutoAddsNoInstructions() {
         XCTAssertTrue(ChatMode.auto.instructions.isEmpty)

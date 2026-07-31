@@ -13,7 +13,10 @@ enum ChatMode: String, CaseIterable, Identifiable, Codable {
     /// Plan only — never uses tools, never builds. For thinking a problem
     /// through before committing to anything.
     case plan
-    /// Get on with it. The current behaviour, and the default.
+    /// Keep going until the thing is actually built: after each attempt the
+    /// mini-app is validated and, if it still has structural problems, the
+    /// agent is sent straight back in to fix them — without the user having to
+    /// say "continue" each round.
     case auto
 
     var id: String { rawValue }
@@ -38,9 +41,29 @@ enum ChatMode: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .approval: return "Sagt erst, was es vorhat, und wartet auf dein OK."
         case .plan: return "Denkt nur mit — nutzt keine Tools und baut nichts."
-        case .auto: return "Arbeitet direkt los."
+        case .auto: return "Arbeitet durch, bis die App steht."
         }
     }
+
+    /// How many validate → fix rounds the agent gets after producing a
+    /// mini-app that still has structural problems.
+    ///
+    /// One is the old behaviour and stays for the modes where the user is
+    /// meant to stay in the loop. Auto keeps going, because "always approve"
+    /// means "don't stop to ask me, finish it" — but it is still BOUNDED: an
+    /// unbounded repair loop against a model that cannot fix the issue is an
+    /// unbounded bill.
+    var maxRepairPasses: Int {
+        switch self {
+        case .auto: return 4
+        case .approval, .plan: return 1
+        }
+    }
+
+    /// Whether a repair round should run even for a substantial document.
+    /// Outside auto, only an obviously-truncated app is auto-repaired; auto
+    /// fixes real apps too, which is the point of it.
+    var repairsCompleteApps: Bool { self == .auto }
 
     /// Whether the agent may call tools at all in this mode.
     ///
