@@ -867,6 +867,10 @@ final class ChatSession: ObservableObject {
     private var groupRoundsThisTurn = 0
 
     private func runGroupRound(settings: ProviderSettings) {
+        // The round belongs to the thread it STARTED on. The user may now open
+        // another conversation while it runs, so every turn is filed by id —
+        // appending to `messages` would drop them into whatever is on screen.
+        let roundThreadId = activeThreadId
         let participants = activeParticipants
         #if DEBUG
         print("AIITY-GROUP ids=\(activeParticipantIds.count) resolved=\(participants.count) names=\(participants.map(\.name))")
@@ -882,6 +886,7 @@ final class ChatSession: ObservableObject {
             return
         }
         busy = true
+        runningThreadId = roundThreadId
         statusLine = nil
         ScreenWake.shared.setAgentBusy(true)
 
@@ -902,12 +907,30 @@ final class ChatSession: ObservableObject {
                 },
                 onTurn: { turn in
                     Task { @MainActor in
-                        self.messages.append(ChatMessage(
+                        let message = ChatMessage(
                             role: .assistant,
                             text: turn.text,
                             authorName: turn.agent.name,
                             authorEmoji: turn.agent.emoji
-                        ))
+                        )
+                        self.append(message, toThread: roundThreadId)
+                        // Group turns were never checked for a mini-app, so a
+                        // group could discuss one at length and never actually
+                        // hand one over. Any agent that emits a complete fence
+                        // now produces the same draft card as a normal chat.
+                        if self.activeThreadId == roundThreadId,
+                           let bundle = MiniAppBundleParser.extract(from: turn.text) {
+                            let runnable = MiniAppValidator.prepareHTML(bundle.bundledHTML())
+                            if runnable.count >= 80 {
+                                self.draftMiniApp = MiniAppDraft(
+                                    name: bundle.name,
+                                    emoji: bundle.emoji,
+                                    html: runnable,
+                                    filesJSON: bundle.filesJSON(),
+                                    iconSymbol: bundle.iconSymbol
+                                )
+                            }
+                        }
                         self.persistPublic()
                     }
                 }
@@ -932,6 +955,7 @@ final class ChatSession: ObservableObject {
                     return
                 }
                 self.busy = false
+                self.runningThreadId = nil
                 self.statusLine = nil
                 ScreenWake.shared.setAgentBusy(false)
                 AgentLiveActivityController.shared.complete(
@@ -940,6 +964,22 @@ final class ChatSession: ObservableObject {
             }
         }
     }
+
+    /// File a message into a specific thread, whether or not it is on screen.
+    /// A background round must not write into the conversation the user has
+    /// since opened.
+    private func append(_ message: ChatMessage, toThread id: UUID) {
+        if activeThreadId == id {
+            messages.append(message)
+            return
+        }
+        guard let index = threads.firstIndex(where: { $0.id == id }) else { return }
+        threads[index].messages.append(message)
+        threads[index].updatedAt = .now
+    }
+
+    /// Thread a round is currently running in, so the list can show it.
+    @Published private(set) var runningThreadId: UUID?
 
     /// Open a conversation from the list: make it active and drive the push.
     func open(threadId: UUID) {
@@ -960,7 +1000,11 @@ final class ChatSession: ObservableObject {
 
     func switchTo(threadId: UUID) {
         guard threadId != activeThreadId else { return }
-        guard !busy, threads.contains(where: { $0.id == threadId }) else { return }
+        // A running turn no longer locks the whole app: its round keeps going
+        // against the thread it started on (runGroupRound holds its own
+        // participants and appends by id), so the user can read another
+        // conversation meanwhile.
+        guard threads.contains(where: { $0.id == threadId }) else { return }
         syncActiveIntoThreads()
         activeThreadId = threadId
         loadActiveThread()

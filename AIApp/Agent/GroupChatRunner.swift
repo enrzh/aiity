@@ -13,9 +13,19 @@ enum GroupChatRunner {
     /// Speaking turns per round, per agent. Keeps one round bounded even if the
     /// user has configured many agents.
     static let maxAgentsPerRound = 6
-    /// A single contribution is capped so one verbose agent can't crowd out the
-    /// rest of the transcript.
+    /// Cap for ordinary discussion turns, so one verbose agent cannot crowd out
+    /// the rest of the transcript.
     static let maxReplyCharacters = 4_000
+    /// A turn that contains code is not a discussion turn. 4k slices a mini-app
+    /// mid-function — the user saw exactly that three times, and the agents
+    /// correctly blamed "Nachrichtenlänge", not the code.
+    static let maxCodeReplyCharacters = 60_000
+
+    /// Truncation budget for one turn: generous when the agent is delivering an
+    /// artifact, tight when it is talking.
+    static func replyLimit(for text: String) -> Int {
+        text.contains("```") ? maxCodeReplyCharacters : maxReplyCharacters
+    }
     /// Messages of shared history each speaker receives. Bounds the cost of a
     /// long-running group, which otherwise grows with every turn for everyone.
     static let maxTranscriptMessages = 40
@@ -60,7 +70,7 @@ enum GroupChatRunner {
             )
             if isCancelled() { return }
 
-            let trimmed = String(text.prefix(maxReplyCharacters))
+            let trimmed = String(text.prefix(replyLimit(for: text)))
             onTurn(Turn(agent: agent, text: trimmed))
             // The next speaker must see this one, attributed — otherwise every
             // agent answers the user in isolation and nobody is talking to
@@ -161,6 +171,8 @@ enum GroupChatRunner {
         - Sag verbindlich, was als Nächstes passiert und wer was beiträgt.
         - Wenn die Runde reif dafür ist, liefere das eigentliche Ergebnis direkt (Plan, Entwurf, Text).
         - Fehlt noch etwas Wesentliches, benenne genau diese eine Lücke statt allgemein weiterzureden.
+        - Wenn eine Mini-App gefragt ist, liefere sie SELBST und VOLLSTÄNDIG in EINEM ```html-Block
+          (CSS und JS inline, kein Abbruch, keine Fortsetzung in einer zweiten Nachricht).
         """
 
     private static let contributorBrief = """

@@ -95,7 +95,16 @@ struct ChatListView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
-                    if thread.isGroup {
+                    if session.runningThreadId == thread.id {
+                        // A round keeps running when you leave the chat, so the
+                        // list has to say so — otherwise it looks stalled.
+                        HStack(spacing: 6) {
+                            ProgressView().controlSize(.mini)
+                            Text("läuft…")
+                                .font(.caption2)
+                                .foregroundStyle(Color.accentColor)
+                        }
+                    } else if thread.isGroup {
                         Text(participantNames(thread))
                             .font(.caption2)
                             .foregroundStyle(Color.accentColor)
