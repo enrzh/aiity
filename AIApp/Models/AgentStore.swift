@@ -161,7 +161,17 @@ final class AgentStore: ObservableObject {
     private static let fileName = "agents.json"
 
     private static var fileURL: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        #if DEBUG
+        // Hermetic UI tests: agents.json otherwise persists in the simulator
+        // container between runs, so each run inherited every agent an earlier
+        // one created — eleven of them, several sharing a name. That polluted
+        // the roster the test selects from and made failures meaningless.
+        if let override = ProcessInfo.processInfo.environment["AIITY_AGENTS_FILE"],
+           !override.isEmpty {
+            return URL(fileURLWithPath: override)
+        }
+        #endif
+        return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent(fileName)
     }
 

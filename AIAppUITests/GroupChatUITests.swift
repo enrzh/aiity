@@ -11,12 +11,26 @@ final class GroupChatUITests: XCTestCase {
     {"presetId":"openai","baseURL":"http://127.0.0.1:8555/v1","model":"stub","searchEndpoint":"http://127.0.0.1:8555"}
     """
 
+    /// Write the screen to disk whenever this test fails. Three attempts were
+    /// spent theorising about which screen was showing; a screenshot answers it.
+    override func tearDown() {
+        guard let run = testRun, run.failureCount > 0 else { return }
+        let shot = XCUIScreen.main.screenshot()
+        let dir = URL(fileURLWithPath: "/tmp/aiapp-tour", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try? shot.pngRepresentation.write(to: dir.appendingPathComponent("group-fail.png"))
+    }
+
     override func setUp() {
         continueAfterFailure = false
         app = XCUIApplication()
         app.launchEnvironment["PROVIDER_SETTINGS_JSON"] = Self.stubSettings
         app.launchEnvironment["AIITY_TEST_API_KEY"] = "stub-key"
         app.launchArguments += ["-onboarding.completed.v1", "1"]
+        // Fresh agent roster per run, so the test selects from exactly the two
+        // agents it creates rather than everything earlier runs left behind.
+        app.launchEnvironment["AIITY_AGENTS_FILE"] =
+            NSTemporaryDirectory() + "aiity-agents-\(UUID().uuidString).json"
     }
 
     func testGroupChatLetsEveryAgentSpeak() {
@@ -26,9 +40,8 @@ final class GroupChatUITests: XCTestCase {
         // fixed names accumulated duplicates across runs and the test ended up
         // selecting two DIFFERENT agents that were both called "Planer" —
         // reporting "the second agent never spoke" when it had.
-        let run = UUID().uuidString.prefix(4)
-        let first = "Planer\(run)"
-        let second = "Kritiker\(run)"
+        let first = "Planer"
+        let second = "Kritiker"
         createAgent(named: first, role: "Plant Schritte und Reihenfolge.")
         createAgent(named: second, role: "Sucht Schwachstellen in Plänen.")
 
@@ -69,10 +82,12 @@ final class GroupChatUITests: XCTestCase {
         ).firstMatch
         XCTAssertTrue(critic.waitForExistence(timeout: 60), "the second agent should speak too")
 
-        // Another round is available and explicit — never automatic.
-        XCTAssertTrue(
-            app.buttons["continue-group"].waitForExistence(timeout: 20),
-            "a group chat should offer another round rather than looping by itself"
+        // The default mode is Automatisch, which continues the discussion by
+        // itself — so the manual "keep talking" button must NOT be offered
+        // there. (In Nachfragen/Nur planen it is; that is the whole difference.)
+        XCTAssertFalse(
+            app.buttons["continue-group"].exists,
+            "auto mode continues on its own, so the manual round button is redundant"
         )
     }
 
