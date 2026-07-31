@@ -24,7 +24,10 @@ struct ChatComposer: View {
                 Image(systemName: prefs.chatMode.systemImage)
                     .font(.body.weight(.semibold))
                     .foregroundStyle(prefs.chatMode == .auto ? Color.secondary : Theme.accent)
-                    .frame(width: 34, height: 34)
+                    // Same metric as the send button so all three items in the
+                    // row share one baseline — 34pt made it sit low and small
+                    // against the input pill's minHeight.
+                    .frame(width: Theme.controlHeight, height: Theme.controlHeight)
                     .background(Color(.tertiarySystemBackground), in: Circle())
             }
             .accessibilityIdentifier("chat-mode")

@@ -73,3 +73,28 @@ final class ThreadDecodingTests: XCTestCase {
         XCTAssertEqual(ChatThread().preview, "Noch keine Nachrichten")
     }
 }
+
+/// The conversation list orders by real activity, not by what you looked at.
+final class ThreadOrderingTests: XCTestCase {
+    @MainActor
+    func testOpeningAConversationDoesNotReorderTheList() {
+        let session = ChatSession()
+        let older = Date(timeIntervalSince1970: 1_000_000)
+
+        // A thread whose last activity was long ago.
+        guard let id = session.newThread() else { return XCTFail("could not create a thread") }
+        session.messages = [ChatMessage(role: .user, text: "alt")]
+        session.persistPublic()
+
+        // Backdate it, then merely open it again.
+        let before = session.threads.first { $0.id == id }?.updatedAt ?? older
+        session.open(threadId: id)
+        session.persistPublic()
+        let after = session.threads.first { $0.id == id }?.updatedAt ?? Date()
+
+        XCTAssertEqual(
+            before.timeIntervalSince1970, after.timeIntervalSince1970, accuracy: 0.001,
+            "opening a conversation must not count as activity"
+        )
+    }
+}

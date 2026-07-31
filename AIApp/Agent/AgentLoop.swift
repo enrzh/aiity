@@ -1009,9 +1009,13 @@ final class ChatSession: ObservableObject {
     private func currentSnapshotThread(existing: ChatThread? = nil) -> ChatThread {
         var thread = existing ?? ChatThread(id: activeThreadId)
         thread.id = activeThreadId
+        let contentChanged = thread.messages != messages
         thread.messages = messages
         thread.editingContext = editingContext
-        if !messages.isEmpty { thread.updatedAt = .now }
+        // Only real activity reorders the list. Bumping on every persist meant
+        // simply OPENING a conversation moved it to the top, so the list showed
+        // "recently viewed" while claiming to show recent messages.
+        if !messages.isEmpty, contentChanged { thread.updatedAt = .now }
         if thread.title.isEmpty {
             if let context = editingContext {
                 thread.title = "✏️ \(context.name)"
