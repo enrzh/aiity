@@ -67,3 +67,73 @@ enum Theme {
         )
     }
 }
+
+// MARK: - Glass
+
+/// Liquid-glass surface with a pre-iOS-26 fallback.
+///
+/// `glassEffect` only exists from iOS 26, and the deployment target is 17 — so
+/// this picks the real thing where available and a material that reads
+/// similarly where not, instead of gating the whole app's look on a new OS.
+struct GlassSurface: ViewModifier {
+    var shape: AnyShape
+    /// Interactive surfaces get the reactive variant that responds to touch.
+    var interactive: Bool
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.glassEffect(
+                interactive ? .regular.interactive() : .regular,
+                in: shape
+            )
+        } else {
+            content
+                .background(.ultraThinMaterial, in: shape)
+                .overlay {
+                    shape.stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
+                }
+        }
+    }
+}
+
+extension View {
+    /// Apply the app's glass treatment in a given shape.
+    func glassSurface(
+        in shape: some Shape = RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous),
+        interactive: Bool = false
+    ) -> some View {
+        modifier(GlassSurface(shape: AnyShape(shape), interactive: interactive))
+    }
+}
+
+/// Which appearance the user picked, independent of the system setting.
+enum AppAppearance: String, CaseIterable, Identifiable, Codable {
+    case system, light, dark
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .system: return "System"
+        case .light: return "Hell"
+        case .dark: return "Dunkel"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .system: return "circle.lefthalf.filled"
+        case .light: return "sun.max"
+        case .dark: return "moon"
+        }
+    }
+
+    /// nil = follow the device, which is what `.system` means to SwiftUI.
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
+        }
+    }
+}

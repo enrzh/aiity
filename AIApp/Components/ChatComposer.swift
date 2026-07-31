@@ -28,7 +28,7 @@ struct ChatComposer: View {
                     // row share one baseline — 34pt made it sit low and small
                     // against the input pill's minHeight.
                     .frame(width: Theme.controlHeight, height: Theme.controlHeight)
-                    .background(Color(.tertiarySystemBackground), in: Circle())
+                    .glassSurface(in: Circle(), interactive: true)
             }
             .accessibilityIdentifier("chat-mode")
             .accessibilityLabel("Modus: \(prefs.chatMode.title)")
@@ -39,14 +39,9 @@ struct ChatComposer: View {
                 .textFieldStyle(.plain)
                 .padding(.horizontal, Theme.space3)
                 .frame(minHeight: Theme.controlHeight)
-                .background(
-                    Color(.secondarySystemBackground),
+                .glassSurface(
                     in: RoundedRectangle(cornerRadius: Theme.bubbleRadius, style: .continuous)
                 )
-                .overlay {
-                    RoundedRectangle(cornerRadius: Theme.bubbleRadius, style: .continuous)
-                        .strokeBorder(Color.primary.opacity(0.06))
-                }
                 .onSubmit(onSend)
                 .disabled(isBusy)
                 .accessibilityIdentifier("chat-input")

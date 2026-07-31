@@ -628,6 +628,8 @@ private struct MiniAppCard: View {
         }
         .padding(Theme.space2)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
+        // Glass: the card now floats over the scrolling conversation, so it
+        // should read as a layer above it rather than another opaque block.
+        .glassSurface(in: RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
     }
 }

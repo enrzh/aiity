@@ -98,3 +98,22 @@ final class ThreadOrderingTests: XCTestCase {
         )
     }
 }
+
+/// The appearance override is a user choice that must survive a relaunch.
+final class AppAppearanceTests: XCTestCase {
+    func testSystemFollowsTheDevice() {
+        // nil is how SwiftUI expresses "don't override".
+        XCTAssertNil(AppAppearance.system.colorScheme)
+        XCTAssertEqual(AppAppearance.light.colorScheme, .light)
+        XCTAssertEqual(AppAppearance.dark.colorScheme, .dark)
+    }
+
+    func testEveryOptionIsLabelledAndPersistable() {
+        XCTAssertEqual(AppAppearance.allCases.count, 3)
+        for option in AppAppearance.allCases {
+            XCTAssertFalse(option.title.isEmpty, option.rawValue)
+            XCTAssertFalse(option.systemImage.isEmpty, option.rawValue)
+            XCTAssertEqual(AppAppearance(rawValue: option.rawValue), option)
+        }
+    }
+}

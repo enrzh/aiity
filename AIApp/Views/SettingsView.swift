@@ -112,6 +112,15 @@ struct SettingsView: View {
                 }
 
                 Section("Anzeige") {
+                    Picker(selection: $prefs.appearance) {
+                        ForEach(AppAppearance.allCases) { option in
+                            Label(option.title, systemImage: option.systemImage).tag(option)
+                        }
+                    } label: {
+                        Label("Erscheinungsbild", systemImage: prefs.appearance.systemImage)
+                    }
+                    .accessibilityIdentifier("appearance-picker")
+
                     Toggle(isOn: $prefs.keepScreenAwakeWhileBuilding) {
                         Label("Bildschirm an beim Build", systemImage: "sun.max")
                     }

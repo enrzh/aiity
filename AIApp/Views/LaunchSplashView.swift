@@ -100,11 +100,12 @@ struct LaunchSplashView: View {
 
     private func tile(_ index: Int) -> some View {
         let progress = tileProgress[index]
-        return RoundedRectangle(cornerRadius: 9, style: .continuous)
-            .fill(Theme.accent.opacity(0.10 + 0.12 * Double(progress)))
+        let shape = RoundedRectangle(cornerRadius: 9, style: .continuous)
+        return shape
+            .fill(Theme.accent.opacity(0.06 + 0.10 * Double(progress)))
+            .glassSurface(in: shape)
             .overlay(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .strokeBorder(Theme.accent.opacity(0.45 * Double(progress)), lineWidth: 1)
+                shape.strokeBorder(Theme.accent.opacity(0.45 * Double(progress)), lineWidth: 1)
             )
             .frame(width: 61, height: 61)
             .scaleEffect(0.86 + 0.14 * progress)

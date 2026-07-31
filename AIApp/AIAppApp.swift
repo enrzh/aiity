@@ -85,6 +85,7 @@ struct AIAppApp: App {
 }
 
 struct RootView: View {
+    @ObservedObject private var prefs = AppPreferences.shared
     @StateObject private var session = ChatSession()
     @StateObject private var settingsStore = SettingsStore()
     @StateObject private var accountStore = AccountStore()
@@ -114,6 +115,8 @@ struct RootView: View {
             Theme.Motion.preferSpring(Theme.Motion.soft, reduceMotion: false),
             value: splashFinished
         )
+        // Applied at the root so every sheet and pushed screen inherits it.
+        .preferredColorScheme(prefs.appearance.colorScheme)
         .task {
             // The store is already open by the time RootView appears, so there
             // is nothing to wait ON — this is purely the entrance finishing.

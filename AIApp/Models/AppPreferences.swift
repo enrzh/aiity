@@ -11,6 +11,12 @@ final class AppPreferences: ObservableObject {
     static let allowLocalToolsKey = "prefs.allowLocalTools.v1"
     static let iCloudSyncKey = "prefs.iCloudSync.v1"
     private static let chatModeKey = "prefs.chatMode.v1"
+    private static let appearanceKey = "prefs.appearance.v1"
+
+    /// Light/dark/system, independent of the device setting.
+    @Published var appearance: AppAppearance {
+        didSet { UserDefaults.standard.set(appearance.rawValue, forKey: Self.appearanceKey) }
+    }
 
     /// How much the agent asks before acting. Sticky across launches — a user
     /// who wants to be asked wants that every time, not until the next restart.
@@ -62,6 +68,9 @@ final class AppPreferences: ObservableObject {
         allowLocalTools = UserDefaults.standard.bool(forKey: Self.allowLocalToolsKey)
         iCloudSyncEnabled = Self.iCloudSyncPreference
         chatMode = Self.storedChatMode
+        appearance = AppAppearance(
+            rawValue: UserDefaults.standard.string(forKey: Self.appearanceKey) ?? ""
+        ) ?? .system
     }
 }
 
