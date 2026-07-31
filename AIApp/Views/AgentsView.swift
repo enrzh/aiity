@@ -226,6 +226,10 @@ struct AgentEditSheet: View {
                     TextField("Name (z. B. Rechercheur)", text: $agent.name)
                         .accessibilityIdentifier("agent-name")
                     TextField("Emoji", text: $agent.emoji)
+                    Toggle(isOn: $agent.isLead) {
+                        Label("Leitet Gruppen", systemImage: "star")
+                    }
+                    .accessibilityIdentifier("agent-lead")
                     if nameIsTaken {
                         Text("Diesen Namen gibt es schon. Namen müssen eindeutig sein — der Chat spricht Agenten über den Namen an.")
                             .font(.caption)
@@ -270,7 +274,7 @@ struct AgentEditSheet: View {
                 } header: {
                     Text("Aufgabe")
                 } footer: {
-                    Text("Wird zum System-Prompt des Agenten — und der Chat liest ihn, um zu entscheiden, wann er ihn fragt. Je konkreter, desto besser.")
+                    Text("Wird zum System-Prompt des Agenten — und der Chat liest ihn, um zu entscheiden, wann er ihn fragt. Je konkreter, desto besser. Die Leitung spricht in Gruppen zuletzt und führt die Beiträge zu einem Ergebnis zusammen.")
                 }
 
                 Section {

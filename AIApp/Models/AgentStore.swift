@@ -20,6 +20,11 @@ struct AgentDefinition: Identifiable, Codable, Equatable {
     /// Model id for that provider. Empty = that provider's default.
     var model: String = ""
     var enabled: Bool = true
+    /// Leads the group: speaks LAST, after hearing everyone, and is expected to
+    /// decide and produce the actual output rather than add another opinion.
+    /// Without one, every agent answers the user in parallel and nobody owns
+    /// the result — which reads as agents talking past each other.
+    var isLead: Bool = false
 
     init(
         id: UUID = UUID(),
@@ -28,7 +33,8 @@ struct AgentDefinition: Identifiable, Codable, Equatable {
         emoji: String = "🤖",
         presetId: String = "",
         model: String = "",
-        enabled: Bool = true
+        enabled: Bool = true,
+        isLead: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -37,6 +43,7 @@ struct AgentDefinition: Identifiable, Codable, Equatable {
         self.presetId = presetId
         self.model = model
         self.enabled = enabled
+        self.isLead = isLead
     }
 
     // Hand-written for the same reason as `ChatThread`: Swift's synthesized
@@ -44,7 +51,7 @@ struct AgentDefinition: Identifiable, Codable, Equatable {
     // here would make every stored agent undecodable — and one throw fails the
     // whole array, wiping the roster. Only name and role are truly mandatory.
     private enum CodingKeys: String, CodingKey {
-        case id, name, role, emoji, presetId, model, enabled
+        case id, name, role, emoji, presetId, model, enabled, isLead
     }
 
     init(from decoder: Decoder) throws {
@@ -56,6 +63,7 @@ struct AgentDefinition: Identifiable, Codable, Equatable {
         presetId = try c.decodeIfPresent(String.self, forKey: .presetId) ?? ""
         model = try c.decodeIfPresent(String.self, forKey: .model) ?? ""
         enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
+        isLead = try c.decodeIfPresent(Bool.self, forKey: .isLead) ?? false
     }
 
     /// Name normalised for tool arguments — the model will echo this back.

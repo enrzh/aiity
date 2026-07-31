@@ -36,7 +36,7 @@ enum GroupChatRunner {
         onTurn: @escaping (Turn) -> Void
     ) async {
         var running = transcript
-        let speaking = Array(agents.prefix(maxAgentsPerRound))
+        let speaking = Array(speakingOrder(agents).prefix(maxAgentsPerRound))
         if agents.count > speaking.count {
             // Silently muting members looks like a broken app; say it once.
             onTurn(Turn(
@@ -72,6 +72,12 @@ enum GroupChatRunner {
                 authorEmoji: agent.emoji
             ))
         }
+    }
+
+    /// Contributors first in the user's chosen order, the lead last — it can
+    /// only decide on what it has actually heard.
+    static func speakingOrder(_ agents: [AgentDefinition]) -> [AgentDefinition] {
+        agents.filter { !$0.isLead } + agents.filter(\.isLead)
     }
 
     private static func speak(
@@ -146,10 +152,27 @@ enum GroupChatRunner {
         }
     }
 
+    /// What the lead is for. Without this a group produces N opinions and
+    /// no outcome — the complaint that agents talk away from each other.
+    private static let leadBrief = """
+        DU LEITEST DIESE GRUPPE. Du sprichst als Letzter, nachdem alle anderen dran waren.
+        Deine Aufgabe ist nicht, noch eine Meinung hinzuzufügen, sondern daraus ETWAS ZU MACHEN:
+        - Fass zusammen, worauf ihr euch einig seid, und entscheide, wo ihr es nicht seid — mit Begründung.
+        - Sag verbindlich, was als Nächstes passiert und wer was beiträgt.
+        - Wenn die Runde reif dafür ist, liefere das eigentliche Ergebnis direkt (Plan, Entwurf, Text).
+        - Fehlt noch etwas Wesentliches, benenne genau diese eine Lücke statt allgemein weiterzureden.
+        """
+
+    private static let contributorBrief = """
+        In dieser Gruppe entscheidet am Ende die Leitung und führt die Beiträge zusammen.
+        Liefere deinen Fachbeitrag aus deiner Rolle heraus — knapp und konkret, damit die Leitung damit arbeiten kann.
+        Wiederhol nicht die Aufgabe und fass nicht die anderen zusammen; das macht die Leitung.
+        """
+
     private static func systemPrompt(for agent: AgentDefinition, peers: [AgentDefinition]) -> String {
         let others = peers
             .filter { $0.id != agent.id }
-            .map { "\($0.emoji) \($0.name) — \($0.role.prefix(120))" }
+            .map { "\($0.emoji) \($0.name)\($0.isLead ? " (Leitung)" : "") — \($0.role.prefix(120))" }
             .joined(separator: "\n")
         let roster = others.isEmpty
             ? "Du bist der einzige Agent in dieser Runde."
@@ -162,6 +185,8 @@ enum GroupChatRunner {
         \(agent.role)
 
         \(roster)
+
+        \(agent.isLead ? leadBrief : contributorBrief)
 
         So läuft der Chat:
         - Antworte NUR als \(agent.name), in der Ich-Form. Schreib niemals die Beiträge der anderen.

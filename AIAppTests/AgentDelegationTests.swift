@@ -255,3 +255,52 @@ final class GroupRoundBudgetTests: XCTestCase {
         }
     }
 }
+
+/// A group without a lead produces opinions and no outcome. The lead speaks
+/// last, so it can decide on what it has actually heard.
+final class GroupLeadTests: XCTestCase {
+    private func agent(_ name: String, lead: Bool = false) -> AgentDefinition {
+        AgentDefinition(name: name, role: "tut etwas", isLead: lead)
+    }
+
+    func testLeadSpeaksLastWhateverOrderItWasAddedIn() {
+        let boss = agent("Chef", lead: true)
+        let a = agent("A")
+        let b = agent("B")
+        let ordered = GroupChatRunner.speakingOrder([boss, a, b])
+        XCTAssertEqual(ordered.map(\.name), ["A", "B", "Chef"])
+    }
+
+    func testContributorOrderIsPreserved() {
+        let ordered = GroupChatRunner.speakingOrder([agent("Erst"), agent("Zweit"), agent("Chef", lead: true)])
+        XCTAssertEqual(ordered.map(\.name), ["Erst", "Zweit", "Chef"])
+    }
+
+    func testAGroupWithoutALeadKeepsItsOrder() {
+        let ordered = GroupChatRunner.speakingOrder([agent("A"), agent("B")])
+        XCTAssertEqual(ordered.map(\.name), ["A", "B"])
+    }
+
+    /// Several leads would each think they decide; last one still speaks last.
+    func testMultipleLeadsAllMoveToTheEnd() {
+        let ordered = GroupChatRunner.speakingOrder([
+            agent("Chef1", lead: true), agent("A"), agent("Chef2", lead: true),
+        ])
+        XCTAssertEqual(ordered.map(\.name), ["A", "Chef1", "Chef2"])
+    }
+
+    /// The flag must survive persistence like every other agent field.
+    func testLeadFlagRoundTrips() throws {
+        let data = try JSONEncoder().encode(agent("Chef", lead: true))
+        let decoded = try JSONDecoder().decode(AgentDefinition.self, from: data)
+        XCTAssertTrue(decoded.isLead)
+    }
+
+    /// Agents saved before this feature existed must still decode.
+    func testLegacyAgentWithoutLeadFlagDecodes() throws {
+        let json = #"{"id":"6C7A5C03-496D-4DFA-A509-29E08C8173A2","name":"Alt","role":"x"}"#
+        let decoded = try JSONDecoder().decode(AgentDefinition.self, from: Data(json.utf8))
+        XCTAssertFalse(decoded.isLead)
+        XCTAssertEqual(decoded.name, "Alt")
+    }
+}
