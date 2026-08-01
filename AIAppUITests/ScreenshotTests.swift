@@ -25,14 +25,14 @@ final class ScreenshotTests: XCTestCase {
     /// shape the app is actually for.
     private static let roster = """
     [
-      {"id":"11111111-1111-4111-8111-111111111111","name":"Rechercheur",
-       "role":"Nennt die harten Fakten und Zahlen, die für die Entscheidung zählen.",
+      {"id":"11111111-1111-4111-8111-111111111111","name":"Researcher",
+       "role":"States the hard facts and numbers that matter for the decision.",
        "emoji":"🔎","enabled":true,"isLead":false,"presetId":"","model":""},
-      {"id":"22222222-2222-4222-8222-222222222222","name":"Kritiker",
-       "role":"Sucht die Schwachstelle: falsche Annahme, fehlender Fall, unbegründete Behauptung.",
+      {"id":"22222222-2222-4222-8222-222222222222","name":"Critic",
+       "role":"Finds the weak point: a wrong assumption, a missing case, an unfounded claim.",
        "emoji":"🧐","enabled":true,"isLead":false,"presetId":"","model":""},
-      {"id":"33333333-3333-4333-8333-333333333333","name":"Leitung",
-       "role":"Führt die Beiträge zu einer Entscheidung zusammen und benennt den nächsten Schritt.",
+      {"id":"33333333-3333-4333-8333-333333333333","name":"Lead",
+       "role":"Pulls the contributions into a decision and names the next step.",
        "emoji":"⭐️","enabled":true,"isLead":true,"presetId":"","model":""}
     ]
     """
@@ -48,6 +48,10 @@ final class ScreenshotTests: XCTestCase {
 
         let app = XCUIApplication()
         app.launchArguments += ["-onboarding.completed.v1", "1"]
+        // Force the interface language so the frames are reproducible rather
+        // than depending on the simulator's setting. AIITY_SHOT_LANG=fr etc.
+        let language = ProcessInfo.processInfo.environment["AIITY_SHOT_LANG"] ?? "en"
+        app.launchArguments += ["-AppleLanguages", "(\(language))", "-AppleLocale", language]
         app.launchEnvironment["AIITY_AGENTS_FILE"] = rosterFile.path
         app.launchEnvironment["PROVIDER_SETTINGS_JSON"] = Self.stubProvider
         app.launchEnvironment["AIITY_TEST_API_KEY"] = "stub-key"
@@ -75,37 +79,44 @@ final class ScreenshotTests: XCTestCase {
         sleep(1)
     }
 
+    /// Tab titles are localised now; index by position instead of by word.
+    private var tabLabels: [String] {
+        ProcessInfo.processInfo.environment["AIITY_SHOT_LANG"] == "de"
+            ? ["Agenten", "Apps", "Mehr", "Chat"]
+            : ["Agents", "Apps", "More", "Chat"]
+    }
+
     func testCaptureScreens() {
         let app = launch()
-        XCTAssertTrue(app.navigationBars["Chats"].waitForExistence(timeout: 25))
+        XCTAssertTrue(app.navigationBars.firstMatch.waitForExistence(timeout: 25))
         sleep(2)
         capture("01-chats")
 
-        tab(app, "Agenten")
+        tab(app, tabLabels[0])
         capture("02-agents")
 
-        tab(app, "Apps")
+        tab(app, tabLabels[1])
         capture("03-apps")
 
-        tab(app, "Mehr")
+        tab(app, tabLabels[2])
         capture("04-more")
 
         // Back to chat and open a conversation so the composer and the mode
         // selector are visible — that is where the app's idea actually shows.
-        tab(app, "Chat")
-        let newChat = app.buttons["Neuer Chat"].firstMatch
-        if newChat.waitForExistence(timeout: 5) {
-            newChat.tap()
-        } else {
-            app.buttons["chat-new"].firstMatch.tap()
-        }
+        tab(app, tabLabels[3])
+        // Localised, so match the identifier or any plausible label rather
+        // than one language's word.
+        let newChat = app.buttons.matching(
+            NSPredicate(format: "label CONTAINS[c] 'chat' OR label CONTAINS[c] 'neu'")
+        ).firstMatch
+        if newChat.waitForExistence(timeout: 5) { newChat.tap() }
         sleep(2)
         capture("05-conversation")
 
         let input = app.textFields["chat-input"].firstMatch
         if input.waitForExistence(timeout: 8) {
             input.tap()
-            input.typeText("Bau mir einen Timer für Intervalltraining")
+            input.typeText("Build me a timer for interval training")
             sleep(1)
             capture("06-composer")
         }

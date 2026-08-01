@@ -45,6 +45,7 @@
 		4550F790431214563EBD56C2 /* GroupChatUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98BC40E8C2E345AF205629CD /* GroupChatUITests.swift */; };
 		4A479301F6198310DA7077A7 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DDE36E6528E669C90B4A5AE /* Theme.swift */; };
 		4B72B8AB5D07ACF3ACA0F465 /* WebSearchTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ECF26AD24A8A3ED8DD9E6AA /* WebSearchTool.swift */; };
+		4D82B33B0F7AD7C19F8B293F /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = F42C1EC3BA664190E26905FB /* Localizable.xcstrings */; };
 		4F0C46055999E167345D1444 /* AgentLoop.swift in Sources */ = {isa = PBXBuildFile; fileRef = F56CF7D28858015116950FB2 /* AgentLoop.swift */; };
 		515516005B0987CDA84B8011 /* ChatComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D65132944EDD2E70CE9A4190 /* ChatComposer.swift */; };
 		5195B6E0E2F504654EFF8AB0 /* MiniAppBundleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CD59DF34EB2C44797D18EB6 /* MiniAppBundleTests.swift */; };
@@ -308,6 +309,7 @@
 		EF1FC1BCBCEFE7A60CF649E6 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		EFB08135CC0ED3BF168B18F2 /* AtomicFileStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AtomicFileStoreTests.swift; sourceTree = "<group>"; };
 		F04C8896CDE2E3B7A606FC63 /* BackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupService.swift; sourceTree = "<group>"; };
+		F42C1EC3BA664190E26905FB /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		F56CF7D28858015116950FB2 /* AgentLoop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentLoop.swift; sourceTree = "<group>"; };
 		F94421697B05F7E0BE1255D1 /* SkillPackageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillPackageTests.swift; sourceTree = "<group>"; };
 		F9FF8C6F144D582B46438129 /* ConnectionProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionProbe.swift; sourceTree = "<group>"; };
@@ -503,6 +505,7 @@
 				3D8C4C9C0DF446132CF6E371 /* AIAppApp.swift */,
 				D162B8EE335555B362AF1558 /* Assets.xcassets */,
 				A7C1FFA7A0EB23A72FF72EE4 /* Info.plist */,
+				F42C1EC3BA664190E26905FB /* Localizable.xcstrings */,
 				C16E8E5E4E68B9F5FDCAEFBF /* PrivacyInfo.xcprivacy */,
 				4B05B293EBCB4DE45E90A1E1 /* Agent */,
 				4C621E65A5832BC98F4EC631 /* Components */,
@@ -708,7 +711,15 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				Base,
+				ar,
 				en,
+				es,
+				fr,
+				it,
+				ja,
+				pt,
+				ru,
+				"zh-Hans",
 			);
 			mainGroup = 7907F97423DA594F471039F7;
 			minimizedProjectReferenceProxies = 1;
@@ -742,6 +753,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				112C36316BB40B56BD4B71DE /* Assets.xcassets in Resources */,
+				4D82B33B0F7AD7C19F8B293F /* Localizable.xcstrings in Resources */,
 				AE469D82EC595E85864FCF6E /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

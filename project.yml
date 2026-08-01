@@ -34,6 +34,21 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleDevelopmentRegion: de
+        # Declared explicitly so iOS offers the app in these languages and the
+        # App Store lists them. The actual strings live in
+        # AIApp/Localizable.xcstrings; German is the source language,
+        # so the German text IS the lookup key.
+        CFBundleLocalizations:
+          - de
+          - en
+          - es
+          - fr
+          - pt
+          - it
+          - zh-Hans
+          - ja
+          - ru
+          - ar
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
