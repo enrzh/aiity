@@ -36,11 +36,22 @@ struct AIAppApp: App {
             let parts = request.split(separator: ":", maxSplits: 1).map(String.init)
             var settings = ProviderSettings.load()
             settings.presetId = parts[0]
-            settings.model = parts.count > 1
-                ? parts[1]
-                : ProviderPreset.preset(for: parts[0]).defaultModel
+            let requested = parts.count > 1 ? parts[1] : ""
+            // MLX reads `localModelId`, every other dialect reads `model`.
+            // Writing `model` for MLX (as this did at first) sets a field the
+            // provider never reads — the run then silently used whatever local
+            // model was already selected, which made a device test look like it
+            // proved something it had not.
+            if settings.preset.dialect == .mlx {
+                if !requested.isEmpty { settings.localModelId = requested }
+            } else {
+                settings.model = requested.isEmpty
+                    ? ProviderPreset.preset(for: parts[0]).defaultModel
+                    : requested
+            }
             settings.save()
-            print("AIITY-PROVIDER set to \(settings.presetId) model=\(settings.model)")
+            let effective = settings.preset.dialect == .mlx ? settings.localModelId : settings.model
+            print("AIITY-PROVIDER set to \(settings.presetId) model=\(effective)")
         }
 
         MLXSelfTest.runIfRequested()

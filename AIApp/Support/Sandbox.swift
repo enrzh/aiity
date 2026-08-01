@@ -10,12 +10,22 @@ enum Sandbox {
         <meta name="aiity-capability" content="\(capability.rawValue)">
         <script>\(bridgeScript)</script>
         """
-        if let headRange = html.range(of: "<head>", options: .caseInsensitive) {
-            var hardened = html
-            hardened.insert(contentsOf: injection, at: headRange.upperBound)
-            return hardened
-        }
-        return "<!doctype html><html><head>\(injection)</head><body>\(html)</body></html>"
+        // Never splice into model-authored markup.
+        //
+        // This used to insert after the first literal "<head>" anywhere in the
+        // document. Mini-apps routinely begin with comments the app itself asks
+        // for (`<!-- emoji: … -->`, `<!-- capability: … -->`), so a document
+        // whose leading comment merely CONTAINS the text `<head>` — which a
+        // model steered by a fetched page can arrange — swallowed the whole
+        // injection into that comment. The result was a mini-app with no CSP
+        // and no bridge script at all, and since NSAllowsArbitraryLoads is on
+        // app-wide, that is unrestricted network access from generated code.
+        //
+        // Own the head instead: emit our own document whose <head> starts with
+        // the policy, and put the model's markup after it. A second <head> or a
+        // later <meta> cannot loosen a CSP that is already in force — the first
+        // policy wins and additional ones can only intersect.
+        return "<!doctype html>\n<html>\n<head>\(injection)</head>\n<body>\n\(html)\n</body>\n</html>"
     }
 
     /// Promise-based bridge: storage, haptics, notify, openExternal.

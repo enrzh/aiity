@@ -345,10 +345,9 @@ final class ChatSession: ObservableObject {
         // model always sees it — even when OAuth trims the system prompt.
         ensureSourcePinned()
         // Local models struggle with long histories — keep a short window.
-        if LocalRuntimePolicy.isLocal(settings) {
-            trimHistoryForLocal()
-            ensureSourcePinned()
-        }
+        // Recorded, not applied: the window shapes the REQUEST (see
+        // `outgoing`), never the stored conversation.
+        usesLocalHistoryWindow = LocalRuntimePolicy.isLocal(settings)
         messages.append(ChatMessage(role: .user, text: text))
         persist()
         busy = true
@@ -418,10 +417,20 @@ final class ChatSession: ObservableObject {
     }
 
     /// Keep system + last few turns so 1–8B models don't lose the plot.
-    private func trimHistoryForLocal(maxMessages: Int = 12) {
-        let system = messages.filter { $0.role == .system }
-        let pins = messages.filter { Self.isSourcePinMessage($0) }
-        var rest = messages.filter { $0.role != .system && !Self.isSourcePinMessage($0) }
+    /// Short history for an on-device / LAN model, which struggles with long
+    /// context and — for MLX — pays for it in resident memory.
+    ///
+    /// **Pure.** This used to mutate `self.messages`, four lines before
+    /// `persist()`. Switching a 40-message conversation to a local provider and
+    /// sending one message therefore deleted the older 28 from disk: the
+    /// truncated array was synced into the thread and written over
+    /// chat-threads.json, with no quarantine copy and no way back — switching
+    /// to a cloud provider again did not restore them. A request window has no
+    /// business touching stored history, so this returns one instead.
+    static func historyForLocal(_ history: [ChatMessage], maxMessages: Int = 12) -> [ChatMessage] {
+        let system = history.filter { $0.role == .system }
+        let pins = history.filter { isSourcePinMessage($0) }
+        var rest = history.filter { $0.role != .system && !isSourcePinMessage($0) }
         // Drop tool scaffolding that confuses locals
         rest.removeAll { $0.role == .tool }
         for i in rest.indices where rest[i].role == .assistant {
@@ -431,7 +440,16 @@ final class ChatSession: ObservableObject {
             rest = Array(rest.suffix(maxMessages))
         }
         // System → source pin → recent turns (pin must not be trimmed away).
-        messages = system + pins.suffix(1) + rest
+        return system + pins.suffix(1) + rest
+    }
+
+    /// Whether this turn's REQUESTS should use the short local window. Set once
+    /// per send from the resolved provider; never affects what is stored.
+    private var usesLocalHistoryWindow = false
+
+    /// The message list to send, as opposed to the one we keep.
+    private func outgoing(_ history: [ChatMessage]) -> [ChatMessage] {
+        usesLocalHistoryWindow ? Self.historyForLocal(history) : history
     }
 
     /// Insert / refresh the hidden full-source user message while editing.
@@ -484,6 +502,14 @@ final class ChatSession: ObservableObject {
         activeTask = nil
         busy = false
         statusLine = nil
+        // Cleared on EVERY exit, not only on a clean finish. It was previously
+        // set in runGroupRound and cleared in one success path, so a stopped or
+        // failed round left the conversation list showing "läuft…" forever —
+        // and `switchTo` now reads this flag to tell a thread-safe group round
+        // from an unsafe solo turn, so a stale value would be a correctness bug
+        // rather than a cosmetic one.
+        runningThreadId = nil
+        ScreenWake.shared.setAgentBusy(false)
         AgentLiveActivityController.shared.cancel()
         if let last = messages.indices.last,
            messages[last].role == .assistant,
@@ -553,7 +579,7 @@ final class ChatSession: ObservableObject {
 
             do {
                 var charBudget = 0
-                for try await event in provider.streamChat(messages: Array(messages[..<assistantIndex]), tools: specs) {
+                for try await event in provider.streamChat(messages: outgoing(Array(messages[..<assistantIndex])), tools: specs) {
                     if Task.isCancelled { return }
                     switch event {
                     case .textDelta(let delta):
@@ -665,7 +691,7 @@ final class ChatSession: ObservableObject {
         messages.append(ChatMessage(role: .assistant, text: ""))
         let assistantIndex = messages.count - 1
         do {
-            for try await event in provider.streamChat(messages: Array(messages[..<assistantIndex]), tools: []) {
+            for try await event in provider.streamChat(messages: outgoing(Array(messages[..<assistantIndex])), tools: []) {
                 if Task.isCancelled { return }
                 if case .textDelta(let delta) = event {
                     messages[assistantIndex].text += delta
@@ -839,8 +865,13 @@ final class ChatSession: ObservableObject {
     // MARK: - Group conversations
 
     /// Participants of the open thread, resolved against the agent store.
-    var activeParticipants: [AgentDefinition] {
-        let ids = activeParticipantIds
+    var activeParticipants: [AgentDefinition] { participants(inThread: activeThreadId) }
+
+    /// Participants of a NAMED thread. A discussion that runs several rounds
+    /// must keep asking the roster it began with, even if the user has since
+    /// opened a different conversation.
+    func participants(inThread threadId: UUID) -> [AgentDefinition] {
+        let ids = threads.first(where: { $0.id == threadId })?.participantAgentIds ?? []
         guard !ids.isEmpty else { return [] }
         // `active()`, not `load()`: a switched-off agent must not speak in a
         // group either — the toggle meant nothing here before.
@@ -874,12 +905,18 @@ final class ChatSession: ObservableObject {
     /// Group rounds already run for the current user message.
     private var groupRoundsThisTurn = 0
 
-    private func runGroupRound(settings: ProviderSettings) {
+    /// - Parameter threadId: the conversation this discussion belongs to.
+    ///   Passed explicitly for rounds 2+ because by then the user may have
+    ///   opened a different conversation, and re-deriving it from
+    ///   `activeThreadId` sent the next round into whatever was on screen — a
+    ///   solo chat would resolve to zero participants and show "Keine aktiven
+    ///   Agenten in dieser Gruppe" in a conversation that never had any.
+    private func runGroupRound(settings: ProviderSettings, threadId: UUID? = nil) {
         // The round belongs to the thread it STARTED on. The user may now open
         // another conversation while it runs, so every turn is filed by id —
         // appending to `messages` would drop them into whatever is on screen.
-        let roundThreadId = activeThreadId
-        let participants = activeParticipants
+        let roundThreadId = threadId ?? activeThreadId
+        let participants = participants(inThread: roundThreadId)
         #if DEBUG
         print("AIITY-GROUP ids=\(activeParticipantIds.count) resolved=\(participants.count) names=\(participants.map(\.name))")
         #endif
@@ -992,7 +1029,7 @@ final class ChatSession: ObservableObject {
                 // the user tap for each round — still bounded.
                 let mode = AppPreferences.storedChatMode
                 if self.groupRoundsThisTurn < mode.automaticGroupRounds {
-                    self.runGroupRound(settings: settings)
+                    self.runGroupRound(settings: settings, threadId: roundThreadId)
                     return
                 }
                 self.busy = false
@@ -1025,9 +1062,10 @@ final class ChatSession: ObservableObject {
     /// Open a conversation from the list: make it active and drive the push.
     func open(threadId: UUID) {
         switchTo(threadId: threadId)
-        // Push only what we actually switched to. `switchTo` refuses while a
-        // turn is running, so pushing regardless showed the CURRENT conversation
-        // under the tapped row's identity — the user reads someone else's chat.
+        // Push only what we actually switched to. `switchTo` can decline (an
+        // unknown id), and pushing regardless would show the CURRENT
+        // conversation under the tapped row's identity — the user reads
+        // someone else's chat.
         guard activeThreadId == threadId else { return }
         openThreadId = threadId
     }
@@ -1041,11 +1079,25 @@ final class ChatSession: ObservableObject {
 
     func switchTo(threadId: UUID) {
         guard threadId != activeThreadId else { return }
-        // A running turn no longer locks the whole app: its round keeps going
-        // against the thread it started on (runGroupRound holds its own
-        // participants and appends by id), so the user can read another
-        // conversation meanwhile.
         guard threads.contains(where: { $0.id == threadId }) else { return }
+
+        // A GROUP round survives the switch, which is the whole point of
+        // allowing one: it captured its thread id up front and files every turn
+        // through `append(_:toThread:)`, so it never touches `messages`.
+        //
+        // A SOLO turn does not. `runTurn` holds a raw `assistantIndex` into
+        // `messages` across the streaming await, and `loadActiveThread()` below
+        // replaces that array wholesale. Letting it run past the switch means
+        // one of two things on the next token: a shorter target thread traps on
+        // `messages[assistantIndex]` — an outright crash — and a longer one
+        // appends this conversation's answer into the middle of the other
+        // conversation, which `persist()` then writes to disk.
+        //
+        // Relaxing the old `guard !busy` was right for groups and wrong for
+        // solo turns; this draws the line where the safety actually differs.
+        if busy, runningThreadId == nil {
+            stop()
+        }
         DiagnosticsRecorder.shared.record(
             "chat", "Unterhaltung gewechselt\(busy ? " — während ein Lauf aktiv ist" : "")"
         )
@@ -1078,7 +1130,14 @@ final class ChatSession: ObservableObject {
 
     /// Entry point from the library / mini-app sheet: continue a saved mini-app.
     func startEditing(id: UUID, name: String, html: String) {
-        newThread()
+        // `newThread()` returns nil while a turn is running. Ignoring that and
+        // assigning `messages` below replaced the LIVE conversation instead of
+        // a fresh one — destroying it on disk via persist(), and leaving the
+        // in-flight turn indexing into an array that no longer has its slot.
+        guard newThread() != nil else {
+            errorMessage = "Es läuft gerade eine Antwort — bitte kurz warten oder stoppen."
+            return
+        }
         editingContext = EditingContext(id: id, name: name, html: html)
         messages = [
             ChatMessage(
@@ -1094,7 +1153,10 @@ final class ChatSession: ObservableObject {
 
     /// Preview / unsaved draft → new edit thread (keep will insert a new app).
     func startEditingDraft(name: String, html: String, emoji: String = "✨") {
-        newThread()
+        guard newThread() != nil else {
+            errorMessage = "Es läuft gerade eine Antwort — bitte kurz warten oder stoppen."
+            return
+        }
         editingContext = EditingContext(id: UUID(), name: name, html: html)
         messages = [
             ChatMessage(
@@ -1173,6 +1235,19 @@ final class ChatSession: ObservableObject {
 
     /// Public hook so UI can flush after clearing edit mode etc.
     func persistPublic() { persist() }
+
+    #if DEBUG
+    /// Put the session into the state a running GROUP round leaves it in.
+    /// `switchTo` distinguishes that from a solo turn, and the difference
+    /// decides whether the in-flight work is stopped — worth testing without
+    /// standing up a provider, a network and an agent roster.
+    var activeThreadIdForTesting: UUID { activeThreadId }
+
+    func beginGroupRoundForTesting(threadId: UUID) {
+        busy = true
+        runningThreadId = threadId
+    }
+    #endif
 
     /// Re-read the archive from disk, discarding in-memory state.
     ///

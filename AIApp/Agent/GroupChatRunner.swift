@@ -108,15 +108,23 @@ enum GroupChatRunner {
         if settings.preset.needsKey, apiKey.isEmpty, !ConnectionProbe.isLocalStyle(settings.presetId) {
             return "(kein Konto hinterlegt — unter Anbieter einen Key eintragen)"
         }
-        // MLX used to be exempt here, on the assumption it had a sensible
-        // default. It does not — the preset's defaultModel is "" — so an agent
-        // with no model chosen went on to load nothing and the round failed
-        // deep inside the runtime instead of here. That configuration was
-        // live on a real device.
-        if settings.effectiveModel.trimmingCharacters(in: .whitespaces).isEmpty {
-            return settings.preset.dialect == .mlx
-                ? "(kein lokales Modell gewählt — unter Anbieter eins laden und auswählen)"
-                : "(kein Modell gewählt)"
+        // MLX keeps its model in a DIFFERENT field. `makeProvider` builds
+        // MLXProvider(modelId: localModelId) and never looks at `model`, which
+        // stays empty for on-device setups — so gating MLX on `effectiveModel`
+        // (as this did briefly) rejected every local agent even when a model
+        // was downloaded and selected. Check the field the provider actually
+        // uses, and check the model is really on disk: that is the state that
+        // otherwise fails deep inside the runtime instead of here.
+        if settings.preset.dialect == .mlx {
+            let localId = settings.localModelId.trimmingCharacters(in: .whitespaces)
+            if localId.isEmpty {
+                return "(kein lokales Modell gewählt — unter Anbieter eins laden und auswählen)"
+            }
+            if !LocalModelLocation.isDownloaded(localId) {
+                return "(lokales Modell nicht geladen — unter Anbieter herunterladen)"
+            }
+        } else if settings.effectiveModel.trimmingCharacters(in: .whitespaces).isEmpty {
+            return "(kein Modell gewählt)"
         }
 
         let provider = settings.makeProvider(apiKey: apiKey)

@@ -1,0 +1,254 @@
+import XCTest
+@testable import AIApp
+
+/// Regressions for the defects an adversarial audit confirmed before release.
+/// Each one describes the user-visible failure, not the code shape — the code
+/// shape is what changed.
+
+/// The blocker: switching conversation mid-answer.
+@MainActor
+final class ThreadSwitchSafetyTests: XCTestCase {
+
+    /// A solo turn holds a raw index into `messages` across the streaming
+    /// await, and switching conversations replaces that array wholesale. The
+    /// next token then either traps on an out-of-range index or writes this
+    /// conversation's answer into the middle of the other one — and persists
+    /// it. So a solo turn must not survive the switch.
+    func testSwitchingConversationStopsARunningSoloTurn() {
+        let session = ChatSession()
+        guard let first = session.newThread() else { return XCTFail("no thread") }
+        session.messages = [ChatMessage(role: .user, text: "läuft")]
+        session.persistPublic()
+        guard let second = session.newThread() else { return XCTFail("no second thread") }
+        // Content matters: persist() prunes empty threads, so a fixture without
+        // a message vanishes before the switch under test can find it.
+        session.messages = [ChatMessage(role: .user, text: "andere Unterhaltung")]
+        session.persistPublic()
+
+        session.switchTo(threadId: first)
+        XCTAssertEqual(session.activeThreadIdForTesting, first, "precondition: first is open")
+        session.busy = true                 // stand in for a streaming solo turn
+        XCTAssertNil(session.runningThreadId, "a solo turn sets no runningThreadId")
+
+        session.switchTo(threadId: second)
+        XCTAssertEqual(session.activeThreadIdForTesting, second, "the switch must happen")
+        XCTAssertFalse(session.busy, "the unsafe turn must be stopped, not left running")
+    }
+
+    /// A GROUP round is safe across the switch — it captured its thread id and
+    /// files every turn by id. Stopping it too would undo the feature the user
+    /// asked for ("when I leave the chat and it's running, it should continue").
+    func testSwitchingConversationLetsAGroupRoundKeepRunning() {
+        let session = ChatSession()
+        guard let group = session.newThread() else { return XCTFail("no thread") }
+        session.messages = [ChatMessage(role: .user, text: "gruppe")]
+        session.persistPublic()
+        guard let other = session.newThread() else { return XCTFail("no second thread") }
+        session.messages = [ChatMessage(role: .user, text: "andere Unterhaltung")]
+        session.persistPublic()
+
+        session.switchTo(threadId: group)
+        session.beginGroupRoundForTesting(threadId: group)
+        XCTAssertEqual(session.runningThreadId, group)
+
+        session.switchTo(threadId: other)
+        XCTAssertTrue(session.busy, "a thread-scoped group round must survive the switch")
+        XCTAssertEqual(session.runningThreadId, group)
+    }
+
+    /// `stop()` cleared `busy` but not `runningThreadId`, so a stopped round
+    /// left a permanent "läuft…" badge in the conversation list — and now that
+    /// `switchTo` reads the flag to tell a safe round from an unsafe turn, a
+    /// stale value would misclassify the next one.
+    func testStopClearsTheRunningThreadMarker() {
+        let session = ChatSession()
+        guard let id = session.newThread() else { return XCTFail("no thread") }
+        session.beginGroupRoundForTesting(threadId: id)
+        XCTAssertNotNil(session.runningThreadId)
+
+        session.stop()
+        XCTAssertNil(session.runningThreadId)
+        XCTAssertFalse(session.busy)
+    }
+
+    /// `newThread()` declines while a turn is running and returns nil. Ignoring
+    /// that and assigning `messages` replaced the LIVE conversation — the user
+    /// tapped "Mit KI bearbeiten" on a mini-app and lost the chat they were in.
+    func testEditingAMiniAppRefusesToClobberARunningConversation() {
+        let session = ChatSession()
+        guard session.newThread() != nil else { return XCTFail("no thread") }
+        session.messages = [
+            ChatMessage(role: .user, text: "wichtig"),
+            ChatMessage(role: .assistant, text: "läuft gerade"),
+        ]
+        session.busy = true
+
+        session.startEditing(id: UUID(), name: "Timer", html: "<html></html>")
+
+        XCTAssertEqual(session.messages.count, 2, "the running conversation must be untouched")
+        XCTAssertEqual(session.messages.first?.text, "wichtig")
+        XCTAssertNotNil(session.errorMessage, "refusing silently looks like a broken button")
+    }
+}
+
+/// The other blocker: a request window that deleted stored history.
+@MainActor
+final class LocalHistoryWindowTests: XCTestCase {
+
+    private func longHistory() -> [ChatMessage] {
+        [ChatMessage(role: .system, text: "system")]
+            + (0..<40).map { ChatMessage(role: .user, text: "m\($0)") }
+    }
+
+    /// The trim is a view of the history for the request, not an edit of it.
+    /// It used to assign back to `messages` four lines before `persist()`, so
+    /// switching a long conversation to a local model and sending one message
+    /// deleted the older ones from disk — with no quarantine copy, and
+    /// switching back to a cloud provider did not bring them back.
+    func testTrimmingForALocalModelDoesNotMutateTheInput() {
+        let history = longHistory()
+        let trimmed = ChatSession.historyForLocal(history)
+        XCTAssertEqual(history.count, 41, "the source array must be untouched")
+        XCTAssertLessThan(trimmed.count, history.count)
+    }
+
+    /// What actually reaches disk after a local send.
+    func testStoredHistorySurvivesASendOnALocalProvider() {
+        let session = ChatSession()
+        guard let id = session.newThread() else { return XCTFail("no thread") }
+        session.messages = longHistory()
+        session.persistPublic()
+
+        var local = ProviderSettings()
+        local.presetId = "mlx"
+        local.localModelId = "mlx-community/Qwen3-4B-Instruct-2507-4bit"
+        session.send("noch eine Frage", settings: local)
+        session.stop()
+
+        let stored = session.threads.first { $0.id == id }?.messages ?? []
+        XCTAssertGreaterThanOrEqual(
+            stored.count, 41,
+            "the full conversation must still be on disk after a local-model send"
+        )
+    }
+
+    /// System message and the mini-app source pin are not optional context.
+    func testTheWindowKeepsTheSystemMessageAndTheSourcePin() {
+        let pin = ChatSession.sourcePinMessage(
+            for: ChatSession.EditingContext(id: UUID(), name: "App", html: "<html></html>")
+        )
+        let history = [ChatMessage(role: .system, text: "system"), pin]
+            + (0..<30).map { ChatMessage(role: .user, text: "m\($0)") }
+        let trimmed = ChatSession.historyForLocal(history)
+        XCTAssertEqual(trimmed.first?.role, .system)
+        XCTAssertTrue(trimmed.contains { ChatSession.isSourcePinMessage($0) })
+    }
+}
+
+/// A group discussion must keep asking the roster it began with.
+@MainActor
+final class GroupRoundScopingTests: XCTestCase {
+
+    /// Rounds 2+ re-derived the thread from `activeThreadId`. Leaving a running
+    /// group for a solo chat therefore ran the next round against the solo
+    /// chat, which has no participants — so the user got "Keine aktiven Agenten
+    /// in dieser Gruppe" in a conversation that never was one.
+    func testParticipantsResolveAgainstANamedThreadNotWhateverIsOpen() {
+        let session = ChatSession()
+        let members = [UUID(), UUID()]
+        guard let group = session.newThread(participantAgentIds: members) else {
+            return XCTFail("no group thread")
+        }
+        session.messages = [ChatMessage(role: .user, text: "gruppe")]
+        session.persistPublic()
+        guard let solo = session.newThread() else { return XCTFail("no solo thread") }
+        session.messages = [ChatMessage(role: .user, text: "solo")]
+        session.persistPublic()
+        session.switchTo(threadId: solo)
+
+        XCTAssertTrue(session.activeParticipants.isEmpty, "the open thread is solo")
+        // The group's own roster is still reachable by id while another
+        // conversation is on screen — which is what a later round needs.
+        XCTAssertEqual(
+            session.threads.first { $0.id == group }?.participantAgentIds, members
+        )
+        XCTAssertTrue(session.participants(inThread: solo).isEmpty)
+    }
+}
+
+/// The mini-app sandbox.
+final class SandboxHardeningTests: XCTestCase {
+
+    /// The CSP used to be spliced in after the first literal "<head>" found
+    /// anywhere — including inside a leading comment, which mini-apps routinely
+    /// have. A document whose comment merely contained that text swallowed the
+    /// whole injection and ran with NO policy and no bridge. With
+    /// NSAllowsArbitraryLoads on app-wide, that is unrestricted network access
+    /// from generated code.
+    func testAHeadInsideALeadingCommentCannotSwallowThePolicy() {
+        let hostile = """
+        <!doctype html>
+        <!-- emoji: 🧪  template note: <head> -->
+        <html><head><title>x</title></head><body>hi</body></html>
+        """
+        let hardened = Sandbox.harden(hostile, capability: .offline)
+
+        let cspIndex = hardened.range(of: "Content-Security-Policy")
+        XCTAssertNotNil(cspIndex, "every document must carry a policy")
+        let commentEnd = hardened.range(of: "-->")
+        if let cspIndex, let commentEnd {
+            XCTAssertLessThan(
+                hardened.distance(from: hardened.startIndex, to: cspIndex.lowerBound),
+                hardened.distance(from: hardened.startIndex, to: commentEnd.lowerBound),
+                "the policy must precede model-authored markup, not land inside it"
+            )
+        }
+        XCTAssertTrue(hardened.contains("window.miniapp"), "the bridge must survive too")
+    }
+
+    func testEveryCapabilityTierStillGetsAPolicyAndTheBridge() {
+        for capability in MiniAppCapability.allCases {
+            let hardened = Sandbox.harden("<p>plain</p>", capability: capability)
+            XCTAssertTrue(hardened.contains("Content-Security-Policy"), capability.rawValue)
+            XCTAssertTrue(hardened.contains(capability.rawValue), capability.rawValue)
+            XCTAssertTrue(hardened.contains("<!doctype html>"), capability.rawValue)
+        }
+    }
+
+    func testTheOriginalMarkupIsPreserved() {
+        let hardened = Sandbox.harden("<html><head></head><body><h1>Titel</h1></body></html>")
+        XCTAssertTrue(hardened.contains("<h1>Titel</h1>"))
+    }
+}
+
+/// MLX keeps its model in a different field than every other provider.
+final class LocalModelFieldTests: XCTestCase {
+
+    /// `makeProvider` builds `MLXProvider(modelId: localModelId)` and never
+    /// reads `model`. A gate written against `effectiveModel` therefore
+    /// rejected every on-device agent even with a model downloaded and
+    /// selected — and the first version of that gate shipped, silencing every
+    /// local agent in a group. The earlier unit test missed it by populating
+    /// `model`, which the app itself never does for MLX.
+    func testMLXReadsLocalModelIdAndNotModel() {
+        var settings = ProviderSettings()
+        settings.presetId = "mlx"
+        settings.model = ""                                     // as the app leaves it
+        settings.localModelId = "mlx-community/Qwen3-4B-Instruct-2507-4bit"
+
+        XCTAssertTrue(
+            settings.effectiveModel.trimmingCharacters(in: .whitespaces).isEmpty,
+            "this is the field a naive gate checks — and it is empty by design"
+        )
+        guard let provider = settings.makeProvider(apiKey: "") as? MLXProvider else {
+            return XCTFail("mlx must build an MLXProvider")
+        }
+        XCTAssertEqual(provider.modelId, settings.localModelId,
+                       "the provider uses localModelId, so the gate must too")
+    }
+
+    /// The preset has no default, which is why the empty case must be caught.
+    func testTheMLXPresetHasNoDefaultModelToFallBackOn() {
+        XCTAssertTrue(ProviderPreset.preset(for: "mlx").defaultModel.isEmpty)
+    }
+}

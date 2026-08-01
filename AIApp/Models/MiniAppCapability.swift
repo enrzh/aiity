@@ -2,7 +2,7 @@ import Foundation
 
 /// What a mini-app is allowed to do outside pure offline UI.
 /// Declared in HTML: `<!-- capability: offline|network|browser -->`
-enum MiniAppCapability: String, Codable, Equatable {
+enum MiniAppCapability: String, Codable, Equatable, CaseIterable {
     case offline
     case network
     case browser

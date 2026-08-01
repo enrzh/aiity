@@ -166,8 +166,24 @@ struct MiniAppRunnerView: UIViewRepresentable {
             // Everything else — offline/network remote nav, any `data:` top-level
             // load, other schemes — never navigates the sandbox. A user-tapped
             // link opens in Safari instead; scripts cannot navigate away.
+            // A link opens Safari only after the SAME confirmation the
+            // `open.external` bridge action requires.
+            //
+            // Before, this path opened Safari directly. WebKit reports a
+            // scripted `a.click()` as `.linkActivated`, so an offline mini-app
+            // — CSP `default-src 'none'`, never prompted about anything —
+            // could read its own stored data, build
+            // `https://collect.example/?d=<data>` and launch it with no user
+            // action at all: exactly the silent exfiltration the bridge's own
+            // confirmation exists to prevent, reached by going around it.
+            //
+            // WebKit exposes no public way to tell a real tap from a scripted
+            // click (`_hasUserGesture` is private and not shippable), so the
+            // guarantee here is narrower than "only real taps": a scripted
+            // click still reaches the prompt. It cannot leave silently, which
+            // is the property that mattered.
             if isMainFrame, isRemote, navigationAction.navigationType == .linkActivated, let url {
-                UIApplication.shared.open(url)
+                confirmOpenExternal(url)
             }
             decisionHandler(.cancel)
         }
@@ -182,7 +198,8 @@ struct MiniAppRunnerView: UIViewRepresentable {
                 bridgeActive = false
                 webView.load(URLRequest(url: url))
             } else if navigationAction.navigationType == .linkActivated {
-                UIApplication.shared.open(url)
+                // Same rule for `target="_blank"`: confirm before leaving.
+                confirmOpenExternal(url)
             }
             return nil
         }
@@ -259,6 +276,18 @@ struct MiniAppRunnerView: UIViewRepresentable {
                 return ["ok": confirmed]
             default:
                 return NSNull()
+            }
+        }
+
+        /// Confirm, then open. For the navigation-policy call sites, which are
+        /// synchronous and must not leave the app on their own — every route to
+        /// Safari goes through the same prompt as the bridge action.
+        @MainActor
+        func confirmOpenExternal(_ url: URL) {
+            Task { @MainActor in
+                if await confirmOpenExternal(url) {
+                    UIApplication.shared.open(url, options: [:], completionHandler: nil)
+                }
             }
         }
 
