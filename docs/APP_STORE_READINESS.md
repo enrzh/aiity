@@ -15,6 +15,7 @@ the method is noted so it can be re-run.
 | Privacy policy URL | <https://aiity.de/privacy> (English, for App Store Connect) and <https://aiity.de/datenschutz> (German) — both live |
 | Export compliance declared | `ITSAppUsesNonExemptEncryption: false` in the built Info.plist |
 | Release configuration builds | `xcodebuild -configuration Release -destination generic/platform=iOS` |
+| Report path for model output | Guideline 1.2 — context menu on assistant messages, `ContentReportTests` pins what the report may contain |
 | Blockers / races | Adversarial audit, 19 confirmed findings — **all 19 fixed** (`8973b60` + `HEAD`), each with a regression test |
 
 ## Needs you — cannot be done from here
@@ -43,11 +44,17 @@ scripts and code as long as they run in the WebKit framework and do not change
 the app's primary purpose. Nothing here executes code outside WebKit. This
 should pass, but expect it to be looked at.
 
-**Guideline 1.2 — user-generated content.** The app shows model output the
-user prompted for. There is currently **no report/block path**. If review
-treats agent output as UGC, that is the gap they will name, and it is now the
-single largest known submission risk. Cheap insurance: a "Diesen Inhalt melden"
-action on a message.
+**Guideline 1.2 — user-generated content.** Addressed. Long-pressing any
+assistant message offers "Inhalt melden": pick a reason, add an optional note,
+**see the exact text that will be sent**, then send it by mail to
+`support@aiity.de` (or copy it). Only that one message goes — not the
+conversation, not your keys, not the diagnostics record — and a test asserts
+that. Both privacy policies describe it.
+
+**One thing you must actually do: make `support@aiity.de` exist and read it.**
+1.2 asks for a way to report *and* for responses to those reports; a bouncing
+address is worse at review than no button. The address is a single constant in
+`AIApp/Services/ContentReport.swift` if you want a different one.
 
 **Metadata positioning.** In the app, "build the tool you need instead of
 installing another app" is a fine idea. In App Store *metadata*, phrasing it as

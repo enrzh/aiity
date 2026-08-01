@@ -11,6 +11,8 @@ struct ChatView: View {
     @State private var previewDraft: MiniAppDraft?
     @State private var showQuickProvider = false
     @State private var showSkills = false
+    /// Non-nil while the report sheet is up, holding the message being reported.
+    @State private var reportTarget: ChatMessage?
     /// Measured height of the floating input bubble — drives the scroll
     /// clearance so a multi-line input never overlaps the last message.
     @State private var inputBarHeight: CGFloat = 64
@@ -94,6 +96,23 @@ struct ChatView: View {
                                     && message.mediaIds.isEmpty
                                     && message.toolCalls.isEmpty
                             )
+                            .contextMenu {
+                                Button {
+                                    UIPasteboard.general.string = message.text
+                                } label: {
+                                    Label("Kopieren", systemImage: "doc.on.doc")
+                                }
+                                // Guideline 1.2: what a model returns is not
+                                // filtered in advance by anyone here, so there
+                                // has to be a way to report it.
+                                if message.role == .assistant, !message.text.isEmpty {
+                                    Button(role: .destructive) {
+                                        reportTarget = message
+                                    } label: {
+                                        Label("Inhalt melden", systemImage: "flag")
+                                    }
+                                }
+                            }
                             .id(message.id)
                             .transition(.opacity.combined(with: .move(edge: .bottom)))
                         }
@@ -288,6 +307,14 @@ struct ChatView: View {
             }
             .presentationDetents([.large, .medium])
             .presentationDragIndicator(.visible)
+        }
+        .sheet(item: $reportTarget) { message in
+            ReportContentSheet(
+                message: message,
+                provider: settingsStore.settings.presetId,
+                model: settingsStore.settings.effectiveModel,
+                onDismiss: { reportTarget = nil }
+            )
         }
     }
 
