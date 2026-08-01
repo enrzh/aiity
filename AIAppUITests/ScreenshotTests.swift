@@ -38,7 +38,7 @@ final class ScreenshotTests: XCTestCase {
     """
 
     private static let stubProvider = """
-    {"presetId":"openai","baseURL":"http://127.0.0.1:8555/v1","model":"stub","searchEndpoint":"http://127.0.0.1:8555"}
+    {"presetId":"openai","baseURL":"http://127.0.0.1:8555/v1","model":"gpt-4o","searchEndpoint":"http://127.0.0.1:8555"}
     """
 
     private func launch() -> XCUIApplication {
@@ -51,7 +51,10 @@ final class ScreenshotTests: XCTestCase {
         // Force the interface language so the frames are reproducible rather
         // than depending on the simulator's setting. AIITY_SHOT_LANG=fr etc.
         let language = ProcessInfo.processInfo.environment["AIITY_SHOT_LANG"] ?? "en"
-        app.launchArguments += ["-AppleLanguages", "(\(language))", "-AppleLocale", language]
+        app.launchArguments += [
+            "-AppleLanguages", "(\(language))", "-AppleLocale", language,
+            "-prefs.appearance.v1", "dark",
+        ]
         app.launchEnvironment["AIITY_AGENTS_FILE"] = rosterFile.path
         app.launchEnvironment["PROVIDER_SETTINGS_JSON"] = Self.stubProvider
         app.launchEnvironment["AIITY_TEST_API_KEY"] = "stub-key"
@@ -119,12 +122,22 @@ final class ScreenshotTests: XCTestCase {
         let input = app.descendants(matching: .any).matching(identifier: "chat-input").firstMatch
         XCTAssertTrue(input.waitForExistence(timeout: 15), "no composer")
         sleep(1)
-        capture("05-conversation")
 
+        // An empty chat says nothing about the product. Send one message so the
+        // frame shows what actually happens.
         input.tap()
         input.typeText("Build me a timer for interval training")
         sleep(1)
         capture("06-composer")
+
+        app.descendants(matching: .any).matching(identifier: "chat-send").firstMatch.tap()
+        let card = app.buttons.matching(
+            NSPredicate(format: "label CONTAINS[c] 'preview' OR label CONTAINS[c] 'vorschau'")
+        ).firstMatch
+        _ = card.waitForExistence(timeout: 40)
+        sleep(3)
+        if app.keyboards.element.exists { app.swipeDown(); sleep(1) }
+        capture("05-conversation")
 
         print("AIITY-SHOTS \(shotDirectory.path)")
     }
