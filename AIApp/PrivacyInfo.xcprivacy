@@ -21,6 +21,21 @@
 				<string>CA92.1</string>
 			</array>
 		</dict>
+		<!-- File timestamps, both inside this app's own container only:
+		     MediaStore prunes generated images by modification date, and
+		     DiagnosticsRecorder dates the marker its signal handler left
+		     behind (the handler cannot write a timestamp itself — no
+		     allocation is permitted there). C617.1 is the container-only
+		     reason; an undeclared use of these APIs is rejected on upload
+		     as ITMS-91053. -->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>C617.1</string>
+			</array>
+		</dict>
 	</array>
 </dict>
 </plist>
