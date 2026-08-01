@@ -17,6 +17,8 @@ the method is noted so it can be re-run.
 | Release configuration builds | `xcodebuild -configuration Release -destination generic/platform=iOS` |
 | Report path for model output | Guideline 1.2 — context menu on assistant messages, `ContentReportTests` pins what the report may contain |
 | Blockers / races | Adversarial audit, 19 confirmed findings — **all 19 fixed** (`8973b60` + `HEAD`), each with a regression test |
+| Ten languages ship | `CFBundleLocalizations` declares all ten and `AIApp/Localizable.xcstrings` has an entry per key. Verified by generating the store screenshots in each locale — a missing string shows up as German text in an English frame. |
+| Unit tests | 276 tests, 0 failures. Check the **count**: a test file absent from `project.yml` never compiles and `xcodebuild` still exits 0. |
 
 ## Needs you — cannot be done from here
 
@@ -57,7 +59,7 @@ should pass, but expect it to be looked at.
 **Guideline 1.2 — user-generated content.** Addressed. Long-pressing any
 assistant message offers "Inhalt melden": pick a reason, add an optional note,
 **see the exact text that will be sent**, then send it by mail to
-`support@aiity.de` (or copy it). Only that one message goes — not the
+`getaiityapp@gmail.com` (or copy it). Only that one message goes — not the
 conversation, not your keys, not the diagnostics record — and a test asserts
 that. Both privacy policies describe it.
 
@@ -83,7 +85,10 @@ filtered by you. Rate honestly rather than 4+.
 
 ## Not blocking, but next
 
-- Localisation: German only (`CFBundleDevelopmentRegion: de`). Fine to ship,
-  but it caps the audience.
+- App Store Connect wants localised metadata per language. The app itself now
+  ships ten (`CFBundleLocalizations`), so the listing can too — but each
+  locale's description, keywords and screenshots are a separate entry there,
+  and an English-only listing for a ten-language app is a wasted advantage
+  rather than a rejection risk.
 - The Live Activity extension has no `PrivacyInfo.xcprivacy`. Not required
   today because it uses no required-reason API — recheck if that changes.
