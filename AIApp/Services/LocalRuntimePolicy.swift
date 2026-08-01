@@ -48,6 +48,46 @@ enum LocalRuntimePolicy {
     /// Max tokens for local generations. Higher so mini-app HTML is less often cut off.
     static let maxTokens = 3072
 
+    /// How much shared history an on-device model may be handed, in characters.
+    ///
+    /// The model weights are only part of the footprint — the KV cache grows
+    /// with the prompt, and in a group round every agent re-reads the whole
+    /// transcript every turn. A device report showed a 4-bit 4B model plus 25
+    /// messages of group history reaching 2822 MB against 554 MB of headroom
+    /// before iOS killed the app. A cloud provider does not care; a phone does.
+    ///
+    /// Characters rather than a message count on purpose: one pasted mini-app
+    /// is worth more cache than twenty short turns, and a count cannot tell
+    /// them apart.
+    static let localTranscriptBudget = 6_000
+
+    /// Trim `transcript` to what this provider should actually be given, newest
+    /// first. Cloud providers keep the caller's window unchanged.
+    ///
+    /// Pure and static so the budget is testable without a model, a device, or
+    /// a network.
+    static func transcriptWindow(
+        _ transcript: [ChatMessage],
+        for settings: ProviderSettings,
+        cloudLimit: Int
+    ) -> [ChatMessage] {
+        let recent = Array(transcript.suffix(cloudLimit))
+        guard settings.preset.dialect == .mlx else { return recent }
+
+        var kept: [ChatMessage] = []
+        var used = 0
+        for message in recent.reversed() {
+            let cost = message.text.count
+            // Always keep the newest message even if it alone blows the budget:
+            // dropping the thing being replied to produces a confident answer
+            // to nothing, which is worse than being slightly over.
+            if !kept.isEmpty && used + cost > localTranscriptBudget { break }
+            kept.append(message)
+            used += cost
+        }
+        return kept.reversed()
+    }
+
     /// Lower temperature = less rambling / fewer hallucinations.
     static let temperature: Double = 0.35
 

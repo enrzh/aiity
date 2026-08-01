@@ -11,6 +11,9 @@ struct AIAppApp: App {
         // rotates the previous run's record into place and installs the signal
         // and exception handlers.
         DiagnosticsRecorder.shared.install()
+        // Listening from launch, not from the first local generation: the
+        // warning that matters arrives while a round is already running.
+        MemoryPressure.shared.start()
 
         #if DEBUG
         // Pull the last run's report over the console instead of asking anyone

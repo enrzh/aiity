@@ -30,6 +30,13 @@ enum GroupChatRunner {
     /// long-running group, which otherwise grows with every turn for everyone.
     static let maxTranscriptMessages = 40
 
+    /// Memory warnings during a round on an on-device model are routine — the
+    /// runtime releases the model and carries on. A verified healthy
+    /// three-agent round produced six. This threshold is a runaway backstop,
+    /// deliberately well above that: below it, stopping would break the
+    /// feature more reliably than the crash it is meant to prevent.
+    static let memoryWarningAbortThreshold = 16
+
     struct Turn {
         var agent: AgentDefinition
         var text: String
@@ -101,9 +108,15 @@ enum GroupChatRunner {
         if settings.preset.needsKey, apiKey.isEmpty, !ConnectionProbe.isLocalStyle(settings.presetId) {
             return "(kein Konto hinterlegt — unter Anbieter einen Key eintragen)"
         }
-        if settings.effectiveModel.trimmingCharacters(in: .whitespaces).isEmpty,
-           settings.preset.dialect != .mlx {
-            return "(kein Modell gewählt)"
+        // MLX used to be exempt here, on the assumption it had a sensible
+        // default. It does not — the preset's defaultModel is "" — so an agent
+        // with no model chosen went on to load nothing and the round failed
+        // deep inside the runtime instead of here. That configuration was
+        // live on a real device.
+        if settings.effectiveModel.trimmingCharacters(in: .whitespaces).isEmpty {
+            return settings.preset.dialect == .mlx
+                ? "(kein lokales Modell gewählt — unter Anbieter eins laden und auswählen)"
+                : "(kein Modell gewählt)"
         }
 
         let provider = settings.makeProvider(apiKey: apiKey)
@@ -112,7 +125,14 @@ enum GroupChatRunner {
         ]
         // Only the recent window: every agent re-reads the transcript each
         // turn, so an untrimmed history costs agents × rounds × full history.
-        messages += perspective(of: agent, transcript: transcript.suffix(maxTranscriptMessages))
+        // On-device models get a much smaller one — there the history is not
+        // just tokens billed, it is resident memory the process may not have.
+        messages += perspective(
+            of: agent,
+            transcript: LocalRuntimePolicy.transcriptWindow(
+                transcript, for: settings, cloudLimit: maxTranscriptMessages
+            )
+        )
 
         var text = ""
         do {

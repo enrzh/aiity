@@ -906,11 +906,25 @@ final class ChatSession: ObservableObject {
         activeTask = Task { [weak self] in
             guard let self else { return }
             let transcript = self.messages
+            // Backstop only. Releasing the model on each warning is what
+            // actually keeps the app alive, and on device a healthy three-agent
+            // local round produced six warnings and finished — so stopping on
+            // one would abort nearly every local round. This threshold is far
+            // above that: it catches a round whose memory never comes back.
+            let roundStarted = Date()
+            let usesLocalModel = participants.contains {
+                $0.settings(fallback: settings).preset.dialect == .mlx
+            }
             await GroupChatRunner.runRound(
                 agents: participants,
                 transcript: transcript,
                 chatSettings: settings,
-                isCancelled: { Task.isCancelled },
+                isCancelled: {
+                    if Task.isCancelled { return true }
+                    guard usesLocalModel else { return false }
+                    return MemoryPressure.shared.warnings(since: roundStarted)
+                        >= GroupChatRunner.memoryWarningAbortThreshold
+                },
                 onStart: { agent in
                     Task { @MainActor in
                         let phase = "\(agent.emoji) \(agent.name) schreibt…"
@@ -954,6 +968,20 @@ final class ChatSession: ObservableObject {
                 // while its replacement is mid-flight, letting two rounds append
                 // to the same thread at once.
                 guard !Task.isCancelled else {
+                    self.persistPublic()
+                    return
+                }
+                // Stopped short to stay alive. Say so — silently producing half
+                // a round reads as the agents losing interest.
+                if usesLocalModel,
+                   MemoryPressure.shared.warnings(since: roundStarted)
+                       >= GroupChatRunner.memoryWarningAbortThreshold {
+                    self.errorMessage = "Runde gestoppt: dem Gerät ging der Speicher aus. "
+                        + "Ein kleineres lokales Modell wählen, oder für Gruppen einen Cloud-Anbieter."
+                    self.busy = false
+                    self.statusLine = nil
+                    ScreenWake.shared.setAgentBusy(false)
+                    AgentLiveActivityController.shared.fail(message: "Zu wenig Speicher")
                     self.persistPublic()
                     return
                 }

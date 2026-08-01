@@ -12,9 +12,68 @@ import MLXLMCommon
 final class MLXRuntime: @unchecked Sendable {
     static let shared = MLXRuntime()
 
+    /// How many loaded models may stay resident at once.
+    ///
+    /// One. A 4-bit 4B model is roughly 2.3 GB and an iPhone gives the app
+    /// something like 3.4 GB before jetsam — so a second resident model is not
+    /// a cache, it is a guaranteed kill. Reloading costs seconds; being killed
+    /// costs the conversation. Agents in a group may each name their own model,
+    /// which is exactly how a second one gets loaded.
+    static let maxResidentModels = 1
+
     #if canImport(MLXLLM)
-    private var containers: [String: ModelContainer] = [:]
+    /// Most-recently-used last.
+    private var containers: [(id: String, container: ModelContainer)] = []
     private let lock = NSLock()
+
+    private func cache(_ container: ModelContainer, for modelId: String) {
+        lock.lock()
+        containers.removeAll { $0.id == modelId }
+        containers.append((modelId, container))
+        var evicted: [String] = []
+        while containers.count > Self.maxResidentModels {
+            evicted.append(containers.removeFirst().id)
+        }
+        lock.unlock()
+        for id in evicted {
+            DiagnosticsRecorder.shared.record("mlx", "Modell aus dem Speicher entfernt: \(id)")
+        }
+        if !evicted.isEmpty { MLX.GPU.clearCache() }
+    }
+
+    private func cached(_ modelId: String) -> ModelContainer? {
+        lock.lock(); defer { lock.unlock() }
+        guard let index = containers.firstIndex(where: { $0.id == modelId }) else { return nil }
+        let entry = containers.remove(at: index)
+        containers.append(entry)   // touch: most recently used
+        return entry.container
+    }
+    #endif
+
+    private init() {
+        // Registered once, at construction, so the runtime gives memory back
+        // whether or not anything else in the app is paying attention.
+        MemoryPressure.shared.onPressure("mlx") { [weak self] in
+            self?.evictAll()
+        }
+    }
+
+    /// Drop every resident model. A generation already in flight keeps its own
+    /// reference and finishes; this only releases ours, so the memory comes
+    /// back when that turn ends instead of never.
+    func evictAll() {
+        #if canImport(MLXLLM)
+        lock.lock()
+        let count = containers.count
+        containers.removeAll()
+        lock.unlock()
+        guard count > 0 else { return }
+        MLX.GPU.clearCache()
+        DiagnosticsRecorder.shared.record("mlx", "\(count) Modell(e) unter Speicherdruck freigegeben")
+        #endif
+    }
+
+    #if canImport(MLXLLM)
 
     private func hub() -> HubApi {
         HubApi(downloadBase: LocalModelLocation.baseDirectory)
@@ -34,9 +93,7 @@ final class MLXRuntime: @unchecked Sendable {
         for attempt in 1...Self.downloadAttempts {
             do {
                 let container = try await load(modelId: modelId, onProgress: onProgress)
-                lock.lock()
-                containers[modelId] = container
-                lock.unlock()
+                cache(container, for: modelId)
                 return
             } catch is CancellationError {
                 throw CancellationError()
@@ -83,16 +140,11 @@ final class MLXRuntime: @unchecked Sendable {
     }
 
     func container(for modelId: String) async throws -> ModelContainer {
-        lock.lock()
-        let cached = containers[modelId]
-        lock.unlock()
-        if let cached { return cached }
+        if let hit = cached(modelId) { return hit }
         MLX.GPU.set(cacheLimit: 20 * 1024 * 1024)
         let configuration = ModelConfiguration(id: modelId)
         let container = try await LLMModelFactory.shared.loadContainer(hub: hub(), configuration: configuration) { _ in }
-        lock.lock()
-        containers[modelId] = container
-        lock.unlock()
+        cache(container, for: modelId)
         return container
     }
     #else
@@ -104,8 +156,9 @@ final class MLXRuntime: @unchecked Sendable {
     func unload(modelId: String) {
         #if canImport(MLXLLM)
         lock.lock()
-        containers[modelId] = nil
+        containers.removeAll { $0.id == modelId }
         lock.unlock()
+        MLX.GPU.clearCache()
         #endif
     }
 }
