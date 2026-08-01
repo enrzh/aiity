@@ -24,6 +24,7 @@
 		130394E1C126FFCCE6DC49AF /* GroupSelfTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE1DB4A73CD1F26E08C12318 /* GroupSelfTest.swift */; };
 		1727FB2E5293C87E82385CC9 /* AgentModelPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 663370337C8CA56C965C2B3D /* AgentModelPicker.swift */; };
 		1C99875F3564B076392F5868 /* MiniAppValidatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D6A69B321F0B9D850477143 /* MiniAppValidatorTests.swift */; };
+		21A06D89166AEB7E11D5799B /* AuditRemainderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72C211BC38C86A009122848F /* AuditRemainderTests.swift */; };
 		2313637FF6ED7049FDBC8801 /* ModalChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63D2679C540EB651BD2325AF /* ModalChrome.swift */; };
 		28AADA661062BD46DB0A0EDC /* SettingsRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41FC1000764FE804EBCFC923 /* SettingsRow.swift */; };
 		29754FE8303B56FDFE9BD7FF /* LLMProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1BE1D072ECC42831F6482CF /* LLMProvider.swift */; };
@@ -238,6 +239,7 @@
 		6CD59DF34EB2C44797D18EB6 /* MiniAppBundleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniAppBundleTests.swift; sourceTree = "<group>"; };
 		6CDEE0662D6422273000A263 /* ImportSkillModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportSkillModal.swift; sourceTree = "<group>"; };
 		6E2F0648BFF26215581F3521 /* ProviderSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderSettings.swift; sourceTree = "<group>"; };
+		72C211BC38C86A009122848F /* AuditRemainderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuditRemainderTests.swift; sourceTree = "<group>"; };
 		749E2BA724F63F627337FF5E /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		76023C3267B21B84DBB5359F /* MLXSelfTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MLXSelfTest.swift; sourceTree = "<group>"; };
 		77FA12D4F5198A0234EC746A /* DiagnosticsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsUITests.swift; sourceTree = "<group>"; };
@@ -439,6 +441,7 @@
 			children = (
 				8BA342ADD82161221241ACE1 /* AgentDelegationTests.swift */,
 				EFB08135CC0ED3BF168B18F2 /* AtomicFileStoreTests.swift */,
+				72C211BC38C86A009122848F /* AuditRemainderTests.swift */,
 				2B5B359F8FEE6A340921B0B8 /* BackupRoundTripTests.swift */,
 				266D94DDD73F14B006FB2D68 /* BrowserFetchTests.swift */,
 				18BAB401436AAC0B0CA8FE9B /* ConnectionProbeTests.swift */,
@@ -858,6 +861,7 @@
 			files = (
 				75EBC17C6657C39B67F5B9A5 /* AgentDelegationTests.swift in Sources */,
 				05C67F5BC53BDA986CBCCC95 /* AtomicFileStoreTests.swift in Sources */,
+				21A06D89166AEB7E11D5799B /* AuditRemainderTests.swift in Sources */,
 				84373B534DBE51066F0488EF /* BackupRoundTripTests.swift in Sources */,
 				B868E23E754B579DDDA34019 /* BrowserFetchTests.swift in Sources */,
 				CD53EF76E6E3BECAE16D7AA3 /* ConnectionProbeTests.swift in Sources */,

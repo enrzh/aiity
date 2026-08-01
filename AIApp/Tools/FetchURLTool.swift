@@ -107,6 +107,62 @@ struct FetchURLTool: AgentTool {
         if h.contains(":"), let verdict = blockedIPv6(h) { return verdict }
         if isPrivateHost(h) { return true }
         if let dotted = normalizedIPv4(h), isPrivateHost(dotted) { return true }
+        // A NAME can point at a private address, and every check above only
+        // reads the string. `192.168.178.1.nip.io` and `localtest.me` are
+        // public names that resolve to a LAN host and to loopback, so a
+        // prompt-injected page could steer the agent onto the user's router or
+        // their Ollama port and get the response body back. Resolve it.
+        if resolvesToPrivateAddress(h) { return true }
+        return false
+    }
+
+    /// Resolve `host` and block if ANY returned address is private.
+    ///
+    /// Synchronous on purpose: this sits in a decision that must be made before
+    /// the request is issued, and `URLSession` is about to perform the same
+    /// lookup a moment later, so the name is in the resolver cache either way.
+    /// A name that does not resolve is not blocked here — the request will fail
+    /// on its own, and failing closed on every transient DNS hiccup would break
+    /// ordinary fetches.
+    static func resolvesToPrivateAddress(_ host: String) -> Bool {
+        guard !host.isEmpty else { return false }
+        var hints = addrinfo(
+            ai_flags: 0, ai_family: AF_UNSPEC, ai_socktype: SOCK_STREAM, ai_protocol: 0,
+            ai_addrlen: 0, ai_canonname: nil, ai_addr: nil, ai_next: nil
+        )
+        var result: UnsafeMutablePointer<addrinfo>?
+        guard host.withCString({ getaddrinfo($0, nil, &hints, &result) }) == 0, let head = result else {
+            return false
+        }
+        defer { freeaddrinfo(head) }
+
+        var node: UnsafeMutablePointer<addrinfo>? = head
+        var buffer = [CChar](repeating: 0, count: Int(INET6_ADDRSTRLEN))
+        while let current = node {
+            if let sa = current.pointee.ai_addr {
+                var text: String?
+                if current.pointee.ai_family == AF_INET {
+                    sa.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { p in
+                        var addr = p.pointee.sin_addr
+                        if inet_ntop(AF_INET, &addr, &buffer, socklen_t(buffer.count)) != nil {
+                            text = String(cString: buffer)
+                        }
+                    }
+                } else if current.pointee.ai_family == AF_INET6 {
+                    sa.withMemoryRebound(to: sockaddr_in6.self, capacity: 1) { p in
+                        var addr = p.pointee.sin6_addr
+                        if inet_ntop(AF_INET6, &addr, &buffer, socklen_t(buffer.count)) != nil {
+                            text = String(cString: buffer)
+                        }
+                    }
+                }
+                if let text {
+                    if isPrivateHost(text) { return true }
+                    if text.contains(":"), blockedIPv6(text) == true { return true }
+                }
+            }
+            node = current.pointee.ai_next
+        }
         return false
     }
 

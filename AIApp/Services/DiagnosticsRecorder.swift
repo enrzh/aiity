@@ -193,21 +193,30 @@ private func diagnosticsWrite(_ fd: Int32, _ text: StaticString) {
     }
 }
 
-/// Decimal/hex rendering without `snprintf`, which is not signal-safe.
+private let signalDigitCapacity = 24
+/// Allocated once, at install. `[CChar](repeating:count:)` lowers to
+/// `swift_allocObject` -> `malloc`, and stack promotion is an optimiser
+/// courtesy that does not happen at all at -Onone. Calling malloc from a
+/// handler for a SIGABRT that was itself raised from inside malloc — heap
+/// corruption and double free being the commonest causes on iOS — deadlocks on
+/// the allocator lock, and by then the marker file is already open with
+/// O_TRUNC, so the previous run's marker is destroyed and the new one never
+/// finished.
+private nonisolated(unsafe) var signalDigitBuffer =
+    UnsafeMutablePointer<CChar>.allocate(capacity: signalDigitCapacity)
+
+/// Decimal/hex rendering without `snprintf`, which is not signal-safe, and
+/// without allocating.
 private func diagnosticsWriteNumber(_ fd: Int32, _ value: UInt64, radix: UInt64 = 10) {
-    var digits = [CChar](repeating: 0, count: 24)
-    var index = digits.count
+    var index = signalDigitCapacity
     var remaining = value
     repeat {
         index -= 1
         let digit = remaining % radix
-        digits[index] = CChar(digit < 10 ? 48 + digit : 87 + digit)
+        signalDigitBuffer[index] = CChar(digit < 10 ? 48 + digit : 87 + digit)
         remaining /= radix
     } while remaining > 0 && index > 0
-    digits.withUnsafeBufferPointer { buffer in
-        guard let base = buffer.baseAddress else { return }
-        _ = write(fd, base + index, buffer.count - index)
-    }
+    _ = write(fd, signalDigitBuffer + index, signalDigitCapacity - index)
 }
 
 private func diagnosticsSignalHandler(_ signalNumber: Int32) {
@@ -337,7 +346,20 @@ final class DiagnosticsRecorder: @unchecked Sendable {
             previousRun = try? decoder.decode(DiagnosticRun.self, from: data)
         }
 
+        // The MetricKit payload belongs to ONE crash, but nothing ever removed
+        // it: a report four launches later still printed "sauber beendet" for
+        // the last run and, immediately below, a system diagnostic from an
+        // older crash — asserting a crash that did not happen in the run being
+        // examined. Fold it in once, then retire it.
         previousMetric = try? String(contentsOf: metricURL, encoding: .utf8)
+        if previousMetric != nil {
+            let stamp = ISO8601DateFormatter().string(from: Date())
+                .replacingOccurrences(of: ":", with: "-")
+            try? fm.moveItem(
+                at: metricURL,
+                to: directory.appendingPathComponent("metrickit-\(stamp).json")
+            )
+        }
         try? fm.removeItem(at: currentURL)
     }
 
@@ -491,6 +513,11 @@ final class DiagnosticsRecorder: @unchecked Sendable {
             // sent nothing while its crash diagnostic sat unread on disk. Seen
             // for real on device — the breadcrumb said the payload had arrived
             // and the section above it said there was none.
+            // Re-read only a payload that arrived DURING this run — iOS
+            // delivers it a moment after launch, so a value cached at init is
+            // stale exactly when it matters. `rotate()` has already retired any
+            // older file, so whatever is here now belongs to the crash being
+            // reported.
             if let fresh = try? String(contentsOf: metricURL, encoding: .utf8), !fresh.isEmpty {
                 previousMetric = fresh
             }

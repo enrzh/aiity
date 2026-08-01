@@ -277,6 +277,24 @@ struct ProviderSettings: Codable, Equatable {
         return preset.defaultModel
     }
 
+    /// Apply a per-agent model choice to whichever field this dialect reads.
+    ///
+    /// MLX is the odd one out: `makeProvider` dispatches to
+    /// `MLXProvider(modelId: localModelId)` and never looks at `model`. Writing
+    /// the agent's pick into `model` — as this used to — left `localModelId`
+    /// holding whatever is selected globally in Mehr → Anbieter, so a group
+    /// where two agents were set to different local models silently ran both on
+    /// the same one while the UI showed two.
+    mutating func applyAgentModel(_ chosen: String) {
+        let trimmed = chosen.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        if preset.dialect == .mlx {
+            localModelId = trimmed
+        } else {
+            model = trimmed
+        }
+    }
+
     func makeProvider(apiKey: String) -> LLMProvider {
         switch preset.dialect {
         case .anthropic:

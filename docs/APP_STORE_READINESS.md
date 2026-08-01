@@ -15,7 +15,7 @@ the method is noted so it can be re-run.
 | Privacy policy URL | <https://aiity.de/datenschutz> — live, required by App Store Connect |
 | Export compliance declared | `ITSAppUsesNonExemptEncryption: false` in the built Info.plist |
 | Release configuration builds | `xcodebuild -configuration Release -destination generic/platform=iOS` |
-| Blockers / races | Adversarial audit, 19 confirmed findings; blockers + highs fixed in `8973b60`, remainder in `OPEN_AUDIT_FINDINGS.md` |
+| Blockers / races | Adversarial audit, 19 confirmed findings — **all 19 fixed** (`8973b60` + `HEAD`), each with a regression test |
 
 ## Needs you — cannot be done from here
 
@@ -43,8 +43,9 @@ should pass, but expect it to be looked at.
 
 **Guideline 1.2 — user-generated content.** The app shows model output the
 user prompted for. There is currently **no report/block path**. If review
-treats agent output as UGC, that is the gap they will name. Cheap insurance: a
-"Diesen Inhalt melden" action on a message.
+treats agent output as UGC, that is the gap they will name, and it is now the
+single largest known submission risk. Cheap insurance: a "Diesen Inhalt melden"
+action on a message.
 
 **Metadata positioning.** In the app, "build the tool you need instead of
 installing another app" is a fine idea. In App Store *metadata*, phrasing it as

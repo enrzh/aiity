@@ -82,11 +82,11 @@ struct AgentDefinition: Identifiable, Codable, Equatable {
     func settings(fallback: ProviderSettings) -> ProviderSettings {
         guard !presetId.isEmpty else {
             var inherited = fallback
-            if !model.isEmpty { inherited.model = model }
+            inherited.applyAgentModel(model)
             return inherited
         }
         var resolved = ProviderSettings.connectionSnapshot(presetId: presetId)
-        if !model.isEmpty { resolved.model = model }
+        resolved.applyAgentModel(model)
         return resolved
     }
 

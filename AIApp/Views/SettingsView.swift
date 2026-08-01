@@ -197,10 +197,18 @@ struct SettingsView: View {
             // Reporting success after swallowing the save error tells the user
             // their apps were restored when they were not.
             try modelContext.save()
-            // The import wrote chat/skill files under a live session that still
-            // holds its own state — without this reload the next persist()
-            // overwrites everything just restored.
+            // The import wrote chat/skill/agent files under live stores that
+            // still hold their own state — without a reload the next save
+            // overwrites everything just restored. This was done for chats
+            // only; AgentStore.reload() existed and was called from nowhere, so
+            // an imported roster stayed invisible, the user concluded the
+            // import had failed, and creating one agent wrote that single agent
+            // over the restored file.
             session.reloadFromDisk()
+            AgentStore.shared.reload()
+            // SkillStore has no shared instance — each view constructs its own
+            // and therefore reads the restored file on next appearance, so it
+            // needs no reload here.
             importSummary = result.summary
             backupSummary = BackupService.summary(apps: savedApps)
         } catch {

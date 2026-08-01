@@ -74,18 +74,32 @@ enum LocalRuntimePolicy {
         let recent = Array(transcript.suffix(cloudLimit))
         guard settings.preset.dialect == .mlx else { return recent }
 
-        var kept: [ChatMessage] = []
+        // The newest USER message is reserved before anything else.
+        //
+        // "Always keep the newest message" is not enough in a group round: by
+        // the time the lead speaks, the newest message is a peer's turn, not
+        // the question. With two 3 500-character contributions the lead
+        // received exactly one of them and lost both the user's question and
+        // the other agent's turn — while its brief told it to summarise the
+        // agreement and deliver what the user asked for.
+        let newestUser = recent.lastIndex { $0.role == .user }
+        var keptIndices: Set<Int> = []
         var used = 0
-        for message in recent.reversed() {
-            let cost = message.text.count
-            // Always keep the newest message even if it alone blows the budget:
+        if let newestUser {
+            keptIndices.insert(newestUser)
+            used = recent[newestUser].text.count
+        }
+        for index in recent.indices.reversed() {
+            guard !keptIndices.contains(index) else { continue }
+            let cost = recent[index].text.count
+            // The newest message is kept even if it alone blows the budget —
             // dropping the thing being replied to produces a confident answer
-            // to nothing, which is worse than being slightly over.
-            if !kept.isEmpty && used + cost > localTranscriptBudget { break }
-            kept.append(message)
+            // to nothing.
+            if !keptIndices.isEmpty && used + cost > localTranscriptBudget { break }
+            keptIndices.insert(index)
             used += cost
         }
-        return kept.reversed()
+        return recent.indices.filter { keptIndices.contains($0) }.map { recent[$0] }
     }
 
     /// Lower temperature = less rambling / fewer hallucinations.

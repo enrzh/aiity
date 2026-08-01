@@ -42,6 +42,38 @@ final class BrowserFetch: NSObject {
     private var finished = false
 
     /// Load `url` and return its visible text.
+    /// Compiled once per process. Blocks loads to loopback, link-local and
+    /// RFC1918/CGNAT hosts at the WebKit networking layer, which is where
+    /// subresources are decided.
+    private static var cachedRuleList: WKContentRuleList?
+
+    private static func privateAddressBlockList(allowPrivateHosts: Bool) async -> WKContentRuleList? {
+        // When the caller genuinely means to reach a LAN gateway (the user's
+        // own Ollama box), blocking it would break the feature.
+        guard !allowPrivateHosts else { return nil }
+        if let cachedRuleList { return cachedRuleList }
+
+        // url-filter is a regex over the whole URL. These cover the literal
+        // forms; a NAME that resolves to a private address is handled before
+        // the request is issued, by FetchURLTool.resolvesToPrivateAddress.
+        let patterns = [
+            "^[^:]+://(localhost|127\\.[0-9.]+|0\\.0\\.0\\.0|\\[::1\\])",
+            "^[^:]+://10\\.[0-9]+\\.[0-9]+\\.[0-9]+",
+            "^[^:]+://192\\.168\\.[0-9]+\\.[0-9]+",
+            "^[^:]+://172\\.(1[6-9]|2[0-9]|3[01])\\.[0-9]+\\.[0-9]+",
+            "^[^:]+://169\\.254\\.[0-9]+\\.[0-9]+",
+            "^[^:]+://100\\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\\.[0-9]+\\.[0-9]+",
+            "^[^:]+://[^/]*\\.(local|internal|lan|home|localdomain)([:/]|$)",
+        ]
+        let rules = patterns.map { #"{"trigger":{"url-filter":"\#($0)"},"action":{"type":"block"}}"# }
+        let json = "[\(rules.joined(separator: ","))]"
+
+        let compiled = try? await WKContentRuleListStore.default()?
+            .compileContentRuleList(forIdentifier: "aiity-block-private", encodedContentRuleList: json)
+        cachedRuleList = compiled
+        return compiled
+    }
+
     func text(from url: URL, allowPrivateHosts: Bool) async throws -> String {
         // `finished` is one-shot by design; a reused instance would return
         // immediately and never resume its continuation.
@@ -55,6 +87,18 @@ final class BrowserFetch: NSObject {
         // user's cookies, and must not accumulate session state across pages.
         configuration.websiteDataStore = .nonPersistent()
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
+
+        // `decidePolicyFor` fires for NAVIGATIONS ONLY. The fetched page's own
+        // scripts, images, XHR and WebSockets never reach it, and this view
+        // runs their JavaScript with no CSP under an app-wide
+        // NSAllowsArbitraryLoads. A page returned by a hostile server could
+        // therefore issue `new Image().src = 'http://192.168.1.1/…'` and sweep
+        // the user's LAN from their own device — a state-changing request and a
+        // port scan driven by content the agent only tried to read. A content
+        // rule list is the only hook that covers subresources.
+        if let rules = await Self.privateAddressBlockList(allowPrivateHosts: allowPrivateHosts) {
+            configuration.userContentController.add(rules)
+        }
 
         let view = WKWebView(frame: CGRect(x: 0, y: 0, width: 1024, height: 1400), configuration: configuration)
         view.navigationDelegate = self

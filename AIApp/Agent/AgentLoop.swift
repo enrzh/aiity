@@ -926,6 +926,10 @@ final class ChatSession: ObservableObject {
             // look like the app ignored them.
             errorMessage = "Keine aktiven Agenten in dieser Gruppe — im Tab „Agenten“ anlegen oder wieder einschalten."
             busy = false
+            // Reachable from the auto-continue recursion with the marker
+            // already set; leaving it pins a "läuft…" spinner on a thread that
+            // is idle.
+            runningThreadId = nil
             statusLine = nil
             AgentLiveActivityController.shared.fail(message: "Keine aktiven Agenten")
             return
@@ -1016,6 +1020,7 @@ final class ChatSession: ObservableObject {
                     self.errorMessage = "Runde gestoppt: dem Gerät ging der Speicher aus. "
                         + "Ein kleineres lokales Modell wählen, oder für Gruppen einen Cloud-Anbieter."
                     self.busy = false
+                    self.runningThreadId = nil
                     self.statusLine = nil
                     ScreenWake.shared.setAgentBusy(false)
                     AgentLiveActivityController.shared.fail(message: "Zu wenig Speicher")
@@ -1287,6 +1292,9 @@ final class ChatSession: ObservableObject {
     }
 
     private func persist() {
+        // Hard stop: an archive we failed to read AND failed to copy is still
+        // the only copy there is. Writing anything over it is the loss.
+        guard persistDisabledReason == nil else { return }
         syncActiveIntoThreads()
         pruneThreads()
         let snapshot = Snapshot(threads: threads, activeThreadId: activeThreadId)
@@ -1312,8 +1320,22 @@ final class ChatSession: ObservableObject {
         // destroys a history: the very next persist() writes an empty snapshot
         // over it. Keep the bytes under a timestamped name first, so a bad
         // decode costs a restart instead of every conversation.
-        if let stored, stored.count > 1 {
-            quarantineChatStore(stored)
+        if let stored, stored.count > 1, !quarantineChatStore(stored) {
+            // The bytes could not be copied aside, so the unreadable file is
+            // still the only copy of the user's history. Starting fresh and
+            // saving would overwrite it — a few hundred bytes fit where the
+            // multi-megabyte copy did not. Come up empty and refuse to write
+            // instead, so a restart or freeing some space can still recover it.
+            persistDisabledReason = "Der Chat-Verlauf konnte weder gelesen noch gesichert werden "
+                + "(vermutlich zu wenig Speicherplatz). Es wird nichts geschrieben, damit die Datei "
+                + "erhalten bleibt — bitte Speicher freigeben und die App neu starten."
+            errorMessage = persistDisabledReason
+            DiagnosticsRecorder.shared.record("chat", "Archiv unlesbar UND nicht sicherbar — Schreiben gesperrt")
+            let placeholder = ChatThread()
+            threads = [placeholder]
+            activeThreadId = placeholder.id
+            loadActiveThread()
+            return
         }
 
         if let data = try? Data(contentsOf: Self.legacyStoreURL),
@@ -1344,18 +1366,33 @@ final class ChatSession: ObservableObject {
     /// Move an undecodable chat archive aside instead of letting it be
     /// overwritten. Named with a timestamp so repeated failures do not
     /// overwrite each other's evidence.
-    private func quarantineChatStore(_ data: Data) {
+    /// Move an undecodable archive aside. Returns false when the copy failed,
+    /// in which case the original is still the only copy in existence.
+    ///
+    /// This used to return Void, so its own comment — "do NOT continue" — was
+    /// unenforceable: `restore()` carried on to `threads = [ChatThread()]`, and
+    /// the next persist() wrote a few hundred bytes of empty snapshot over a
+    /// multi-megabyte archive that had just failed to be copied. The condition
+    /// that makes the copy fail is a nearly full disk, which is also a
+    /// plausible cause of the bad file — so the two coincide by nature rather
+    /// than by bad luck.
+    @discardableResult
+    private func quarantineChatStore(_ data: Data) -> Bool {
         let stamp = ISO8601DateFormatter().string(from: Date())
             .replacingOccurrences(of: ":", with: "-")
         let target = Self.storeURL.deletingLastPathComponent()
             .appendingPathComponent("chat-threads.json.corrupt-\(stamp)")
         guard (try? data.write(to: target, options: .atomic)) != nil else {
-            // Could not preserve it — do NOT continue, because continuing means
-            // the next persist() destroys the only copy.
-            return
+            return false
         }
         try? FileManager.default.removeItem(at: Self.storeURL)
+        return true
     }
+
+    /// Set when an archive could not be read AND could not be copied aside.
+    /// While true nothing may be written, or the unreadable-but-present file
+    /// is destroyed by the first save.
+    private(set) var persistDisabledReason: String?
 }
 
 /// A mini-app the model just produced, before the user decides to keep it.

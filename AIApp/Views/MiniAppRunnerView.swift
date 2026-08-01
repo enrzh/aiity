@@ -22,9 +22,14 @@ struct MiniAppRunnerView: UIViewRepresentable {
     private func load(into webView: WKWebView) {
         // The target comes out of model-authored HTML, so it is validated like
         // any other model-chosen URL: http(s) only, never a private/LAN address.
-        if capability == .browser,
-           let target = WebAppBuilder.openTarget(in: html),
-           NetworkTargetValidator.isAllowed(target, allowPrivate: false) {
+        if capability == .browser, let target = WebAppBuilder.openTarget(in: html) {
+            guard NetworkTargetValidator.isAllowed(target, allowPrivate: false) else {
+                // Refused. Do NOT fall through to the generated shell: it
+                // contains `location.replace(<target>)` for this exact URL, so
+                // rendering it would perform the navigation just refused.
+                webView.loadHTMLString(Sandbox.harden(Self.refusedHTML(target), capability: .offline), baseURL: nil)
+                return
+            }
             // The document is now a REMOTE page, so it must never be treated as
             // our trusted shell: the native bridge stays off. `beginTrustedLoad`
             // turned it on for the shell case — undo that here rather than let
@@ -33,6 +38,18 @@ struct MiniAppRunnerView: UIViewRepresentable {
             return
         }
         webView.loadHTMLString(Sandbox.harden(html, capability: capability), baseURL: nil)
+    }
+
+    /// Shown instead of the generated shell when its target is not permitted.
+    static func refusedHTML(_ target: URL) -> String {
+        let host = (target.host ?? target.absoluteString)
+            .replacingOccurrences(of: "<", with: "&lt;")
+        return """
+        <p style="font:15px/1.5 -apple-system,sans-serif;color:#888;padding:24px">
+        Diese Mini-App wollte <b>\(host)</b> öffnen. Das ist eine Adresse im
+        lokalen Netzwerk und wird nicht geladen.
+        </p>
+        """
     }
 
     func makeCoordinator() -> Coordinator {
@@ -155,9 +172,23 @@ struct MiniAppRunnerView: UIViewRepresentable {
             let isRemote = scheme == "http" || scheme == "https"
             let isMainFrame = navigationAction.targetFrame?.isMainFrame ?? true
 
-            // Browser tier may load remote content, but once the main frame leaves
-            // our trusted document the bridge stops trusting the page.
+            // Browser tier may load remote content, but only to a target that
+            // passes the same validator `load()` applies to the initial URL.
+            //
+            // It used to allow the tier unconditionally, which made the
+            // up-front check decorative: when load() REFUSED a private target
+            // it fell through to rendering WebAppBuilder's shell, and that
+            // shell contains `location.replace(url)` for the very URL just
+            // refused. So `<!-- capability: browser --><!-- open:
+            // http://192.168.178.1/ -->` loaded the router admin page inside
+            // the mini-app — cleartext is allowed app-wide, and the Local
+            // Network permission was already granted for the user's own
+            // gateway. Same for 127.0.0.1:11434 and for any later hop.
             if capability.allowsTopLevelNavigation, isRemote {
+                guard let url, NetworkTargetValidator.isAllowed(url, allowPrivate: false) else {
+                    decisionHandler(.cancel)
+                    return
+                }
                 if isMainFrame { bridgeActive = false }
                 decisionHandler(.allow)
                 return
@@ -195,6 +226,9 @@ struct MiniAppRunnerView: UIViewRepresentable {
                 return nil
             }
             if capability.allowsTopLevelNavigation {
+                // Same validator as the main policy handler — a window.open to
+                // a LAN address must not slip past it.
+                guard NetworkTargetValidator.isAllowed(url, allowPrivate: false) else { return nil }
                 bridgeActive = false
                 webView.load(URLRequest(url: url))
             } else if navigationAction.navigationType == .linkActivated {
