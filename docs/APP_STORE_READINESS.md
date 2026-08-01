@@ -12,7 +12,7 @@ the method is noted so it can be re-run.
 | No debug seams in Release | Release build, then `strings -a AIApp.app/AIApp` for all eight `AIITY_*` / `PROVIDER_SETTINGS_JSON` / `AIITY_TEST_API_KEY` hooks — all absent. This caught `PROVIDER_SETTINGS_JSON`, which was **not** DEBUG-gated and shipped a way to redirect the app's API base URL. |
 | Extension version matches the app | Both now `$(MARKETING_VERSION)` / `$(CURRENT_PROJECT_VERSION)`. A hardcoded 1.0 against an app at 0.6.0 is ITMS-90473. |
 | App icon present | 1024pt `icon_1024.png` in `AppIcon.appiconset`, present in the built bundle |
-| Privacy policy URL | <https://aiity.de/datenschutz> — live, required by App Store Connect |
+| Privacy policy URL | <https://aiity.de/privacy> (English, for App Store Connect) and <https://aiity.de/datenschutz> (German) — both live |
 | Export compliance declared | `ITSAppUsesNonExemptEncryption: false` in the built Info.plist |
 | Release configuration builds | `xcodebuild -configuration Release -destination generic/platform=iOS` |
 | Blockers / races | Adversarial audit, 19 confirmed findings — **all 19 fixed** (`8973b60` + `HEAD`), each with a regression test |
@@ -22,8 +22,10 @@ the method is noted so it can be re-run.
 1. **Impressum and the DSGVO "Verantwortlicher"**. Both pages carry visible
    `[PLACEHOLDER]` fields for name, address and email. An Impressum is legally
    required for a site operated from Germany (§ 5 DDG) and the details were
-   deliberately not invented. Edit `web/impressum/index.html` and section 1 of
-   `web/datenschutz/index.html`, then redeploy (see `web/README.md`).
+   deliberately not invented. Edit `web/static/impressum/index.html` and
+   section 1 of both `web/static/datenschutz/index.html` (German) and
+   `web/static/privacy/index.html` (English), then rebuild and redeploy — see
+   `web/README.md`.
 
 2. **App Store Connect metadata** — app name, subtitle, keywords, description,
    support URL, category, age rating. Screenshots for every required device
