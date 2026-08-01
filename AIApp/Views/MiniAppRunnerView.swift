@@ -334,12 +334,12 @@ struct MiniAppRunnerView: UIViewRepresentable {
                 var resumed = false
                 func finish(_ value: Bool) { if !resumed { resumed = true; continuation.resume(returning: value) } }
                 let alert = UIAlertController(
-                    title: "Im Browser öffnen?",
+                    title: String(localized: "Im Browser öffnen?"),
                     message: host,
                     preferredStyle: .alert
                 )
-                alert.addAction(UIAlertAction(title: "Abbrechen", style: .cancel) { _ in finish(false) })
-                alert.addAction(UIAlertAction(title: "Öffnen", style: .default) { _ in finish(true) })
+                alert.addAction(UIAlertAction(title: String(localized: "Abbrechen"), style: .cancel) { _ in finish(false) })
+                alert.addAction(UIAlertAction(title: String(localized: "Öffnen"), style: .default) { _ in finish(true) })
                 presenter.present(alert, animated: true)
             }
         }

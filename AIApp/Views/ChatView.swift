@@ -54,7 +54,7 @@ struct ChatView: View {
             return s.localModelId.split(separator: "/").last.map(String.init) ?? "MLX"
         }
         let model = s.effectiveModel
-        if model.isEmpty { return "Modell" }
+        if model.isEmpty { return String(localized: "Modell") }
         let short = model.count > 18 ? String(model.prefix(16)) + "…" : model
         return short
     }
@@ -361,7 +361,7 @@ struct ChatView: View {
                 .font(.title2.bold())
             SuggestionList(suggestions: isEditingApp ? [
                 "Dunkleres Design",
-                "Bearbeiten & Löschen",
+                String(localized: "Bearbeiten & Löschen"),
                 "Anderes Icon",
                 "Netzwerk erlauben",
             ] : [
@@ -382,7 +382,7 @@ struct ChatView: View {
     private var inputBar: some View {
         ChatComposer(
             text: $input,
-            placeholder: isEditingApp ? "Änderung beschreiben…" : "Nachricht",
+            placeholder: isEditingApp ? String(localized: "Änderung beschreiben…") : "Nachricht",
             isBusy: session.busy,
             canSend: !sanitizedInput.isEmpty,
             onSend: send,
@@ -402,7 +402,7 @@ struct ChatView: View {
         let text = sanitizedInput
         guard !text.isEmpty else {
             if PlainPasteboard.looksLikePasteboardArtifact(input) {
-                session.errorMessage = "Zwischenablage war RTF/RTFD (kein Klartext). Nochmal als Text kopieren."
+                session.errorMessage = String(localized: "Zwischenablage war RTF/RTFD (kein Klartext). Nochmal als Text kopieren.")
                 input = ""
             }
             return

@@ -16,22 +16,47 @@ views.
 | **Translated** | Interface chrome — tabs, buttons, navigation titles, settings rows, empty states, dialogs, accessibility labels. 302 keys. |
 | **Not translated: prompts** | System prompts and the agent briefs in `GroupChatRunner`. These are *instructions to a model*; changing their language changes model behaviour, and the prompts already tell the model to answer in the user's language. |
 | **Not translated: internal** | Diagnostics breadcrumbs, log strings, dictionary keys. They go into a technical export, not the interface. |
-| **Not yet translated: interpolated strings** | 35 strings containing `\(…)`. See below. |
+| **Translated: interpolated strings** | Yes — via the format-specifier keys Xcode extracts. See below. |
 
-## The interpolated-string gap
+## Interpolated strings, and why the keys are not the literals
 
-Swift rewrites `Text("Mode: \(name)")` into the catalog key `Mode: %@` — the
-literal is *not* the key. Adding those 35 strings needs each key converted to
-its format-specifier form with the right specifier per argument type (`%@`,
-`%lld`, `%.1f`), which is easy to get subtly wrong and fails silently: a
-mismatched key just falls back to German with no warning.
+Swift rewrites `Text("Mode: \(name)")` into the catalog key `Mode: %@`. The
+literal is **not** the key, and a hand-written guess at the key fails silently —
+no warning, the string just falls back to German.
 
-They were deliberately left out rather than guessed at. They are error and
-status messages — `"Model not found: \(detail)"`, `"Round \(n) of \(total)"` —
-so a non-German user sees English chrome and the occasional German status line.
+So the keys are not guessed. `SWIFT_EMIT_LOC_STRINGS` is on at project level,
+which makes every build emit `.stringsdata` files listing exactly what Swift
+looks up:
 
-To finish them: build with `SWIFT_EMIT_LOC_STRINGS = YES`, let Xcode extract the
-real keys into the catalog, then translate those entries.
+```bash
+find ~/Library/Developer/Xcode/DerivedData/AIApp-*/Build/Intermediates.noindex/AIApp.build \
+  -name '*.stringsdata' | xargs -I{} python3 -c "
+import json,sys; d=json.load(open('{}'))
+[print(e['key']) for t in d.get('tables',{}).values() for e in t if 'key' in e]"
+```
+
+That list is the ground truth. Anything in it that is missing from the catalog
+falls back to German; anything in the catalog that is not in it is dead.
+
+**A mismatched specifier is worse than a missing translation.** Swift fills
+`%@` and `%lld` positionally: swap them and a number lands where a name should,
+drop one and it can crash. Every translation is checked for identical specifier
+counts before it is merged. If a language genuinely needs a different word
+order, use positional forms — `%1$@ %2$@` — never a silent reorder.
+
+## Strings outside SwiftUI need wrapping
+
+`Text("…")` takes a `LocalizedStringKey` and localizes on its own. A plain
+assignment does not:
+
+```swift
+errorMessage = "Kein Modell gewählt"                    // never localized
+errorMessage = String(localized: "Kein Modell gewählt") // localized
+```
+
+This bit once: 116 catalog entries existed for strings that were never looked
+up, so the catalog looked complete while the app was ~60% translated. If you add
+user-facing text outside a SwiftUI view, wrap it.
 
 ## Adding or changing a string
 

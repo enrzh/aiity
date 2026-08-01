@@ -27,7 +27,7 @@ enum SubAgentRunner {
         }
         if settings.effectiveModel.trimmingCharacters(in: .whitespaces).isEmpty,
            settings.preset.dialect != .mlx {
-            return "[\(agent.name) hat kein Modell gewählt.]"
+            return String(localized: "[\(agent.name) hat kein Modell gewählt.]")
         }
 
         let provider = settings.makeProvider(apiKey: apiKey)
@@ -62,7 +62,7 @@ enum SubAgentRunner {
             guard !calls.isEmpty else {
                 let answer = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 return answer.isEmpty
-                    ? "[\(agent.name) hat nichts zurückgegeben.]"
+                    ? String(localized: "[\(agent.name) hat nichts zurückgegeben.]")
                     : String(answer.prefix(maxReplyCharacters))
             }
 

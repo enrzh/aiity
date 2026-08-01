@@ -14,7 +14,7 @@ struct PasteCodeSheet: View {
 
     var body: some View {
         ModalChrome(
-            title: "Anmeldung abschließen",
+            title: String(localized: "Anmeldung abschließen"),
             confirmTitle: busy ? nil : "Verbinden",
             confirmDisabled: sanitizedCode.isEmpty,
             onCancel: onCancel,
@@ -73,6 +73,6 @@ struct PasteCodeSheet: View {
     }
 
     private var defaultHint: String {
-        "Im Browser hast du \(providerLabel) autorisiert. Kopiere den Code oder die URL aus der Adresszeile. Tipp: „Als Klartext einfügen“ — nicht manuell RTF aus Notes/Safari-Share."
+        String(localized: "Im Browser hast du \(providerLabel) autorisiert. Kopiere den Code oder die URL aus der Adresszeile. Tipp: „Als Klartext einfügen“ — nicht manuell RTF aus Notes/Safari-Share.")
     }
 }

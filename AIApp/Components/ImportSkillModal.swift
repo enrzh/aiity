@@ -14,7 +14,7 @@ struct ImportSkillModal: View {
     var body: some View {
         ModalChrome(
             title: "Skill installieren",
-            confirmTitle: importing ? nil : "Installieren",
+            confirmTitle: importing ? nil : String(localized: "Installieren"),
             confirmDisabled: spec.trimmingCharacters(in: .whitespaces).isEmpty || importing,
             onCancel: { dismiss() },
             onConfirm: importing ? nil : { Task { await installRemote() } }

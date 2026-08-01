@@ -94,9 +94,9 @@ enum BackupService {
             var parts: [String] = []
             parts.append("\(addedApps) Mini-Apps ergänzt")
             if skippedApps > 0 { parts.append("\(skippedApps) schon vorhanden") }
-            if restoredSkills { parts.append("Skills übernommen") }
-            if restoredChats { parts.append("Chats übernommen") }
-            if restoredAgents { parts.append("Agenten übernommen") }
+            if restoredSkills { parts.append(String(localized: "Skills übernommen")) }
+            if restoredChats { parts.append(String(localized: "Chats übernommen")) }
+            if restoredAgents { parts.append(String(localized: "Agenten übernommen")) }
             return parts.joined(separator: " · ")
         }
     }

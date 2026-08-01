@@ -40,7 +40,7 @@ final class SyncStatus: ObservableObject {
     var title: String {
         switch mode {
         case .synced: return "iCloud aktiv"
-        case .localOnly: return "Nur auf diesem Gerät"
+        case .localOnly: return String(localized: "Nur auf diesem Gerät")
         case .recovered: return "Neu angelegt"
         case .inMemory: return "Nicht gespeichert"
         }
@@ -49,15 +49,15 @@ final class SyncStatus: ObservableObject {
     var detail: String {
         switch mode {
         case .synced:
-            return "Mini-Apps synchronisieren über deine Apple-ID. Kein Login in der App nötig."
+            return String(localized: "Mini-Apps synchronisieren über deine Apple-ID. Kein Login in der App nötig.")
         case .localOnly:
             return AppPreferences.iCloudSyncPreference
                 ? "Kein iCloud-Sync — melde dich in den iOS-Einstellungen bei iCloud an, oder aktiviere iCloud Drive. Deine Daten bleiben lokal erhalten."
-                : "iCloud ist ausgeschaltet. Deine Mini-Apps bleiben vollständig auf diesem Gerät."
+                : String(localized: "iCloud ist ausgeschaltet. Deine Mini-Apps bleiben vollständig auf diesem Gerät.")
         case .recovered:
             return "Der bisherige Datenspeicher war unlesbar und wurde zur Seite gelegt. Ein Backup kannst du unten einspielen."
         case .inMemory:
-            return "Der Datenspeicher lässt sich nicht öffnen — Änderungen dieser Sitzung gehen beim Beenden verloren."
+            return String(localized: "Der Datenspeicher lässt sich nicht öffnen — Änderungen dieser Sitzung gehen beim Beenden verloren.")
         }
     }
 

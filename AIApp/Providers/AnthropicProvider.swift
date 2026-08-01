@@ -63,7 +63,7 @@ struct AnthropicProvider: LLMProvider {
                             if let url = error as? URLError, url.code == .timedOut, apiKey.hasPrefix(AuthStore.oauthMarker) {
                                 throw ProviderError.badResponse(
                                     0,
-                                    "Claude-Abo: Zeitüberschreitung. Netz prüfen, kürzere Nachricht senden, oder Abo-Login erneuern. Mini-Apps brauchen oft 1–3 Minuten."
+                                    String(localized: "Claude-Abo: Zeitüberschreitung. Netz prüfen, kürzere Nachricht senden, oder Abo-Login erneuern. Mini-Apps brauchen oft 1–3 Minuten.")
                                 )
                             }
                             throw error
@@ -90,10 +90,10 @@ struct AnthropicProvider: LLMProvider {
             throw ProviderError.missingKey
         }
         guard !model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw ProviderError.badResponse(0, "Kein Modell gewählt — unter Anbieter ein Claude-Modell laden.")
+            throw ProviderError.badResponse(0, String(localized: "Kein Modell gewählt — unter Anbieter ein Claude-Modell laden."))
         }
         guard let url = ProviderRequestSupport.endpoint(base: baseURL, path: "/v1/messages") else {
-            throw ProviderError.badResponse(0, "Ungültige Base-URL: \(baseURL)")
+            throw ProviderError.badResponse(0, String(localized: "Ungültige Base-URL: \(baseURL)"))
         }
 
         var request = URLRequest(url: url)
@@ -158,13 +158,13 @@ struct AnthropicProvider: LLMProvider {
             if status == 401 || status == 403, isOAuth {
                 throw ProviderError.badResponse(
                     status,
-                    "Claude-Abo-Login abgelehnt (\(status)). Abo-Zugriff über Dritt-Apps ist nicht garantiert — mit einem API-Key (Pay-as-you-go, console.anthropic.com/settings/keys) läuft es zuverlässig."
+                    String(localized: "Claude-Abo-Login abgelehnt (\(status)). Abo-Zugriff über Dritt-Apps ist nicht garantiert — mit einem API-Key (Pay-as-you-go, console.anthropic.com/settings/keys) läuft es zuverlässig.")
                 )
             }
             if status == 429, isOAuth {
                 throw ProviderError.badResponse(
                     status,
-                    "Claude-Abo-Login vom Server abgewiesen (429). Ein Abo deckt API-/Dritt-App-Nutzung meist nicht ab — ein eigener API-Key (console.anthropic.com/settings/keys) ist zuverlässig."
+                    String(localized: "Claude-Abo-Login vom Server abgewiesen (429). Ein Abo deckt API-/Dritt-App-Nutzung meist nicht ab — ein eigener API-Key (console.anthropic.com/settings/keys) ist zuverlässig.")
                 )
             }
             throw ProviderError.fromHTTP(status: status, body: errorBody)

@@ -655,14 +655,14 @@ final class DiagnosticsRecorder: @unchecked Sendable {
         case SIGABRT:
             return "Abbruch — meist eine nicht abgefangene Ausnahme oder ein fehlgeschlagenes assert."
         case SIGSEGV:
-            return "Ungültiger Speicherzugriff — Zugriff auf bereits freigegebenen Speicher."
+            return String(localized: "Ungültiger Speicherzugriff — Zugriff auf bereits freigegebenen Speicher.")
         case SIGBUS:
-            return "Nicht ausgerichteter oder ungültiger Speicherzugriff."
+            return String(localized: "Nicht ausgerichteter oder ungültiger Speicherzugriff.")
         case SIGILL, SIGTRAP:
-            return "Swift-Laufzeitfehler — force-unwrap auf nil, Index außerhalb des Bereichs, "
-                + "fehlgeschlagene precondition, oder arithmetischer Überlauf."
+            return String(localized: "Swift-Laufzeitfehler — force-unwrap auf nil, Index außerhalb des Bereichs, ")
+                + String(localized: "fehlgeschlagene precondition, oder arithmetischer Überlauf.")
         case SIGFPE:
-            return "Rechenfehler — Division durch null oder Überlauf."
+            return String(localized: "Rechenfehler — Division durch null oder Überlauf.")
         default:
             return "Vom System beendet."
         }

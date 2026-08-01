@@ -12,11 +12,11 @@ enum SearchBackend: String, Codable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .auto: return "Auto (beste verfügbar)"
+        case .auto: return String(localized: "Auto (beste verfügbar)")
         case .duckduckgo: return "DuckDuckGo (ohne Key)"
-        case .searxng: return "SearXNG"
+        case .searxng: return String(localized: "SearXNG")
         case .brave: return "Brave Search"
-        case .tavily: return "Tavily"
+        case .tavily: return String(localized: "Tavily")
         }
     }
 }

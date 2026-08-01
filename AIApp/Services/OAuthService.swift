@@ -36,7 +36,7 @@ final class OAuthService: NSObject, ObservableObject {
         var errorDescription: String? {
             switch self {
             case .cancelled: return "Anmeldung abgebrochen."
-            case .badCallback: return "Ungültige OAuth-Antwort."
+            case .badCallback: return String(localized: "Ungültige OAuth-Antwort.")
             case .noCode: return "Kein Code erkannt — kopiere den Code (oder die ganze Weiterleitungs-URL) aus dem Browser."
             case .exchangeFailed(let detail): return "Token-Austausch fehlgeschlagen: \(detail)"
             }

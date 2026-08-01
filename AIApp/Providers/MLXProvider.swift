@@ -149,7 +149,7 @@ final class MLXRuntime: @unchecked Sendable {
     }
     #else
     func ensureDownloaded(modelId: String, onProgress: @escaping (Double) -> Void) async throws {
-        throw ProviderError.badResponse(0, "MLX ist in diesem Build nicht verfügbar.")
+        throw ProviderError.badResponse(0, String(localized: "MLX ist in diesem Build nicht verfügbar."))
     }
     #endif
 
@@ -175,7 +175,7 @@ struct MLXProvider: LLMProvider {
         AsyncThrowingStream { continuation in
             let task = Task {
                 #if targetEnvironment(simulator)
-                continuation.finish(throwing: ProviderError.badResponse(0, "Lokale Modelle brauchen ein echtes Gerät (MLX läuft nicht im Simulator)."))
+                continuation.finish(throwing: ProviderError.badResponse(0, String(localized: "Lokale Modelle brauchen ein echtes Gerät (MLX läuft nicht im Simulator).")))
                 return
                 #else
                 #if canImport(MLXLLM)
@@ -227,7 +227,7 @@ struct MLXProvider: LLMProvider {
                     continuation.finish(throwing: error)
                 }
                 #else
-                continuation.finish(throwing: ProviderError.badResponse(0, "MLX ist in diesem Build nicht verfügbar."))
+                continuation.finish(throwing: ProviderError.badResponse(0, String(localized: "MLX ist in diesem Build nicht verfügbar.")))
                 #endif
                 #endif
             }

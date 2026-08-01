@@ -114,7 +114,7 @@ enum AppAppearance: String, CaseIterable, Identifiable, Codable {
 
     var title: String {
         switch self {
-        case .system: return "System"
+        case .system: return String(localized: "System")
         case .light: return "Hell"
         case .dark: return "Dunkel"
         }

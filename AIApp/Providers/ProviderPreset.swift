@@ -172,7 +172,7 @@ struct ProviderPreset: Identifiable, Equatable {
         ProviderPreset(id: "custom-anthropic", label: "Eigener Server (Anthropic-kompatibel)", dialect: .anthropic,
                        defaultBaseURL: "", needsKey: false,
                        editableBaseURL: true, defaultModel: ""),
-        ProviderPreset(id: "mlx", label: "Lokal auf dem Gerät (MLX)", dialect: .mlx,
+        ProviderPreset(id: "mlx", label: String(localized: "Lokal auf dem Gerät (MLX)"), dialect: .mlx,
                        defaultBaseURL: "", needsKey: false,
                        editableBaseURL: false, defaultModel: "",
                        maturity: .verified),

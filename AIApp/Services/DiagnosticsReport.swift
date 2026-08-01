@@ -41,8 +41,8 @@ enum DiagnosticsReport {
         } else {
             out.append("━━━ SYSTEMBERICHT (MetricKit) ━━━")
             out.append(
-                "Noch keiner. iOS liefert seinen Absturzbericht erst nach dem nächsten "
-                + "Start an die App aus — meist beim übernächsten Öffnen. Bis dahin zählt "
+                String(localized: "Noch keiner. iOS liefert seinen Absturzbericht erst nach dem nächsten ")
+                + String(localized: "Start an die App aus — meist beim übernächsten Öffnen. Bis dahin zählt ")
                 + "nur, was oben steht."
             )
             out.append("")
@@ -65,7 +65,7 @@ enum DiagnosticsReport {
         var out = ["━━━ LETZTER LAUF ━━━"]
 
         guard let run else {
-            out.append("Kein früherer Lauf gespeichert — entweder der erste Start nach "
+            out.append(String(localized: "Kein früherer Lauf gespeichert — entweder der erste Start nach ")
                        + "der Installation, oder die Diagnose wurde geleert.")
             return out
         }
@@ -103,10 +103,10 @@ enum DiagnosticsReport {
 
         case .diedUnexpectedly:
             out.append("Der Prozess ist beendet worden, ohne dass die App das mitbekommen hat.")
-            out.append("Ein Prozess kann das im Nachhinein nicht sicher unterscheiden. Möglich sind:")
+            out.append(String(localized: "Ein Prozess kann das im Nachhinein nicht sicher unterscheiden. Möglich sind:"))
             out.append(contentsOf: unexpectedCauses(run).map { "  • \($0)" })
             out.append("")
-            out.append("Was dafür/dagegen spricht, steht in den Fakten oben und den Ereignissen unten.")
+            out.append(String(localized: "Was dafür/dagegen spricht, steht in den Fakten oben und den Ereignissen unten."))
 
         case .clean:
             out.append("Sauber beendet — kein Absturz.")
@@ -178,7 +178,7 @@ enum DiagnosticsReport {
             }
             return "UNERWARTET BEENDET (Ursache nicht eindeutig)"
         case .noPreviousRun:
-            return "kein früherer Lauf"
+            return String(localized: "kein früherer Lauf")
         }
     }
 

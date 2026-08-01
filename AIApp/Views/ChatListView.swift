@@ -29,7 +29,7 @@ struct ChatListView: View {
                         title: "Noch keine Chats",
                         systemImage: "bubble.left.and.bubble.right",
                         message: "Starte eine Unterhaltung — allein mit der KI oder als Gruppe mit mehreren Agenten.",
-                        actionTitle: "Neuer Chat",
+                        actionTitle: String(localized: "Neuer Chat"),
                         action: { startSolo() }
                     )
                 } else {
@@ -64,7 +64,7 @@ struct ChatListView: View {
                 }
             }
             .confirmationDialog(
-                "Chat löschen?",
+                String(localized: "Chat löschen?"),
                 isPresented: Binding(
                     get: { deleteCandidate != nil },
                     set: { if !$0 { deleteCandidate = nil } }
@@ -161,7 +161,7 @@ struct ChatListView: View {
         let names = agentStore.agents
             .filter { thread.participantAgentIds.contains($0.id) }
             .map(\.name)
-        return names.isEmpty ? "Gruppe" : names.joined(separator: ", ")
+        return names.isEmpty ? String(localized: "Gruppe") : names.joined(separator: ", ")
     }
 
     private func startSolo() {

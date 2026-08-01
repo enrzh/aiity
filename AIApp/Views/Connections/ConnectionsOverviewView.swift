@@ -11,7 +11,7 @@ struct ConnectionsView: View {
             Section {
                 quickLink("OpenRouter", icon: "globe", presetId: "openrouter")
                 quickLink("Gateway (sub2api)", icon: "server.rack", presetId: "sub2api")
-                quickLink("Auf dem Gerät", icon: "iphone", presetId: "mlx")
+                quickLink(String(localized: "Auf dem Gerät"), icon: "iphone", presetId: "mlx")
                 quickLink("Eigene API", icon: "link", presetId: "custom-openai")
                 quickLink("Ollama", icon: "desktopcomputer", presetId: "ollama")
             } header: {

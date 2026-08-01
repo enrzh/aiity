@@ -292,7 +292,7 @@ final class ChatSession: ObservableObject {
         messages.append(ChatMessage(role: .user, text: userText))
         let host = WebAppBuilder.host(of: url)
         let html = WebAppBuilder.html(urlString: url)
-        let reply = "Hier ist eine Browser-Mini-App für **\(host)**. „Vorschau“ öffnet sie sofort, „Behalten“ speichert sie unter Apps. Beim ersten Öffnen fragt sie nach Internet-Erlaubnis — danach bleibst du auf der Seite eingeloggt."
+        let reply = String(localized: "Hier ist eine Browser-Mini-App für **\(host)**. „Vorschau“ öffnet sie sofort, „Behalten“ speichert sie unter Apps. Beim ersten Öffnen fragt sie nach Internet-Erlaubnis — danach bleibst du auf der Seite eingeloggt.")
         // Embed the HTML fence so the draft survives a restart (ChatView hides it).
         let assistantText = reply + "\n\n```html\n" + html + "\n```"
         messages.append(ChatMessage(role: .assistant, text: assistantText))
@@ -367,13 +367,13 @@ final class ChatSession: ObservableObject {
             if Task.isCancelled { return }
             if runSettings.preset.dialect != .mlx,
                runSettings.effectiveModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                errorMessage = "Kein Modell gewählt — Mehr → KI-Anbieter → Modell aus der Liste wählen."
+                errorMessage = String(localized: "Kein Modell gewählt — Mehr → KI-Anbieter → Modell aus der Liste wählen.")
                 busy = false
                 AgentLiveActivityController.shared.fail(message: errorMessage ?? "Kein Modell")
                 return
             }
             if runSettings.preset.needsKey && apiKey.isEmpty && !ConnectionProbe.isLocalStyle(runSettings.presetId) {
-                errorMessage = "Kein API-Key / Abo-Login — unter KI-Anbieter ein Konto verbinden."
+                errorMessage = String(localized: "Kein API-Key / Abo-Login — unter KI-Anbieter ein Konto verbinden.")
                 busy = false
                 AgentLiveActivityController.shared.fail(message: errorMessage ?? "Kein Key")
                 return
@@ -412,7 +412,7 @@ final class ChatSession: ObservableObject {
         if let err = errorMessage, !err.isEmpty {
             AgentLiveActivityController.shared.fail(message: err)
         } else {
-            AgentLiveActivityController.shared.fail(message: "Keine Antwort vom Modell — Modell/Abo prüfen und erneut senden.")
+            AgentLiveActivityController.shared.fail(message: String(localized: "Keine Antwort vom Modell — Modell/Abo prüfen und erneut senden."))
         }
     }
 
@@ -523,12 +523,12 @@ final class ChatSession: ObservableObject {
         // turn if it carried nothing else).
         dropDanglingToolCalls()
         errorMessage = nil
-        statusLine = "Gestoppt"
+        statusLine = String(localized: "Gestoppt")
         persist()
         // Clear status after a beat so the chrome doesn't stay sticky.
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 1_200_000_000)
-            if statusLine == "Gestoppt" { statusLine = nil }
+            if statusLine == String(localized: "Gestoppt") { statusLine = nil }
         }
     }
 
@@ -567,9 +567,9 @@ final class ChatSession: ObservableObject {
                         ? "Stop using tools. Output the complete mini-app NOW as ONE ```html document (inline CSS/JS, viewport, title, emoji comment). Full HTML only."
                         : "Stop using tools. Give your final answer now based on the tool results above."
                 ))
-                statusLine = wantsApp ? "Baut Mini-App…" : "Schließt ab…"
+                statusLine = wantsApp ? "Baut Mini-App…" : String(localized: "Schließt ab…")
             } else {
-                statusLine = "Schreibt…"
+                statusLine = String(localized: "Schreibt…")
             }
 
             messages.append(ChatMessage(role: .assistant, text: ""))
@@ -590,7 +590,7 @@ final class ChatSession: ObservableObject {
                             let preview = String(messages[assistantIndex].text.suffix(60))
                                 .trimmingCharacters(in: .whitespacesAndNewlines)
                             AgentLiveActivityController.shared.update(
-                                phase: statusLine ?? "Schreibt…",
+                                phase: statusLine ?? String(localized: "Schreibt…"),
                                 detail: preview.isEmpty ? nil : preview,
                                 progress: nil
                             )
@@ -670,8 +670,8 @@ final class ChatSession: ObservableObject {
                     return
                 }
             }
-            statusLine = "Schreibt…"
-            AgentLiveActivityController.shared.update(phase: "Schreibt…", progress: 0.55)
+            statusLine = String(localized: "Schreibt…")
+            AgentLiveActivityController.shared.update(phase: String(localized: "Schreibt…"), progress: 0.55)
         }
 
         // Absolute fallback: force one more no-tool completion.
@@ -711,7 +711,7 @@ final class ChatSession: ObservableObject {
            !messages.contains(where: {
                $0.role == .assistant && !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
            }) {
-            errorMessage = "Antwort unvollständig — bitte erneut senden (kürzere Anfrage hilft)."
+            errorMessage = String(localized: "Antwort unvollständig — bitte erneut senden (kürzere Anfrage hilft).")
         }
     }
 
@@ -724,8 +724,8 @@ final class ChatSession: ObservableObject {
         // Only upgrade; don’t clear a better final draft with a shorter one later in another path.
         if let existing = draftMiniApp, existing.html.count > draft.html.count + 80 { return }
         draftMiniApp = draft
-        if statusLine == "Schreibt…" || statusLine == nil {
-            statusLine = "Mini-App wird gebaut…"
+        if statusLine == String(localized: "Schreibt…") || statusLine == nil {
+            statusLine = String(localized: "Mini-App wird gebaut…")
         }
     }
 
@@ -769,7 +769,7 @@ final class ChatSession: ObservableObject {
                 if !validation.issues.isEmpty {
                     lastMiniAppWarnings = validation.issues
                     // Soft banner — does not block keep/preview.
-                    errorMessage = "Mini-App bereit (Hinweise: " + validation.issues.prefix(2).joined(separator: "; ") + ")"
+                    errorMessage = String(localized: "Mini-App bereit (Hinweise: ") + validation.issues.prefix(2).joined(separator: "; ") + ")"
                 }
                 // Keep fixing while the mode allows it. Auto keeps going until
                 // the app validates or the budget runs out; the other modes get
@@ -781,8 +781,8 @@ final class ChatSession: ObservableObject {
                     repairPassesThisTurn += 1
                     statusLine = mode.maxRepairPasses > 1
                         ? "Korrigiert Mini-App (\(repairPassesThisTurn)/\(mode.maxRepairPasses))…"
-                        : "Korrigiert Mini-App…"
-                    AgentLiveActivityController.shared.update(phase: "Korrigiert Mini-App…", progress: 0.75)
+                        : String(localized: "Korrigiert Mini-App…")
+                    AgentLiveActivityController.shared.update(phase: String(localized: "Korrigiert Mini-App…"), progress: 0.75)
                     let repair = MiniAppValidator.repairPrompt(
                         originalUserRequest: lastUserTextForRepair,
                         html: runnable,
@@ -797,13 +797,13 @@ final class ChatSession: ObservableObject {
             if repairPassesThisTurn >= AppPreferences.storedChatMode.maxRepairPasses {
                 draftMiniApp = draft
                 // Say the budget ran out rather than implying the app is fine.
-                errorMessage = "Mini-App-Prüfung nach \(repairPassesThisTurn) Versuchen: "
+                errorMessage = String(localized: "Mini-App-Prüfung nach \(repairPassesThisTurn) Versuchen: ")
                     + validation.issues.joined(separator: "; ")
                 return
             }
             repairPassesThisTurn += 1
-            statusLine = "Korrigiert Mini-App…"
-            AgentLiveActivityController.shared.update(phase: "Korrigiert Mini-App…", progress: 0.75)
+            statusLine = String(localized: "Korrigiert Mini-App…")
+            AgentLiveActivityController.shared.update(phase: String(localized: "Korrigiert Mini-App…"), progress: 0.75)
             let repair = MiniAppValidator.repairPrompt(
                 originalUserRequest: lastUserTextForRepair,
                 html: runnable,
@@ -924,7 +924,7 @@ final class ChatSession: ObservableObject {
             // Reachable whenever every member was deleted or switched off; the
             // user's message is already in the thread, so failing silently would
             // look like the app ignored them.
-            errorMessage = "Keine aktiven Agenten in dieser Gruppe — im Tab „Agenten“ anlegen oder wieder einschalten."
+            errorMessage = String(localized: "Keine aktiven Agenten in dieser Gruppe — im Tab „Agenten“ anlegen oder wieder einschalten.")
             busy = false
             // Reachable from the auto-continue recursion with the marker
             // already set; leaving it pins a "läuft…" spinner on a thread that
@@ -1017,8 +1017,8 @@ final class ChatSession: ObservableObject {
                 if usesLocalModel,
                    MemoryPressure.shared.warnings(since: roundStarted)
                        >= GroupChatRunner.memoryWarningAbortThreshold {
-                    self.errorMessage = "Runde gestoppt: dem Gerät ging der Speicher aus. "
-                        + "Ein kleineres lokales Modell wählen, oder für Gruppen einen Cloud-Anbieter."
+                    self.errorMessage = String(localized: "Runde gestoppt: dem Gerät ging der Speicher aus. ")
+                        + String(localized: "Ein kleineres lokales Modell wählen, oder für Gruppen einen Cloud-Anbieter.")
                     self.busy = false
                     self.runningThreadId = nil
                     self.statusLine = nil
@@ -1140,14 +1140,14 @@ final class ChatSession: ObservableObject {
         // a fresh one — destroying it on disk via persist(), and leaving the
         // in-flight turn indexing into an array that no longer has its slot.
         guard newThread() != nil else {
-            errorMessage = "Es läuft gerade eine Antwort — bitte kurz warten oder stoppen."
+            errorMessage = String(localized: "Es läuft gerade eine Antwort — bitte kurz warten oder stoppen.")
             return
         }
         editingContext = EditingContext(id: id, name: name, html: html)
         messages = [
             ChatMessage(
                 role: .assistant,
-                text: "Du bearbeitest **\(name)**. Der aktuelle Quellcode ist an die KI übergeben — beschreib nur, was ich ändern oder verbessern soll (Design, Features, Icon, Netzwerk …)."
+                text: String(localized: "Du bearbeitest **\(name)**. Der aktuelle Quellcode ist an die KI übergeben — beschreib nur, was ich ändern oder verbessern soll (Design, Features, Icon, Netzwerk …).")
             ),
         ]
         ensureSourcePinned()
@@ -1159,14 +1159,14 @@ final class ChatSession: ObservableObject {
     /// Preview / unsaved draft → new edit thread (keep will insert a new app).
     func startEditingDraft(name: String, html: String, emoji: String = "✨") {
         guard newThread() != nil else {
-            errorMessage = "Es läuft gerade eine Antwort — bitte kurz warten oder stoppen."
+            errorMessage = String(localized: "Es läuft gerade eine Antwort — bitte kurz warten oder stoppen.")
             return
         }
         editingContext = EditingContext(id: UUID(), name: name, html: html)
         messages = [
             ChatMessage(
                 role: .assistant,
-                text: "Vorschau von **\(name)** \(emoji). Quellcode ist an die KI übergeben — sag, was ich anpassen soll; danach speichern wir die neue Version."
+                text: String(localized: "Vorschau von **\(name)** \(emoji). Quellcode ist an die KI übergeben — sag, was ich anpassen soll; danach speichern wir die neue Version.")
             ),
         ]
         ensureSourcePinned()
@@ -1206,7 +1206,7 @@ final class ChatSession: ObservableObject {
         if !messages.isEmpty, contentChanged { thread.updatedAt = .now }
         if thread.title.isEmpty {
             if let context = editingContext {
-                thread.title = "✏️ \(context.name)"
+                thread.title = String(localized: "✏️ \(context.name)")
             } else if let firstUser = messages.first(where: { $0.role == .user }) {
                 thread.title = String(firstUser.text.prefix(48))
             }

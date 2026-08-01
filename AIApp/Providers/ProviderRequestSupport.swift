@@ -72,7 +72,7 @@ enum ProviderRequestSupport {
         detail = String(detail.prefix(400))
         if detail.isEmpty {
             if status == 0 {
-                return "Keine Antwort vom Server — Netz oder Base-URL prüfen."
+                return String(localized: "Keine Antwort vom Server — Netz oder Base-URL prüfen.")
             }
             return "API-Fehler \(status) (keine Details)."
         }
@@ -85,25 +85,25 @@ enum ProviderRequestSupport {
             || lower.contains("maximum context") || lower.contains("context window")
             || lower.contains("reduce the length") || lower.contains("prompt is too long")
             || lower.contains("too many tokens") || (lower.contains("token") && lower.contains("exceed")) {
-            return "Kontext zu groß für dieses Modell — starte einen neuen Chat, sende kürzer, oder wähle ein Modell mit größerem Kontextfenster (Mini-App-Bearbeitung braucht viel Kontext)."
+            return String(localized: "Kontext zu groß für dieses Modell — starte einen neuen Chat, sende kürzer, oder wähle ein Modell mit größerem Kontextfenster (Mini-App-Bearbeitung braucht viel Kontext).")
         }
         if status == 404 || lower.contains("model") && (lower.contains("not found") || lower.contains("does not exist") || lower.contains("invalid model")) {
-            return "Modell nicht gefunden: \(detail) — unter Anbieter ein gültiges Modell wählen."
+            return String(localized: "Modell nicht gefunden: \(detail) — unter Anbieter ein gültiges Modell wählen.")
         }
         if status == 401 || status == 403 {
-            return "Auth-Fehler \(status): \(detail) — API-Key prüfen/erneuern. Bei eigenem Gateway (sub2api): stimmt der sk-…-Key mit dem Server überein?"
+            return String(localized: "Auth-Fehler \(status): \(detail) — API-Key prüfen/erneuern. Bei eigenem Gateway (sub2api): stimmt der sk-…-Key mit dem Server überein?")
         }
         if status == 429 {
             // Billing exhaustion (insufficient_quota) is not a transient rate
             // limit — "kurz warten" would be wrong advice there.
             if lower.contains("insufficient_quota") || lower.contains("exceeded your current quota")
                 || lower.contains("billing") || lower.contains("payment") || lower.contains("credit") {
-                return "Kontingent/Guthaben aufgebraucht — Abrechnung/Guthaben beim Anbieter prüfen (ein Abo deckt die API-Nutzung meist nicht ab; API-Key nutzen)."
+                return String(localized: "Kontingent/Guthaben aufgebraucht — Abrechnung/Guthaben beim Anbieter prüfen (ein Abo deckt die API-Nutzung meist nicht ab; API-Key nutzen).")
             }
             return "Rate-Limit erreicht — kurz warten und erneut versuchen (ggf. anderes Modell/Konto)."
         }
         if isToolUnsupportedError(status: status, body: detail) {
-            return "Dieses Modell unterstützt keine Tool-Calls. Die App versucht es ohne Tools erneut…"
+            return String(localized: "Dieses Modell unterstützt keine Tool-Calls. Die App versucht es ohne Tools erneut…")
         }
         if lower.contains("connection") && lower.contains("lost") {
             return "Verbindung unterbrochen — erneut senden."

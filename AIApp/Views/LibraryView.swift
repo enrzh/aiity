@@ -73,7 +73,7 @@ struct LibraryView: View {
                 }
             }
             .confirmationDialog(
-                "Mini-App löschen?",
+                String(localized: "Mini-App löschen?"),
                 isPresented: Binding(
                     get: { deleteCandidate != nil },
                     set: { if !$0 { deleteCandidate = nil } }

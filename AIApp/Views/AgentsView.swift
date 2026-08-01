@@ -79,7 +79,7 @@ struct AgentsView: View {
                 .environmentObject(settingsStore)
             }
             .confirmationDialog(
-                "Agent löschen?",
+                String(localized: "Agent löschen?"),
                 isPresented: Binding(
                     get: { deleteCandidate != nil },
                     set: { if !$0 { deleteCandidate = nil } }
@@ -241,7 +241,7 @@ struct AgentEditSheet: View {
 
                 Section {
                     TextField(
-                        "Wofür ist dieser Agent zuständig?",
+                        String(localized: "Wofür ist dieser Agent zuständig?"),
                         text: $agent.role,
                         axis: .vertical
                     )

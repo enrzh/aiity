@@ -3,7 +3,7 @@ import SwiftUI
 /// Shared chrome for modal sheets: NavigationStack + title + cancel/confirm toolbar.
 struct ModalChrome<Content: View>: View {
     let title: String
-    var cancelTitle: String = "Abbrechen"
+    var cancelTitle: String = String(localized: "Abbrechen")
     var confirmTitle: String? = nil
     var confirmDisabled: Bool = false
     var onCancel: () -> Void

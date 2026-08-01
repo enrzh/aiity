@@ -36,7 +36,7 @@ struct DiagnosticsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task { load() }
         .confirmationDialog(
-            "Diagnose löschen?", isPresented: $showClearConfirm, titleVisibility: .visible
+            String(localized: "Diagnose löschen?"), isPresented: $showClearConfirm, titleVisibility: .visible
         ) {
             Button("Löschen", role: .destructive) {
                 DiagnosticsRecorder.shared.clear()
@@ -235,15 +235,15 @@ struct DiagnosticsView: View {
     private var explanation: String {
         switch verdict {
         case .clean:
-            return "Die App wurde regulär beendet oder in den Hintergrund geschickt."
+            return String(localized: "Die App wurde regulär beendet oder in den Hintergrund geschickt.")
         case .crashed(let fatal):
             return fatal.reason.isEmpty
                 ? "Der Absturz wurde in der App abgefangen."
                 : fatal.reason
         case .diedUnexpectedly:
-            return "Der Prozess endete, ohne dass die App es mitbekommen hat. Die Ursachen unten sind nach Plausibilität geordnet."
+            return String(localized: "Der Prozess endete, ohne dass die App es mitbekommen hat. Die Ursachen unten sind nach Plausibilität geordnet.")
         case .noPreviousRun:
-            return "Es liegt noch kein früherer Lauf vor."
+            return String(localized: "Es liegt noch kein früherer Lauf vor.")
         }
     }
 

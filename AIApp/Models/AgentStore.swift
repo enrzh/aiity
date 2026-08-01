@@ -121,32 +121,32 @@ enum AgentSuggestion {
         Template(
             name: "Rechercheur",
             emoji: "🔎",
-            role: "Recherchiert Fakten im Web, prüft sie an mehreren Quellen und fasst sie mit Quellenangabe zusammen. Sagt ausdrücklich, wenn etwas unsicher oder widersprüchlich ist.",
+            role: String(localized: "Recherchiert Fakten im Web, prüft sie an mehreren Quellen und fasst sie mit Quellenangabe zusammen. Sagt ausdrücklich, wenn etwas unsicher oder widersprüchlich ist."),
             modelHint: "Ein starkes Cloud-Modell — Recherche lebt von Sorgfalt."
         ),
         Template(
             name: "Kritiker",
             emoji: "🧐",
-            role: "Sucht gezielt Schwachstellen in Plänen und Texten: falsche Annahmen, fehlende Fälle, unbegründete Behauptungen. Formuliert knapp und konkret, ohne Höflichkeitsfloskeln.",
-            modelHint: "Ein starkes Modell — Kritik ist wertlos, wenn sie oberflächlich ist."
+            role: String(localized: "Sucht gezielt Schwachstellen in Plänen und Texten: falsche Annahmen, fehlende Fälle, unbegründete Behauptungen. Formuliert knapp und konkret, ohne Höflichkeitsfloskeln."),
+            modelHint: String(localized: "Ein starkes Modell — Kritik ist wertlos, wenn sie oberflächlich ist.")
         ),
         Template(
             name: "Planer",
             emoji: "🗺️",
-            role: "Zerlegt ein Ziel in eine überschaubare Reihenfolge konkreter Schritte, benennt Abhängigkeiten und sagt, was zuerst geklärt werden muss.",
+            role: String(localized: "Zerlegt ein Ziel in eine überschaubare Reihenfolge konkreter Schritte, benennt Abhängigkeiten und sagt, was zuerst geklärt werden muss."),
             modelHint: "Mittelklasse reicht meist."
         ),
         Template(
-            name: "Übersetzer",
+            name: String(localized: "Übersetzer"),
             emoji: "🌍",
-            role: "Übersetzt Texte natürlich statt wörtlich, behält Ton und Fachbegriffe bei und markiert Stellen, die im Original mehrdeutig sind.",
-            modelHint: "Auch ein günstiges Modell macht das gut."
+            role: String(localized: "Übersetzt Texte natürlich statt wörtlich, behält Ton und Fachbegriffe bei und markiert Stellen, die im Original mehrdeutig sind."),
+            modelHint: String(localized: "Auch ein günstiges Modell macht das gut.")
         ),
         Template(
             name: "Zusammenfasser",
             emoji: "📝",
-            role: "Fasst lange Texte auf das Wesentliche zusammen: Kernaussage zuerst, dann die Punkte, die eine Entscheidung verändern würden. Keine Füllsätze.",
-            modelHint: "Ein günstiges, schnelles Modell genügt."
+            role: String(localized: "Fasst lange Texte auf das Wesentliche zusammen: Kernaussage zuerst, dann die Punkte, die eine Entscheidung verändern würden. Keine Füllsätze."),
+            modelHint: String(localized: "Ein günstiges, schnelles Modell genügt.")
         ),
     ]
 

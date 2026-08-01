@@ -118,13 +118,13 @@ enum GroupChatRunner {
         if settings.preset.dialect == .mlx {
             let localId = settings.localModelId.trimmingCharacters(in: .whitespaces)
             if localId.isEmpty {
-                return "(kein lokales Modell gewählt — unter Anbieter eins laden und auswählen)"
+                return String(localized: "(kein lokales Modell gewählt — unter Anbieter eins laden und auswählen)")
             }
             if !LocalModelLocation.isDownloaded(localId) {
                 return "(lokales Modell nicht geladen — unter Anbieter herunterladen)"
             }
         } else if settings.effectiveModel.trimmingCharacters(in: .whitespaces).isEmpty {
-            return "(kein Modell gewählt)"
+            return String(localized: "(kein Modell gewählt)")
         }
 
         let provider = settings.makeProvider(apiKey: apiKey)

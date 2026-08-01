@@ -198,7 +198,7 @@ final class SkillStore: ObservableObject {
     @discardableResult
     func installPackage(markdown: String, source: String? = nil) -> AgentSkill? {
         guard let doc = SkillPackage.parse(markdown: markdown, source: source) else {
-            errorMessage = "Kein gültiges Skill-Paket (SKILL.md leer oder unlesbar)."
+            errorMessage = String(localized: "Kein gültiges Skill-Paket (SKILL.md leer oder unlesbar).")
             return nil
         }
         add(
@@ -227,7 +227,7 @@ final class SkillStore: ObservableObject {
         lastInstallMessage = nil
         let spec = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !spec.isEmpty else {
-            errorMessage = "Leere Quelle."
+            errorMessage = String(localized: "Leere Quelle.")
             return
         }
 
@@ -238,14 +238,14 @@ final class SkillStore: ObservableObject {
                 _ = installPackage(markdown: md, source: key)
                 return
             }
-            errorMessage = "Gebündelter Skill „\(spec)“ nicht im App-Bundle."
+            errorMessage = String(localized: "Gebündelter Skill „\(spec)“ nicht im App-Bundle.")
             return
         }
 
         // 2) Network install with path variants
         let candidates = SkillPackage.candidateInstallURLs(spec)
         guard !candidates.isEmpty else {
-            errorMessage = "Format: owner/repo/pfad@branch oder https://…"
+            errorMessage = String(localized: "Format: owner/repo/pfad@branch oder https://…")
             return
         }
 
@@ -296,7 +296,7 @@ final class SkillStore: ObservableObject {
 
     func updateFromSource(_ skill: AgentSkill) async {
         guard let source = skill.source, !source.isEmpty else {
-            errorMessage = "Kein Remote-Source für Update."
+            errorMessage = String(localized: "Kein Remote-Source für Update.")
             return
         }
         await install(from: source)
@@ -318,7 +318,7 @@ final class SkillStore: ObservableObject {
     static let builtins: [AgentSkill] = [
         AgentSkill(
             name: "UI-Design Pro",
-            summary: "Konsistentes Design-System für alle Mini-Apps",
+            summary: String(localized: "Konsistentes Design-System für alle Mini-Apps"),
             instructions: """
             Apply this design system to every mini-app:
             - Define CSS custom properties in :root for colors, spacing and radii; override them in @media (prefers-color-scheme: dark). Never hardcode colors inline.

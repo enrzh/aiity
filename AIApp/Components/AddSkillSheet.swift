@@ -10,7 +10,7 @@ struct AddSkillSheet: View {
     var body: some View {
         ModalChrome(
             title: "Neuer Skill",
-            confirmTitle: "Sichern",
+            confirmTitle: String(localized: "Sichern"),
             confirmDisabled: name.trimmingCharacters(in: .whitespaces).isEmpty
                 || instructions.trimmingCharacters(in: .whitespaces).isEmpty,
             onCancel: { dismiss() },

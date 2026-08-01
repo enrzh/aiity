@@ -28,7 +28,7 @@ struct CatalogModel: Identifiable, Equatable, Hashable {
         if supportsTools { tags.append("Tools") }
         if supportsVision { tags.append("Vision") }
         if mediaGenerationLikely { tags.append("Media") }
-        if tags.isEmpty { tags.append("Chat") }
+        if tags.isEmpty { tags.append(String(localized: "Chat")) }
         return tags.joined(separator: " · ")
     }
 }
@@ -128,7 +128,7 @@ enum ModelCatalogService {
             return []
         }
         guard let url = ProviderRequestSupport.endpoint(base: listBase, path: "/models") else {
-            throw ProviderError.badResponse(0, "Ungültige Base-URL für Modelle.")
+            throw ProviderError.badResponse(0, String(localized: "Ungültige Base-URL für Modelle."))
         }
         var request = URLRequest(url: url)
         request.timeoutInterval = 20
@@ -167,7 +167,7 @@ enum ModelCatalogService {
         guard !base.isEmpty else { return [] }
         guard let url = ProviderRequestSupport.endpoint(base: base, path: "/v1/models?limit=100")
                 ?? ProviderRequestSupport.endpoint(base: base, path: "/v1/models") else {
-            throw ProviderError.badResponse(0, "Ungültige Base-URL für Anthropic-Modelle.")
+            throw ProviderError.badResponse(0, String(localized: "Ungültige Base-URL für Anthropic-Modelle."))
         }
         var request = URLRequest(url: url)
         request.timeoutInterval = 15

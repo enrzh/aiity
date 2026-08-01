@@ -10,6 +10,13 @@ packages:
     # 3.x switched to a macro-based HubClient API; 2.31.x is the stable
     # loadContainer(hub:configuration:) generation this code targets.
     exactVersion: 2.31.3
+settings:
+  base:
+    # Extract localizable strings from source on every build. This is what
+    # produces the CORRECT key for an interpolated string — Swift rewrites
+    # "Mode: \(x)" to "Mode: %@", so a hand-written key silently never
+    # matches and the string just falls back to German.
+    SWIFT_EMIT_LOC_STRINGS: YES
 targets:
   AIApp:
     type: application

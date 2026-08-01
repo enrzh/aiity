@@ -57,7 +57,7 @@ enum ConnectionProbe {
                             + (snippet.isEmpty ? "" : ": \(snippet)")))
         }
         guard let object = jsonObject(data) else {
-            return .failure(ProbeFailure(message: "Antwort ist kein gültiges JSON."))
+            return .failure(ProbeFailure(message: String(localized: "Antwort ist kein gültiges JSON.")))
         }
         // OpenAI / Ollama OpenAI-compat: { "data": [ { "id": "…" } ] }
         if let entries = object["data"] as? [[String: Any]] {
@@ -126,7 +126,7 @@ enum ConnectionProbe {
 
         let base = settings.effectiveBaseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         guard !base.isEmpty, let modelsURL = modelsListURL(base: base, dialect: dialect) else {
-            return .failure("Keine Server-Adresse — z. B. http://192.168.1.10:11434 für Ollama.")
+            return .failure(String(localized: "Keine Server-Adresse — z. B. http://192.168.1.10:11434 für Ollama."))
         }
 
         do {

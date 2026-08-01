@@ -1,297 +1,238 @@
 {
   "sourceLanguage": "de",
   "strings": {
-    "         Symbolisieren nötig wäre. Der MetricKit-Bericht unten": {
+    "%@ (nicht in Liste)": {
       "extractionState": "manual",
       "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "         حيث يلزم فك الرموز. وتقرير MetricKit أدناه"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "         symbolication would require. The MetricKit report below"
+            "value": "%@ (not in list)"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "         haría falta simbolizarlo. El informe de MetricKit de abajo"
+            "value": "%@ (no está en la lista)"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "         nécessaire à la symbolisation. Le rapport MetricKit ci-dessous"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "         sarebbe necessaria la simbolizzazione. Il rapporto MetricKit qui sotto"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "         シンボル化はできません。下の MetricKit レポートが"
+            "value": "%@ (absent de la liste)"
           }
         },
         "pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "         seria necessário simbolizar. O relatório do MetricKit abaixo"
+            "value": "%@ (não está na lista)"
           }
         },
-        "ru": {
+        "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "         символизации. Отчёт MetricKit ниже"
+            "value": "%@ (non in elenco)"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "         需要符号化才能读懂。下面的 MetricKit 报告"
+            "value": "%@（不在列表中）"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@（リストにありません）"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ (нет в списке)"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ (ليس في القائمة)"
           }
         }
       }
     },
-    "  Speicher: %.0f MB belegt · %.0f MB verfügbar · %d Warnung(en)": {
+    "%@ aktiv": {
       "extractionState": "manual",
       "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "  الذاكرة: %.0f MB مستخدمة · %.0f MB متاحة · %d تحذير(ات)"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "  Memory: %.0f MB used · %.0f MB available · %d warning(s)"
+            "value": "%@ active"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "  Memoria: %.0f MB usados · %.0f MB disponibles · %d aviso(s)"
+            "value": "%@ activo"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "  Mémoire : %.0f Mo utilisés · %.0f Mo disponibles · %d alerte(s)"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "  Memoria: %.0f MB usati · %.0f MB disponibili · %d avviso/i"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "  メモリ: %.0f MB 使用 · %.0f MB 空き · 警告 %d 件"
+            "value": "%@ actif"
           }
         },
         "pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "  Memória: %.0f MB usados · %.0f MB disponíveis · %d aviso(s)"
+            "value": "%@ ativo"
           }
         },
-        "ru": {
+        "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "  Память: занято %.0f МБ · доступно %.0f МБ · предупреждений: %d"
+            "value": "%@ attivo"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "  内存：已用 %.0f MB · 可用 %.0f MB · %d 次警告"
+            "value": "%@ 已启用"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ が有効"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Активно: %@"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ نشط"
           }
         }
       }
     },
-    " : thread.title)“ wird entfernt.": {
+    "%@ — weitere Anbieter": {
       "extractionState": "manual",
       "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": " : thread.title)»."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": " : thread.title)” will be removed."
+            "value": "%@ — more providers"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": " : thread.title)»."
+            "value": "%@ — más proveedores"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": " : thread.title) » sera supprimé."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": " : thread.title)” verrà rimossa."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": " : thread.title)」を削除します。"
+            "value": "%@ — autres fournisseurs"
           }
         },
         "pt": {
           "stringUnit": {
             "state": "translated",
-            "value": " : thread.title)» será removido."
+            "value": "%@ — mais fornecedores"
           }
         },
-        "ru": {
+        "it": {
           "stringUnit": {
             "state": "translated",
-            "value": " : thread.title)» будет удалён."
+            "value": "%@ — altri provider"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": " : thread.title)” 将被删除。"
+            "value": "%@ — 更多提供商"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — その他のプロバイダ"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — другие провайдеры"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — مزوّدون آخرون"
           }
         }
       }
     },
-    " — Einstellungen → Modelle laden und ein anderes Modell wählen.": {
+    "%lld aktiv": {
       "extractionState": "manual",
       "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": " — الإعدادات ← تحميل النماذج واختيار نموذج آخر."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": " — go to Settings → Load models and pick a different model."
+            "value": "%lld active"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": " — en Ajustes → Cargar modelos, elige otro modelo."
+            "value": "%lld activos"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": " — Réglages → Charger les modèles et en choisir un autre."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": " — Impostazioni → Carica modelli e scegli un altro modello."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": " — 設定 →「モデルを読み込む」で別のモデルを選んでください。"
+            "value": "%lld actifs"
           }
         },
         "pt": {
           "stringUnit": {
             "state": "translated",
-            "value": " — Definições → Carregar modelos e escolhe outro modelo."
+            "value": "%lld ativos"
           }
         },
-        "ru": {
+        "it": {
           "stringUnit": {
             "state": "translated",
-            "value": " — Настройки → «Загрузить модели» и выбери другую модель."
+            "value": "%lld attivi"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": " — 前往设置 → 加载模型，换一个模型。"
+            "value": "%lld 个已启用"
           }
-        }
-      }
-    },
-    " — unvollständige Mini-App gerettet, bitte prüfen.": {
-      "extractionState": "manual",
-      "localizations": {
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 件有効"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Активно: %lld"
+          }
+        },
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": " — تم إنقاذ Mini-App غير مكتملة، يُرجى المراجعة."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": " — salvaged an incomplete Mini-App, please check it."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": " — se ha recuperado una Mini-App incompleta, revísala."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": " — Mini-App incomplète récupérée, à vérifier."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": " — Mini-App incompleta recuperata, controllala."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": " — 未完成の Mini-App を復旧しました。確認してください。"
-          }
-        },
-        "pt": {
-          "stringUnit": {
-            "state": "translated",
-            "value": " — Mini-App incompleta recuperada, convém verificar."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": " — неполная Mini-App восстановлена, проверь её."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": " — 已抢救出不完整的 Mini-App，请检查。"
+            "value": "%lld نشط"
           }
         }
       }
@@ -414,124 +355,6 @@
         }
       }
     },
-    ") gibt es hier keinen Abo-Login — das Abo-Token wird nur vom jeweiligen CLI-Backend akzeptiert. Nutze einen API-Key, oder dein eigenes sub2api-Gateway (Schnellstart → Gateway).": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": ") لا يوجد تسجيل دخول بالاشتراك هنا — رمز الاشتراك لا يقبله إلا الـ CLI الخاص بالمزوّد. استخدم مفتاح API، أو بوابة sub2api الخاصة بك (البدء السريع ← Gateway)."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": ") there's no subscription login here — that subscription token is only accepted by its own CLI backend. Use an API key, or your own sub2api gateway (Quick start → Gateway)."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": ") aquí no hay acceso con suscripción — el token de suscripción solo lo acepta el backend CLI correspondiente. Usa una API key o tu propio gateway sub2api (Inicio rápido → Gateway)."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "), il n'y a pas de connexion par abonnement ici — le jeton d'abonnement n'est accepté que par le backend CLI correspondant. Utilise une clé API, ou ta propre passerelle sub2api (Démarrage rapide → Passerelle)."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": ") non c'è un login abbonamento — il token dell'abbonamento viene accettato solo dal rispettivo backend CLI. Usa una chiave API oppure il tuo gateway sub2api (Avvio rapido → Gateway)."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": ") はここではサブスクログインを使えません — サブスクのトークンは各 CLI バックエンドしか受け付けないんだ。API キーか、自分の sub2api ゲートウェイ（クイックスタート → ゲートウェイ）を使ってね。"
-          }
-        },
-        "pt": {
-          "stringUnit": {
-            "state": "translated",
-            "value": ") não há sessão de subscrição aqui — o token da subscrição só é aceite pelo respetivo backend CLI. Usa uma chave API ou o teu próprio gateway sub2api (Início rápido → Gateway)."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": ") здесь нет входа по подписке — токен подписки принимает только соответствующий CLI-бэкенд. Используй API-ключ или собственный sub2api-Gateway (Быстрый старт → Gateway)."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": ")，这里没有订阅登录 — 订阅令牌只有各自的 CLI 后端才接受。请用 API 密钥，或你自己的 sub2api 网关（快速开始 → 网关）。"
-          }
-        }
-      }
-    },
-    ") ist öffentlich erreichbar. Nutze https://.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": ") يمكن الوصول إليه علناً. استخدم https://."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": ") is publicly reachable. Use https://."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": ") es accesible públicamente. Usa https://."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": ") est accessible publiquement. Utilise https://."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": ") è raggiungibile pubblicamente. Usa https://."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": ") はインターネットから到達できます。https:// を使ってください。"
-          }
-        },
-        "pt": {
-          "stringUnit": {
-            "state": "translated",
-            "value": ") está acessível publicamente. Usa https://."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": ") доступен из интернета. Используй https://."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": ") 可从公网访问。请使用 https://。"
-          }
-        }
-      }
-    },
     "AI IT YOURSELF": {
       "extractionState": "manual",
       "localizations": {
@@ -587,6 +410,65 @@
           "stringUnit": {
             "state": "translated",
             "value": "AI IT YOURSELF"
+          }
+        }
+      }
+    },
+    "API-Key": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API key"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clave API"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clé API"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chave de API"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chiave API"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API 密钥"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "APIキー"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API-ключ"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مفتاح API"
           }
         }
       }
@@ -705,6 +587,65 @@
           "stringUnit": {
             "state": "translated",
             "value": "取消"
+          }
+        }
+      }
+    },
+    "Abo-Login (OAuth)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscription login (OAuth)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Acceso con suscripción (OAuth)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connexion abonnement (OAuth)"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Início de sessão com subscrição (OAuth)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accesso abbonamento (OAuth)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "订阅登录（OAuth）"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブスクリプションでログイン (OAuth)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вход по подписке (OAuth)"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تسجيل دخول بالاشتراك (OAuth)"
           }
         }
       }
@@ -2243,61 +2184,61 @@
         }
       }
     },
-    "Ausnahme": {
+    "Auth-Fehler %lld: %@ — API-Key prüfen/erneuern. Bei eigenem Gateway (sub2api): stimmt der sk-…-Key mit dem Server überein?": {
       "extractionState": "manual",
       "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "استثناء"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Exception"
+            "value": "Auth error %lld: %@ — check/renew the API key. With your own gateway (sub2api): does the sk-… key match the server?"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Excepción"
+            "value": "Error de autenticación %lld: %@ — comprueba/renueva la clave API. Con gateway propio (sub2api): ¿coincide la clave sk-… con la del servidor?"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Exception"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Eccezione"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "例外"
+            "value": "Erreur d'authentification %lld : %@ — vérifie ou renouvelle la clé API. Avec ta propre passerelle (sub2api) : la clé sk-… correspond-elle au serveur ?"
           }
         },
         "pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "Exceção"
+            "value": "Erro de autenticação %lld: %@ — verifica/renova a chave de API. Com gateway próprio (sub2api): a chave sk-… corresponde à do servidor?"
           }
         },
-        "ru": {
+        "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Исключение"
+            "value": "Errore di autenticazione %lld: %@ — controlla/rinnova la chiave API. Con un gateway tuo (sub2api): la chiave sk-… corrisponde a quella del server?"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "异常"
+            "value": "认证错误 %lld：%@ — 请检查或更新 API 密钥。使用自建网关（sub2api）时：sk-… 密钥和服务器上的一致吗？"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "認証エラー %lld: %@ — APIキーを確認・再発行してください。自前のゲートウェイ (sub2api) の場合、sk-… キーはサーバーと一致していますか？"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ошибка аутентификации %lld: %@ — проверь или обнови API-ключ. Если у тебя свой шлюз (sub2api): совпадает ли ключ sk-… с сервером?"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "خطأ مصادقة %lld: %@ — تحقّق من مفتاح API أو جدّده. إذا كنت تستخدم بوابة خاصة بك (sub2api): هل يطابق مفتاح sk-… ما على الخادم؟"
           }
         }
       }
@@ -2479,6 +2420,65 @@
         }
       }
     },
+    "Base-URL (Standard: %@)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Base URL (default: %@)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URL base (por defecto: %@)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URL de base (par défaut : %@)"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URL base (predefinição: %@)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URL base (predefinito: %@)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Base URL（默认：%@）"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ベースURL（既定: %@）"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Base-URL (по умолчанию: %@)"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عنوان URL الأساسي (الافتراضي: %@)"
+          }
+        }
+      }
+    },
     "Bearbeiten & Löschen": {
       "extractionState": "manual",
       "localizations": {
@@ -2593,6 +2593,65 @@
           "stringUnit": {
             "state": "translated",
             "value": "结束编辑"
+          }
+        }
+      }
+    },
+    "Bearbeiten: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Editar: %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modifier : %@"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Editar: %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modifica: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑：%@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "編集: %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Редактирование: %@"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تحرير: %@"
           }
         }
       }
@@ -3128,65 +3187,6 @@
         }
       }
     },
-    "CFBundleShortVersionString": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "CFBundleShortVersionString"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "CFBundleShortVersionString"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "CFBundleShortVersionString"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "CFBundleShortVersionString"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "CFBundleShortVersionString"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "CFBundleShortVersionString"
-          }
-        },
-        "pt": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "CFBundleShortVersionString"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "CFBundleShortVersionString"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "CFBundleShortVersionString"
-          }
-        }
-      }
-    },
     "Chat": {
       "extractionState": "manual",
       "localizations": {
@@ -3478,6 +3478,65 @@
           "stringUnit": {
             "state": "translated",
             "value": "聊天记录、Mini-Apps 和 Skills 都留在本机。API 密钥和登录信息存在钥匙串里。aiity 没有自己的服务器 — 请求直接发给你配置的服务商（或你的网关）。网页搜索和 fetch_url 会访问你选择的搜索引擎或对应网页。"
+          }
+        }
+      }
+    },
+    "Claude-Abo-Login abgelehnt (%lld). Abo-Zugriff über Dritt-Apps ist nicht garantiert — mit einem API-Key (Pay-as-you-go, console.anthropic.com/settings/keys) läuft es zuverlässig.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude subscription login rejected (%lld). Subscription access through third-party apps isn't guaranteed — with an API key (pay-as-you-go, console.anthropic.com/settings/keys) it works reliably."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Acceso con la suscripción de Claude rechazado (%lld). El acceso a la suscripción desde apps de terceros no está garantizado — con una clave API (pago por uso, console.anthropic.com/settings/keys) funciona de forma fiable."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connexion à l'abonnement Claude refusée (%lld). L'accès à l'abonnement via des apps tierces n'est pas garanti — avec une clé API (paiement à l'usage, console.anthropic.com/settings/keys), ça marche de façon fiable."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Início de sessão da subscrição Claude recusado (%lld). O acesso à subscrição através de apps de terceiros não é garantido — com uma chave de API (pay-as-you-go, console.anthropic.com/settings/keys) funciona de forma fiável."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accesso con abbonamento Claude rifiutato (%lld). L'accesso all'abbonamento da app di terze parti non è garantito — con una chiave API (pay-as-you-go, console.anthropic.com/settings/keys) funziona in modo affidabile."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude 订阅登录被拒绝（%lld）。通过第三方应用访问订阅无法保证 — 用 API 密钥（按量付费，console.anthropic.com/settings/keys）才稳定可用。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude のサブスクリプションログインが拒否されました (%lld)。サードパーティアプリからのサブスクリプション利用は保証されていません — APIキー（従量課金、console.anthropic.com/settings/keys）なら確実に動きます。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вход по подписке Claude отклонён (%lld). Доступ к подписке через сторонние приложения не гарантирован — с API-ключом (оплата по мере использования, console.anthropic.com/settings/keys) всё работает надёжно."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تم رفض تسجيل الدخول باشتراك Claude (%lld). الوصول عبر الاشتراك من تطبيقات خارجية غير مضمون — مع مفتاح API (الدفع حسب الاستخدام، console.anthropic.com/settings/keys) يعمل بشكل موثوق."
           }
         }
       }
@@ -4072,61 +4131,55 @@
         }
       }
     },
-    "Dein KI-Chat.\\nDeine Mini-Apps.": {
+    "Dein KI-Chat.\nDeine Mini-Apps.": {
       "extractionState": "manual",
       "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "دردشتك مع الذكاء الاصطناعي.\\nMini-Apps خاصّتك."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Your AI chat.\\nYour Mini-Apps."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tu chat con IA.\\nTus Mini-Apps."
+            "value": "Your AI chat.\nYour Mini-Apps."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ton chat IA.\\nTes Mini-Apps."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "La tua chat IA.\\nLe tue Mini-App."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "あなたの AI チャット。\\nあなたの Mini-App。"
+            "value": "Ton chat IA.\nTes Mini-Apps."
           }
         },
         "pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "O teu chat de IA.\\nAs tuas Mini-Apps."
+            "value": "O teu chat de IA.\nAs tuas Mini-Apps."
           }
         },
-        "ru": {
+        "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Твой ИИ-чат.\\nТвои Mini-Apps."
+            "value": "La tua chat IA.\nLe tue Mini-Apps."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "你的 AI 聊天。\\n你的 Mini-Apps。"
+            "value": "你的 AI 聊天。\n你的 Mini-Apps。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "あなたのAIチャット。\nあなたの Mini-Apps。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Твой ИИ-чат.\nТвои Mini-Apps."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "دردشتك مع الذكاء الاصطناعي.\nMini-Apps الخاصة بك."
           }
         }
       }
@@ -4898,6 +4951,65 @@
         }
       }
     },
+    "Die App „%@“ möchte %@ (%@). Sie kann dabei auch Daten an fremde Server senden. Nur erlauben, wenn du dieser App vertraust.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The app “%@” wants to %@ (%@). It can also send data to third-party servers. Only allow this if you trust this app."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La app «%@» quiere %@ (%@). También puede enviar datos a servidores ajenos. Permítelo solo si confías en esta app."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L'app « %@ » veut %@ (%@). Elle peut aussi envoyer des données à des serveurs tiers. N'autorise que si tu fais confiance à cette app."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A app «%@» quer %@ (%@). Ao fazê-lo, também pode enviar dados para servidores externos. Só permite se confiares nesta app."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L'app «%@» vuole %@ (%@). Può anche inviare dati a server esterni. Consenti solo se ti fidi di questa app."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用「%@」想要 %@（%@）。它也可能因此把数据发送到外部服务器。只有信任这个应用时才允许。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App「%@」が %@（%@）を求めています。その際に外部のサーバーへデータを送信することもあります。このアプリを信頼できる場合のみ許可してください。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Приложение «%@» запрашивает %@ (%@). При этом оно может отправлять данные на чужие серверы. Разрешай, только если доверяешь этому приложению."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التطبيق «%@» يريد %@ (%@). قد يُرسل بذلك بيانات إلى خوادم خارجية. لا تسمح إلا إذا كنت تثق بهذا التطبيق."
+          }
+        }
+      }
+    },
     "Die Liste kommt aus dem Cache; „Aktualisieren“ holt sie live vom Anbieter.": {
       "extractionState": "manual",
       "localizations": {
@@ -5130,6 +5242,124 @@
           "stringUnit": {
             "state": "translated",
             "value": "该模型不支持工具调用。应用正在不带工具重试…"
+          }
+        }
+      }
+    },
+    "Download fehlgeschlagen: %@. Großes Modell? Speicher/RAM prüfen — Download trotzdem möglich wenn genug freier Platz.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download failed: %@. Large model? Check storage/RAM — the download still works if there's enough free space."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descarga fallida: %@. ¿Modelo grande? Comprueba el almacenamiento/RAM — la descarga sigue siendo posible si hay espacio libre suficiente."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échec du téléchargement : %@. Modèle volumineux ? Vérifie le stockage/la RAM — le téléchargement reste possible s'il y a assez d'espace libre."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Falha na transferência: %@. Modelo grande? Verifica o armazenamento/RAM — a transferência continua a ser possível se houver espaço livre suficiente."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download non riuscito: %@. Modello grande? Controlla spazio/RAM — il download è comunque possibile se c'è abbastanza spazio libero."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下载失败：%@。模型太大？检查存储空间/内存 — 只要剩余空间够，仍然可以下载。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ダウンロードに失敗しました: %@。大きなモデルですか？ストレージ/RAM を確認してください — 空き容量が十分ならダウンロードは可能です。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Загрузка не удалась: %@. Модель большая? Проверь память/ОЗУ — при достаточном свободном месте загрузка всё же возможна."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "فشل التنزيل: %@. نموذج كبير؟ تحقّق من مساحة التخزين والذاكرة — التنزيل ممكن رغم ذلك إن توفّرت مساحة كافية."
+          }
+        }
+      }
+    },
+    "Du bearbeitest **%@**. Der aktuelle Quellcode ist an die KI übergeben — beschreib nur, was ich ändern oder verbessern soll (Design, Features, Icon, Netzwerk …).": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You're editing **%@**. The current source code has been handed to the AI — just describe what I should change or improve (design, features, icon, network …)."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estás editando **%@**. El código fuente actual ya está en manos de la IA — solo describe qué debo cambiar o mejorar (diseño, funciones, icono, red …)."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu modifies **%@**. Le code source actuel a été transmis à l'IA — décris simplement ce que je dois changer ou améliorer (design, fonctionnalités, icône, réseau …)."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estás a editar **%@**. O código-fonte atual já foi entregue à IA — descreve só o que queres que eu altere ou melhore (design, funcionalidades, ícone, rede …)."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stai modificando **%@**. Il codice sorgente attuale è stato passato all'IA — descrivi solo cosa devo cambiare o migliorare (design, funzioni, icona, rete …)."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你正在编辑 **%@**。当前源代码已交给 AI — 你只需描述我该修改或改进什么（设计、功能、图标、网络 …）。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**%@** を編集中です。現在のソースコードはAIに渡してあります — 何を変更・改善してほしいか（デザイン、機能、アイコン、ネットワーク …）だけ伝えてね。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ты редактируешь **%@**. Текущий исходный код передан ИИ — просто опиши, что мне изменить или улучшить (дизайн, функции, иконку, сеть …)."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أنت تحرّر **%@**. تم تمرير الشيفرة المصدرية الحالية إلى الذكاء الاصطناعي — اكتفِ بوصف ما أُغيّره أو أُحسّنه (التصميم، الميزات، الأيقونة، الشبكة …)."
           }
         }
       }
@@ -6432,6 +6662,65 @@
         }
       }
     },
+    "Fehler": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Error"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Error"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erreur"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erro"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Errore"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "错误"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "エラー"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ошибка"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "خطأ"
+          }
+        }
+      }
+    },
     "Fertig": {
       "extractionState": "manual",
       "localizations": {
@@ -6550,6 +6839,65 @@
         }
       }
     },
+    "Für %@ gibt es hier keinen Abo-Login — das Abo-Token wird nur vom jeweiligen CLI-Backend akzeptiert. Nutze einen API-Key, oder dein eigenes sub2api-Gateway (Schnellstart → Gateway).": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There's no subscription login for %@ here — the subscription token is only accepted by that provider's own CLI backend. Use an API key, or your own sub2api gateway (Quick start → Gateway)."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Para %@ no hay acceso con suscripción aquí — el token de la suscripción solo lo acepta el backend de su propia CLI. Usa una clave API o tu propio gateway sub2api (Inicio rápido → Gateway)."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pour %@, pas de connexion par abonnement ici — le jeton d'abonnement n'est accepté que par le backend CLI correspondant. Utilise une clé API ou ta propre passerelle sub2api (Démarrage rapide → Passerelle)."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Para %@ não há aqui início de sessão com subscrição — o token da subscrição só é aceite pelo respetivo backend de CLI. Usa uma chave de API ou o teu próprio gateway sub2api (Início rápido → Gateway)."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Per %@ qui non c'è l'accesso con abbonamento — il token dell'abbonamento viene accettato solo dal rispettivo backend CLI. Usa una chiave API oppure il tuo gateway sub2api (Avvio rapido → Gateway)."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 在这里没有订阅登录 — 订阅令牌只有对应的 CLI 后端才接受。请用 API 密钥，或你自己的 sub2api 网关（快速开始 → 网关）。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ にはここでのサブスクリプションログインはありません — サブスクリプションのトークンは各CLIバックエンドしか受け付けません。APIキー、または自分の sub2api ゲートウェイ（クイックスタート → ゲートウェイ）を使ってね。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Для %@ здесь нет входа по подписке — токен подписки принимает только соответствующий CLI-бэкенд. Используй API-ключ или свой шлюз sub2api (Быстрый старт → Шлюз)."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لا يتوفّر هنا تسجيل دخول بالاشتراك لـ %@ — رمز الاشتراك يقبله فقط الـ CLI الخاص به. استخدم مفتاح API، أو بوابة sub2api خاصتك (البدء السريع ← البوابة)."
+          }
+        }
+      }
+    },
     "Für Bilder verwenden": {
       "extractionState": "manual",
       "localizations": {
@@ -6664,6 +7012,65 @@
           "stringUnit": {
             "state": "translated",
             "value": "用于聊天"
+          }
+        }
+      }
+    },
+    "Gebündelter Skill „%@“ nicht im App-Bundle.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bundled Skill “%@” not in the app bundle."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El Skill incluido «%@» no está en el paquete de la app."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skill intégré « %@ » absent du bundle de l'app."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skill «%@» integrada não está no pacote da app."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skill inclusa «%@» non presente nel bundle dell'app."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内置 Skill「%@」不在 App 包中。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バンドル済みの Skill「%@」がアプリバンドル内にありません。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Встроенный Skill «%@» не найден в бандле приложения."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الـ Skill المضمّن «%@» غير موجود في حزمة التطبيق."
           }
         }
       }
@@ -7376,61 +7783,61 @@
         }
       }
     },
-    "Hintergrund": {
+    "Hier ist eine Browser-Mini-App für **%@**. „Vorschau“ öffnet sie sofort, „Behalten“ speichert sie unter Apps. Beim ersten Öffnen fragt sie nach Internet-Erlaubnis — danach bleibst du auf der Seite eingeloggt.": {
       "extractionState": "manual",
       "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "الخلفية"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Background"
+            "value": "Here's a browser Mini-App for **%@**. “Preview” opens it right away, “Keep” saves it under Apps. The first time you open it, it asks for internet permission — after that you stay logged in on the site."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Segundo plano"
+            "value": "Aquí tienes una Mini-App de navegador para **%@**. «Vista previa» la abre al momento, «Guardar» la almacena en Apps. Al abrirla por primera vez pedirá permiso de internet — después seguirás con la sesión iniciada en la página."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Arrière-plan"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "In background"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "バックグラウンド"
+            "value": "Voici une Mini-App navigateur pour **%@**. « Aperçu » l'ouvre tout de suite, « Garder » l'enregistre dans Apps. À la première ouverture, elle demande l'autorisation d'accès à Internet — ensuite tu restes connecté au site."
           }
         },
         "pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "Segundo plano"
+            "value": "Aqui está uma Mini-App de browser para **%@**. «Pré-visualizar» abre-a já, «Manter» guarda-a em Apps. Na primeira abertura pede permissão de Internet — depois disso ficas com a sessão iniciada no site."
           }
         },
-        "ru": {
+        "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "В фоне"
+            "value": "Ecco una Mini-App browser per **%@**. «Anteprima» la apre subito, «Mantieni» la salva in App. Alla prima apertura chiede il permesso di accedere a Internet — dopodiché resti connesso al sito."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "后台"
+            "value": "这是一个用于 **%@** 的浏览器 Mini-App。「预览」会立即打开它，「保留」会把它保存到「应用」里。首次打开时它会请求联网权限 — 之后你在该网站会保持登录。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**%@** 用のブラウザ Mini-App です。「プレビュー」ですぐ開き、「保存」でアプリ一覧に保存されます。初回起動時にインターネットの許可を求めます — その後はサイトにログインしたままになります。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вот браузерная Mini-App для **%@**. «Просмотр» откроет её сразу, «Оставить» сохранит её в разделе «Приложения». При первом открытии она запросит доступ в интернет — после этого вход на сайте сохранится."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إليك Mini-App للمتصفّح لـ **%@**. «معاينة» تفتحها فورًا، و«حفظ» يخزّنها ضمن التطبيقات. عند الفتح الأول تطلب إذن الإنترنت — بعدها تبقى مسجّل الدخول في الموقع."
           }
         }
       }
@@ -7730,6 +8137,65 @@
         }
       }
     },
+    "Im Browser hast du %@ autorisiert. Kopiere den Code oder die URL aus der Adresszeile. Tipp: „Als Klartext einfügen“ — nicht manuell RTF aus Notes/Safari-Share.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You authorized %@ in the browser. Copy the code or the URL from the address bar. Tip: “Paste as plain text” — don't paste RTF by hand from Notes/Safari share."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Has autorizado %@ en el navegador. Copia el código o la URL de la barra de direcciones. Consejo: «Pegar como texto sin formato» — no pegues RTF a mano desde Notes/Safari-Share."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu as autorisé %@ dans le navigateur. Copie le code ou l'URL depuis la barre d'adresse. Astuce : « Coller en texte brut » — pas du RTF collé à la main depuis Notes/le partage Safari."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No browser autorizaste %@. Copia o código ou o URL da barra de endereço. Dica: «Colar como texto simples» — não coles RTF à mão a partir das Notas/partilha do Safari."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nel browser hai autorizzato %@. Copia il codice o l'URL dalla barra degli indirizzi. Consiglio: «Incolla come testo non formattato» — non RTF preso a mano da Note/Condivisione Safari."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你已在浏览器中授权 %@。请从地址栏复制代码或 URL。提示：用「粘贴为纯文本」 — 不要手动从 Notes/Safari 分享粘贴 RTF。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブラウザで %@ を認証しました。コード、またはアドレスバーのURLをコピーしてね。ヒント:「プレーンテキストとしてペースト」を使い、メモ/Safari共有からRTFのまま貼り付けないこと。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "В браузере ты авторизовал %@. Скопируй код или URL из адресной строки. Совет: «Вставить как обычный текст» — не вставляй вручную RTF из Notes/Safari-Share."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لقد منحت %@ الإذن في المتصفّح. انسخ الرمز أو عنوان URL من شريط العنوان. نصيحة: «لصق كنص عادي» — لا تلصق RTF يدويًا من Notes أو مشاركة Safari."
+          }
+        }
+      }
+    },
     "Im Browser öffnen?": {
       "extractionState": "manual",
       "localizations": {
@@ -8021,6 +8487,65 @@
           "stringUnit": {
             "state": "translated",
             "value": "安装"
+          }
+        }
+      }
+    },
+    "Installiere…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installing…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Instalando…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installation…"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A instalar…"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installazione…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在安装…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インストール中…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Установка…"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "جارٍ التثبيت…"
           }
         }
       }
@@ -8851,6 +9376,65 @@
         }
       }
     },
+    "Keine Skills aktiv": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Skills active"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No hay Skills activos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun Skill actif"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sem Skills ativas"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nessuna Skill attiva"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有启用的 Skills"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有効な Skills なし"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет активных Skills"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لا توجد Skills نشطة"
+          }
+        }
+      }
+    },
     "Keine aktiven Agenten in dieser Gruppe — im Tab „Agenten“ anlegen oder wieder einschalten.": {
       "extractionState": "manual",
       "localizations": {
@@ -9382,6 +9966,65 @@
         }
       }
     },
+    "Konto per %@ hinzufügen": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add account via %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Añadir cuenta con %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter un compte via %@"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adicionar conta com %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aggiungi account con %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通过 %@ 添加账户"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ でアカウントを追加"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добавить аккаунт через %@"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إضافة حساب عبر %@"
+          }
+        }
+      }
+    },
     "Kopieren": {
       "extractionState": "manual",
       "localizations": {
@@ -9437,6 +10080,65 @@
           "stringUnit": {
             "state": "translated",
             "value": "复制"
+          }
+        }
+      }
+    },
+    "Kopiert": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copied"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiado"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copié"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiado"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiato"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已复制"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コピーしました"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Скопировано"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تم النسخ"
           }
         }
       }
@@ -9913,6 +10615,65 @@
         }
       }
     },
+    "Letzter Lauf: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last run: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Última ejecución: %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dernière exécution : %@"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Última execução: %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ultima esecuzione: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上次运行：%@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最終実行: %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Последний запуск: %@"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "آخر تشغيل: %@"
+          }
+        }
+      }
+    },
     "Lokal auf dem Gerät (MLX)": {
       "extractionState": "manual",
       "localizations": {
@@ -10145,6 +10906,65 @@
           "stringUnit": {
             "state": "translated",
             "value": "本地运行时服务器"
+          }
+        }
+      }
+    },
+    "Loslegen": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get started"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Empezar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Commencer"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Começar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inizia"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开始使用"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "はじめる"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Начать"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ابدأ"
           }
         }
       }
@@ -10385,65 +11205,6 @@
         }
       }
     },
-    "MLX ist in diesem Build nicht verfügbar.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "MLX غير متوفر في هذه النسخة."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "MLX isn't available in this build."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "MLX no está disponible en esta compilación."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "MLX n'est pas disponible dans cette version."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "MLX non è disponibile in questa build."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "このビルドでは MLX を利用できません。"
-          }
-        },
-        "pt": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "O MLX não está disponível nesta versão."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "MLX недоступен в этой сборке."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "此版本不支持 MLX。"
-          }
-        }
-      }
-    },
     "Mehr": {
       "extractionState": "manual",
       "localizations": {
@@ -10558,6 +11319,65 @@
           "stringUnit": {
             "state": "translated",
             "value": "可以添加多个账户；打勾的那个用于该服务商的所有用途。"
+          }
+        }
+      }
+    },
+    "Meldung kopieren": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy message"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiar mensaje"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copier le message"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiar mensagem"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copia messaggio"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制消息"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メッセージをコピー"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Скопировать сообщение"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نسخ الرسالة"
           }
         }
       }
@@ -10739,6 +11559,65 @@
         }
       }
     },
+    "Mini-App-Prüfung nach %lld Versuchen: ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mini-App check after %lld attempts: "
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comprobación de la Mini-App tras %lld intentos: "
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vérification de la Mini-App après %lld tentatives : "
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verificação da Mini-App após %lld tentativas: "
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verifica Mini-App dopo %lld tentativi: "
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mini-App 检查（%lld 次尝试后）： "
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 回の試行後の Mini-App チェック: "
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Проверка Mini-App после %lld попыток: "
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "فحص Mini-App بعد %lld محاولات: "
+          }
+        }
+      }
+    },
     "Mini-Apps synchronisieren über deine Apple-ID. Kein Login in der App nötig.": {
       "extractionState": "manual",
       "localizations": {
@@ -10916,6 +11795,124 @@
         }
       }
     },
+    "Mit KI beschreiben": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Describe with AI"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Describir con IA"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Décrire avec l'IA"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descrever com IA"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descrivi con l'IA"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用 AI 描述"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AIで説明する"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Описать через ИИ"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "وصف بالذكاء الاصطناعي"
+          }
+        }
+      }
+    },
+    "Mit KI verbessern": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Improve with AI"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mejorar con IA"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Améliorer avec l'IA"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Melhorar com IA"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Migliora con l'IA"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用 AI 改进"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AIで改善する"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Улучшить через ИИ"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تحسين بالذكاء الاصطناعي"
+          }
+        }
+      }
+    },
     "Modell": {
       "extractionState": "manual",
       "localizations": {
@@ -10971,6 +11968,65 @@
           "stringUnit": {
             "state": "translated",
             "value": "模型"
+          }
+        }
+      }
+    },
+    "Modell nicht gefunden: %@ — unter Anbieter ein gültiges Modell wählen.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Model not found: %@ — pick a valid model under Providers."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modelo no encontrado: %@ — elige un modelo válido en Proveedores."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modèle introuvable : %@ — choisis un modèle valide sous Fournisseurs."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modelo não encontrado: %@ — escolhe um modelo válido em Fornecedores."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modello non trovato: %@ — scegli un modello valido in Provider."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未找到模型：%@ — 请在「提供商」中选择一个有效的模型。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モデルが見つかりません: %@ — プロバイダで有効なモデルを選択してね。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Модель не найдена: %@ — выбери действительную модель в разделе «Провайдеры»."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "النموذج غير موجود: %@ — اختر نموذجًا صالحًا ضمن المزوّدين."
           }
         }
       }
@@ -11034,6 +12090,65 @@
         }
       }
     },
+    "Modell: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Model: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modelo: %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modèle : %@"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modelo: %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modello: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型：%@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モデル: %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Модель: %@"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "النموذج: %@"
+          }
+        }
+      }
+    },
     "Modelle aktualisieren": {
       "extractionState": "manual",
       "localizations": {
@@ -11089,6 +12204,65 @@
           "stringUnit": {
             "state": "translated",
             "value": "刷新模型列表"
+          }
+        }
+      }
+    },
+    "Modelle aktualisieren (%lld)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh models (%lld)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actualizar modelos (%lld)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actualiser les modèles (%lld)"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atualizar modelos (%lld)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aggiorna modelli (%lld)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刷新模型（%lld）"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モデルを更新 (%lld)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Обновить модели (%lld)"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تحديث النماذج (%lld)"
           }
         }
       }
@@ -11152,6 +12326,65 @@
         }
       }
     },
+    "Modelle laden": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load models"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cargar modelos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charger les modèles"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carregar modelos"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carica modelli"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "加载模型"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モデルを読み込む"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Загрузить модели"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تحميل النماذج"
+          }
+        }
+      }
+    },
     "Modus": {
       "extractionState": "manual",
       "localizations": {
@@ -11207,6 +12440,65 @@
           "stringUnit": {
             "state": "translated",
             "value": "模式"
+          }
+        }
+      }
+    },
+    "Modus: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mode: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modo: %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mode : %@"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modo: %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modalità: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模式：%@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モード: %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Режим: %@"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الوضع: %@"
           }
         }
       }
@@ -12151,6 +13443,65 @@
           "stringUnit": {
             "state": "translated",
             "value": "仅用于 generate_image 的图片模型，与聊天模型无关。"
+          }
+        }
+      }
+    },
+    "Nur diese eine Nachricht — nicht die Unterhaltung, nicht deine Schlüssel. Es geht an %@; es gibt keinen aiity-Server, der das automatisch entgegennimmt.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only this one message — not the conversation, not your keys. It goes to %@; there's no aiity server that receives it automatically."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solo este mensaje — no la conversación, ni tus claves. Se envía a %@; no hay ningún servidor de aiity que lo reciba automáticamente."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uniquement ce message — pas la conversation, pas tes clés. Il part vers %@ ; il n'existe aucun serveur aiity qui le reçoive automatiquement."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Só esta mensagem — não a conversa, nem as tuas chaves. Vai para %@; não existe nenhum servidor aiity que receba isto automaticamente."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solo questo messaggio — non la conversazione, non le tue chiavi. Viene inviato a %@; non esiste un server aiity che lo riceva automaticamente."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只发送这一条消息 — 不含对话内容，也不含你的密钥。它会发给 %@；aiity 没有自动接收这些内容的服务器。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "送るのはこのメッセージ1件だけ — 会話全体でも、あなたのキーでもありません。送信先は %@ です。これを自動で受け取る aiity のサーバーはありません。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Только это одно сообщение — не переписка и не твои ключи. Оно уйдёт к %@; сервера aiity, который принимал бы это автоматически, не существует."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "هذه الرسالة وحدها — وليس المحادثة ولا مفاتيحك. سترسل إلى %@؛ لا يوجد خادم aiity يستقبلها تلقائيًا."
           }
         }
       }
@@ -13512,6 +14863,65 @@
         }
       }
     },
+    "Senden": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enviar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Envoyer"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enviar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invia"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发送"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "送信"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Отправить"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إرسال"
+          }
+        }
+      }
+    },
     "Server": {
       "extractionState": "manual",
       "localizations": {
@@ -13630,6 +15040,65 @@
         }
       }
     },
+    "Server-Adresse (z. B. ki.meine-domain.de)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server address (e.g. ki.meine-domain.de)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dirección del servidor (p. ej. ki.meine-domain.de)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adresse du serveur (p. ex. ki.meine-domain.de)"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Endereço do servidor (p. ex. ki.meine-domain.de)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indirizzo del server (es. ki.meine-domain.de)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务器地址（例如 ki.meine-domain.de）"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバーアドレス（例: ki.meine-domain.de）"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Адрес сервера (напр. ki.meine-domain.de)"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عنوان الخادم (مثلاً ki.meine-domain.de)"
+          }
+        }
+      }
+    },
     "Sichern": {
       "extractionState": "manual",
       "localizations": {
@@ -13685,65 +15154,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "保存"
-          }
-        }
-      }
-    },
-    "Signal": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "إشارة"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Signal"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Señal"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Signal"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Segnale"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "シグナル"
-          }
-        },
-        "pt": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sinal"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Сигнал"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "信号"
           }
         }
       }
@@ -13925,6 +15335,65 @@
         }
       }
     },
+    "Stack (%lld Frames)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stack (%lld frames)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stack (%lld frames)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pile (%lld frames)"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stack (%lld frames)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stack (%lld frame)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "调用栈（%lld 帧）"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スタック（%lld フレーム）"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Стек (%lld фреймов)"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المكدّس (%lld إطارات)"
+          }
+        }
+      }
+    },
     "Start": {
       "extractionState": "manual",
       "localizations": {
@@ -14039,6 +15508,65 @@
           "stringUnit": {
             "state": "translated",
             "value": "启动后才会把崩溃报告交给应用 — 通常是再下次打开时。在那之前，只能参考 "
+          }
+        }
+      }
+    },
+    "Stopp": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detener"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrêter"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停止"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停止"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Стоп"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إيقاف"
           }
         }
       }
@@ -14751,6 +16279,65 @@
         }
       }
     },
+    "Ungültige Base-URL: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid base URL: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URL base no válida: %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URL de base invalide : %@"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URL base inválido: %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URL base non valido: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Base URL 无效：%@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無効なベースURL: %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Недопустимый Base-URL: %@"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عنوان URL أساسي غير صالح: %@"
+          }
+        }
+      }
+    },
     "Ungültige OAuth-Antwort.": {
       "extractionState": "manual",
       "localizations": {
@@ -14983,6 +16570,65 @@
           "stringUnit": {
             "state": "translated",
             "value": "更新"
+          }
+        }
+      }
+    },
+    "Verbinde…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connecting…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conectando…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connexion…"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A ligar…"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connessione…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在连接…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接続中…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Подключение…"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "جارٍ الاتصال…"
           }
         }
       }
@@ -15282,6 +16928,65 @@
         }
       }
     },
+    "Vollen Bericht kopieren": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy full report"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiar informe completo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copier le rapport complet"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiar relatório completo"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copia rapporto completo"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制完整报告"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "レポート全体をコピー"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Скопировать полный отчёт"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نسخ التقرير الكامل"
+          }
+        }
+      }
+    },
     "Von iOS erstellt, mit symbolisiertem Stack und Abbruchgrund — genauer als alles, was die App selbst mitschreiben kann. Kommt direkt in der App an, ohne Umweg über die Einstellungen.": {
       "extractionState": "manual",
       "localizations": {
@@ -15341,65 +17046,6 @@
         }
       }
     },
-    "Vordergrund": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "المقدّمة"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Foreground"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Primer plano"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Premier plan"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "In primo piano"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "フォアグラウンド"
-          }
-        },
-        "pt": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Primeiro plano"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "На экране"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "前台"
-          }
-        }
-      }
-    },
     "Vorschau": {
       "extractionState": "manual",
       "localizations": {
@@ -15455,6 +17101,65 @@
           "stringUnit": {
             "state": "translated",
             "value": "预览"
+          }
+        }
+      }
+    },
+    "Vorschau von **%@** %@. Quellcode ist an die KI übergeben — sag, was ich anpassen soll; danach speichern wir die neue Version.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview of **%@** %@. The source code has been handed to the AI — tell me what to adjust; then we'll save the new version."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vista previa de **%@** %@. El código fuente está en manos de la IA — dime qué debo ajustar; después guardamos la nueva versión."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aperçu de **%@** %@. Le code source a été transmis à l'IA — dis-moi ce que je dois ajuster ; ensuite on enregistre la nouvelle version."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pré-visualização de **%@** %@. O código-fonte foi entregue à IA — diz o que queres que eu ajuste; depois guardamos a nova versão."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anteprima di **%@** %@. Il codice sorgente è stato passato all'IA — dimmi cosa devo modificare; poi salviamo la nuova versione."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**%@** 的预览 %@。源代码已交给 AI — 说说我该调整什么；之后我们保存新版本。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**%@** のプレビュー %@。ソースコードはAIに渡してあります — どこを調整するか教えてね。そのあと新しいバージョンを保存します。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Просмотр **%@** %@. Исходный код передан ИИ — скажи, что подправить; потом сохраним новую версию."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "معاينة **%@** %@. تم تمرير الشيفرة المصدرية إلى الذكاء الاصطناعي — قل لي ما أُعدّله؛ ثم نحفظ النسخة الجديدة."
           }
         }
       }
@@ -15573,6 +17278,65 @@
           "stringUnit": {
             "state": "translated",
             "value": "支持或反对的依据，见上方的事实和下方的事件。"
+          }
+        }
+      }
+    },
+    "Was soll ich bauen?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What should I build?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Qué construyo?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Que dois-je construire ?"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O que queres que eu construa?"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cosa devo creare?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "想让我做什么？"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "何を作ろうか？"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Что мне создать?"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ماذا أبني لك؟"
           }
         }
       }
@@ -16045,6 +17809,65 @@
           "stringUnit": {
             "state": "translated",
             "value": "把网站作为应用打开"
+          }
+        }
+      }
+    },
+    "Weiter": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continuar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suivant"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continuar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avanti"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "继续"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次へ"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Далее"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "متابعة"
           }
         }
       }
@@ -16639,65 +18462,6 @@
         }
       }
     },
-    "Zwischenablage enthielt formatierten Text (RTF). Bitte erneut als reinen Text kopieren oder „Einfügen“ tippen.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "الحافظة تحتوي نصاً منسّقاً (RTF). انسخه مجدداً كنص عادي أو اضغط «لصق»."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The clipboard held formatted text (RTF). Copy it again as plain text, or tap “Paste”."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "El portapapeles contenía texto con formato (RTF). Cópialo otra vez como texto sin formato o toca “Pegar”."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Le presse-papiers contenait du texte mis en forme (RTF). Recopie-le en texte brut ou touche « Coller »."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gli appunti contenevano testo formattato (RTF). Copia di nuovo come testo semplice oppure tocca «Incolla»."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "クリップボードの内容が書式付きテキスト（RTF）でした。プレーンテキストとしてコピーし直すか、「ペースト」をタップしてください。"
-          }
-        },
-        "pt": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "A área de transferência tinha texto formatado (RTF). Copia outra vez como texto simples ou toca em «Colar»."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "В буфере обмена оказался форматированный текст (RTF). Скопируй ещё раз как обычный текст или нажми «Вставить»."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "剪贴板里是带格式的文本（RTF）。请重新以纯文本复制，或点按“粘贴”。"
-          }
-        }
-      }
-    },
     "Zwischenablage war RTF/RTFD (kein Klartext). Nochmal als Text kopieren.": {
       "extractionState": "manual",
       "localizations": {
@@ -16753,6 +18517,183 @@
           "stringUnit": {
             "state": "translated",
             "value": "剪贴板里是 RTF/RTFD（不是纯文本）。请重新复制为文本。"
+          }
+        }
+      }
+    },
+    "[%@ hat kein Modell gewählt.]": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[%@ didn't pick a model.]"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[%@ no ha elegido ningún modelo.]"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[%@ n'a choisi aucun modèle.]"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[%@ não escolheu nenhum modelo.]"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[%@ non ha scelto un modello.]"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[%@ 未选择模型。]"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[%@ はモデルを選択しませんでした。]"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[%@ не выбрал модель.]"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[%@ لم يختر نموذجًا.]"
+          }
+        }
+      }
+    },
+    "[%@ hat nichts zurückgegeben.]": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[%@ returned nothing.]"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[%@ no ha devuelto nada.]"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[%@ n'a rien renvoyé.]"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[%@ não devolveu nada.]"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[%@ non ha restituito nulla.]"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[%@ 没有返回任何内容。]"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[%@ は何も返しませんでした。]"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[%@ ничего не вернул.]"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[%@ لم يُرجع شيئًا.]"
+          }
+        }
+      }
+    },
+    "aiity": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "aiity"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "aiity"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "aiity"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "aiity"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "aiity"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "aiity"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "aiity"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "aiity"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "aiity"
           }
         }
       }
@@ -17288,53 +19229,6 @@
         }
       }
     },
-    "z. B. owner/repo/skills/name@main — oder Empfohlene Skills (ohne Netz).": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "مثال: owner/repo/skills/name@main — أو Skills المقترحة (بدون إنترنت)."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "e.g. owner/repo/skills/name@main — or Recommended Skills (no network)."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "P. ej. owner/repo/skills/name@main — o Skills recomendados (sin red)."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "p. ex. owner/repo/skills/name@main — ou les Skills recommandés (sans réseau)."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "例: owner/repo/skills/name@main — またはおすすめの Skills（ネット不要）。"
-          }
-        },
-        "pt": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "p. ex. owner/repo/skills/name@main — ou Skills recomendados (sem rede)."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "例如 owner/repo/skills/name@main — 或从推荐 Skills 安装（无需联网）。"
-          }
-        }
-      }
-    },
     "z. B. owner/repo/skills/name@main — oder Empfohlene Skills (ohne Netz).": {
       "extractionState": "manual",
       "localizations": {
@@ -17761,6 +19655,124 @@
           "stringUnit": {
             "state": "translated",
             "value": "跳过"
+          }
+        }
+      }
+    },
+    "„%@“ wird dauerhaft entfernt.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@” will be permanently removed."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "«%@» se eliminará definitivamente."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "« %@ » sera supprimé définitivement."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "«%@» será removido permanentemente."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "«%@» verrà rimosso definitivamente."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「%@」将被永久删除。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「%@」を完全に削除します。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Это навсегда удалит «%@»."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ستتم إزالة «%@» نهائيًا."
+          }
+        }
+      }
+    },
+    "„%@“ wird entfernt.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@” will be removed."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "«%@» se eliminará."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "« %@ » sera supprimé."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "«%@» será removido."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "«%@» verrà rimosso."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「%@」将被删除。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「%@」を削除します。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Это удалит «%@»."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ستتم إزالة «%@»."
           }
         }
       }

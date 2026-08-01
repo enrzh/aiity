@@ -12,9 +12,9 @@ struct SettingsView: View {
     @State private var backupURL: URL?
     @State private var backupSummary = "…"
     @State private var showImporter = false
-    @State private var importSummary = "Aus einer Backup-Datei ergänzen"
+    @State private var importSummary = String(localized: "Aus einer Backup-Datei ergänzen")
     @State private var needsRestartNotice = false
-    @State private var diagnosticsSummary = "Letzter Lauf prüfen"
+    @State private var diagnosticsSummary = String(localized: "Letzter Lauf prüfen")
 
     var body: some View {
         NavigationStack {
@@ -24,7 +24,7 @@ struct SettingsView: View {
                         ConnectionsView()
                     } label: {
                         AppSettingsRow(
-                            title: "Anbieter",
+                            title: String(localized: "Anbieter"),
                             subtitle: activeLine,
                             systemImage: "cpu"
                         )
@@ -34,7 +34,7 @@ struct SettingsView: View {
                     NavigationLink {
                         SkillsView()
                     } label: {
-                        AppSettingsRow(title: "Skills", systemImage: "puzzlepiece.extension")
+                        AppSettingsRow(title: String(localized: "Skills"), systemImage: "puzzlepiece.extension")
                     }
                     .accessibilityIdentifier("open-skills")
 
@@ -42,7 +42,7 @@ struct SettingsView: View {
                         SearchSettingsView()
                     } label: {
                         AppSettingsRow(
-                            title: "Web-Suche",
+                            title: String(localized: "Web-Suche"),
                             subtitle: SearchBackend(rawValue: settingsStore.settings.searchBackend)?.title,
                             systemImage: "magnifyingglass"
                         )
@@ -146,7 +146,7 @@ struct SettingsView: View {
                         DiagnosticsView()
                     } label: {
                         AppSettingsRow(
-                            title: "Diagnose",
+                            title: String(localized: "Diagnose"),
                             subtitle: diagnosticsSummary,
                             systemImage: "stethoscope"
                         )
@@ -164,7 +164,7 @@ struct SettingsView: View {
             .task {
                 backupSummary = BackupService.summary(apps: savedApps)
                 let snapshot = DiagnosticsRecorder.shared.lastRunSnapshot()
-                diagnosticsSummary = "Letzter Lauf: \(DiagnosticsReport.headline(snapshot.verdict, run: snapshot.run))"
+                diagnosticsSummary = String(localized: "Letzter Lauf: \(DiagnosticsReport.headline(snapshot.verdict, run: snapshot.run))")
             }
             .fileImporter(
                 isPresented: $showImporter,
@@ -244,7 +244,7 @@ private struct SearchSettingsView: View {
             } footer: {
                 Text(selected == .auto || selected == .duckduckgo
                      ? "DuckDuckGo braucht keinen Key und ist die Standardquelle."
-                     : "Braucht einen eigenen Key bzw. Server. Ohne gültige Angaben fällt die Suche auf DuckDuckGo zurück.")
+                     : String(localized: "Braucht einen eigenen Key bzw. Server. Ohne gültige Angaben fällt die Suche auf DuckDuckGo zurück."))
             }
 
             // Only the fields the selected backend actually uses — the others

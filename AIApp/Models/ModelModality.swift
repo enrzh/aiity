@@ -15,14 +15,14 @@ enum ModelModality: String, Codable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .chat: return "Chat"
+        case .chat: return String(localized: "Chat")
         case .image: return "Bild"
         }
     }
 
     var sectionTitle: String {
         switch self {
-        case .chat: return "Chat"
+        case .chat: return String(localized: "Chat")
         case .image: return "Bildgenerierung"
         }
     }
@@ -36,15 +36,15 @@ enum ModelModality: String, Codable, CaseIterable, Identifiable {
 
     var useButtonTitle: String {
         switch self {
-        case .chat: return "Für den Chat verwenden"
-        case .image: return "Für Bilder verwenden"
+        case .chat: return String(localized: "Für den Chat verwenden")
+        case .image: return String(localized: "Für Bilder verwenden")
         }
     }
 
     var activeLabel: String {
         switch self {
         case .chat: return "Wird im Chat verwendet"
-        case .image: return "Wird für Bilder verwendet"
+        case .image: return String(localized: "Wird für Bilder verwendet")
         }
     }
 

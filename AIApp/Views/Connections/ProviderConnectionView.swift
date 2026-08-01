@@ -99,9 +99,9 @@ struct ProviderConnectionView: View {
 
     private var oauthPasteHint: String {
         if presetId == "anthropic" {
-            return "Nach der Autorisierung den angezeigten Code (manchmal als code#state) hier einfügen."
+            return String(localized: "Nach der Autorisierung den angezeigten Code (manchmal als code#state) hier einfügen.")
         }
-        return "Autorisierungscode oder Callback-URL hier einfügen."
+        return String(localized: "Autorisierungscode oder Callback-URL hier einfügen.")
     }
 
     private var supportsThisModality: Bool {
@@ -372,7 +372,7 @@ struct ProviderConnectionView: View {
         } footer: {
             Text(accounts.isEmpty
                  ? "Noch kein Konto — am besten einen API-Key eintragen (Pay-as-you-go)."
-                 : "Mehrere Konten möglich; das angehakte gilt für alle Nutzungsarten dieses Anbieters.")
+                 : String(localized: "Mehrere Konten möglich; das angehakte gilt für alle Nutzungsarten dieses Anbieters."))
         }
     }
 
@@ -390,7 +390,7 @@ struct ProviderConnectionView: View {
         switch presetId {
         case "anthropic": return "Mit Claude-Abo anmelden"
         case "openrouter": return "Mit OpenRouter anmelden"
-        default: return "Konto per \(oauthVerb) hinzufügen"
+        default: return String(localized: "Konto per \(oauthVerb) hinzufügen")
         }
     }
 
@@ -585,7 +585,7 @@ struct ProviderConnectionView: View {
             }
             return "Modelle sind vorab geladen (Cache/Standard). „Aktualisieren“ holt die Live-Liste vom Anbieter."
         case .image:
-            return "Nur das Bild-Modell für generate_image. Unabhängig vom Chat-Modell."
+            return String(localized: "Nur das Bild-Modell für generate_image. Unabhängig vom Chat-Modell.")
         }
     }
 

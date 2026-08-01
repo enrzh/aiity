@@ -28,7 +28,7 @@ struct ReportContentSheet: View {
     }
 
     var body: some View {
-        ModalChrome(title: "Inhalt melden", onCancel: onDismiss) {
+        ModalChrome(title: String(localized: "Inhalt melden"), onCancel: onDismiss) {
             Form {
                 Section {
                     Picker("Grund", selection: $reason) {

@@ -9,17 +9,17 @@ enum NetworkErrorFriendly {
         if let url = error as? URLError {
             switch url.code {
             case .networkConnectionLost:
-                return "Verbindung unterbrochen — WLAN/Mobilfunk prüfen und erneut senden. Bei langen Antworten: App im Vordergrund lassen."
+                return String(localized: "Verbindung unterbrochen — WLAN/Mobilfunk prüfen und erneut senden. Bei langen Antworten: App im Vordergrund lassen.")
             case .notConnectedToInternet:
-                return "Kein Internet — Verbindung prüfen und erneut versuchen."
+                return String(localized: "Kein Internet — Verbindung prüfen und erneut versuchen.")
             case .timedOut:
-                return "Zeitüberschreitung — Server brauchte zu lange (Abo/Cloud oft 1–3 Min. für Apps). Erneut senden, kürzere Anfrage, oder API-Key statt Abo."
+                return String(localized: "Zeitüberschreitung — Server brauchte zu lange (Abo/Cloud oft 1–3 Min. für Apps). Erneut senden, kürzere Anfrage, oder API-Key statt Abo.")
             case .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed:
-                return "Server nicht erreichbar — IP/Port prüfen. Ist das iPhone im selben WLAN wie der Server, oder per Tailscale/VPN verbunden?"
+                return String(localized: "Server nicht erreichbar — IP/Port prüfen. Ist das iPhone im selben WLAN wie der Server, oder per Tailscale/VPN verbunden?")
             case .secureConnectionFailed, .serverCertificateUntrusted,
                  .serverCertificateHasBadDate, .serverCertificateNotYetValid,
                  .serverCertificateHasUnknownRoot:
-                return "TLS/Zertifikat abgelehnt — nutzt dein Gateway ein selbst-signiertes Zertifikat? Im LAN http:// statt https:// verwenden, oder ein vertrauenswürdiges Zertifikat (z. B. Tailscale Serve) einrichten."
+                return String(localized: "TLS/Zertifikat abgelehnt — nutzt dein Gateway ein selbst-signiertes Zertifikat? Im LAN http:// statt https:// verwenden, oder ein vertrauenswürdiges Zertifikat (z. B. Tailscale Serve) einrichten.")
             case .cancelled:
                 return "Anfrage abgebrochen."
             default:
@@ -31,10 +31,10 @@ enum NetworkErrorFriendly {
         if lower.contains("network connection was lost")
             || lower.contains("connection was lost")
             || (lower.contains("nsurlerrordomain") && lower.contains("-1005")) {
-            return "Verbindung unterbrochen — Netz prüfen und erneut senden."
+            return String(localized: "Verbindung unterbrochen — Netz prüfen und erneut senden.")
         }
         if lower.contains("timed out") || lower.contains("timeout") {
-            return "Zeitüberschreitung — erneut versuchen."
+            return String(localized: "Zeitüberschreitung — erneut versuchen.")
         }
         return text
     }

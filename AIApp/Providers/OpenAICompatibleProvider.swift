@@ -67,13 +67,13 @@ struct OpenAICompatibleProvider: LLMProvider {
         yield: (ChatEvent) -> Void
     ) async throws {
         guard !model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw ProviderError.badResponse(0, "Kein Modell gewählt — unter Anbieter → Modelle laden auswählen.")
+            throw ProviderError.badResponse(0, String(localized: "Kein Modell gewählt — unter Anbieter → Modelle laden auswählen."))
         }
         guard let url = ProviderRequestSupport.endpoint(
             base: baseURL,
             path: "/chat/completions"
         ) else {
-            throw ProviderError.badResponse(0, "Ungültige Base-URL: \(baseURL)")
+            throw ProviderError.badResponse(0, String(localized: "Ungültige Base-URL: \(baseURL)"))
         }
 
         var request = URLRequest(url: url)
@@ -244,7 +244,7 @@ struct OpenAICompatibleProvider: LLMProvider {
                 )
                 return
             }
-            throw ProviderError.badResponse(200, "Leere Antwort vom Modell — anderes Modell wählen oder Base-URL prüfen.")
+            throw ProviderError.badResponse(200, String(localized: "Leere Antwort vom Modell — anderes Modell wählen oder Base-URL prüfen."))
         }
 
         yield(.done)
@@ -260,7 +260,7 @@ struct OpenAICompatibleProvider: LLMProvider {
         yield: (ChatEvent) -> Void
     ) async throws {
         guard let url = ProviderRequestSupport.endpoint(base: baseURL, path: "/chat/completions") else {
-            throw ProviderError.badResponse(0, "Ungültige Base-URL: \(baseURL)")
+            throw ProviderError.badResponse(0, String(localized: "Ungültige Base-URL: \(baseURL)"))
         }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -308,7 +308,7 @@ struct OpenAICompatibleProvider: LLMProvider {
         guard let object = jsonObject(data),
               let choice = (object["choices"] as? [[String: Any]])?.first,
               let message = choice["message"] as? [String: Any] else {
-            throw ProviderError.badResponse(status, "Ungültige non-stream Antwort.")
+            throw ProviderError.badResponse(status, String(localized: "Ungültige non-stream Antwort."))
         }
         let text = ProviderRequestSupport.text(fromContent: message["content"])
         if !text.isEmpty { yield(.textDelta(text)) }

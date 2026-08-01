@@ -106,7 +106,7 @@ struct LocalModel: Identifiable, Equatable {
         LocalModel(
             id: "mlx-community/Qwen2.5-Coder-14B-Instruct-4bit",
             displayName: "Qwen2.5 Coder 14B",
-            details: "Code groß, ~8 GB+ RAM empfohlen",
+            details: String(localized: "Code groß, ~8 GB+ RAM empfohlen"),
             sizeHint: "8+ GB"
         ),
         LocalModel(
@@ -131,37 +131,37 @@ struct LocalModel: Identifiable, Equatable {
         LocalModel(
             id: "mlx-community/Meta-Llama-3.1-8B-Instruct-8bit",
             displayName: "Llama 3.1 8B (8-bit)",
-            details: "Höhere Qualität, mehr RAM, ~8 GB",
+            details: String(localized: "Höhere Qualität, mehr RAM, ~8 GB"),
             sizeHint: "8 GB"
         ),
         LocalModel(
             id: "mlx-community/Llama-3.3-70B-Instruct-4bit",
             displayName: "Llama 3.3 70B",
-            details: "Sehr groß — nur High-RAM Geräte",
+            details: String(localized: "Sehr groß — nur High-RAM Geräte"),
             sizeHint: "40+ GB"
         ),
         LocalModel(
             id: "mlx-community/Qwen2.5-14B-Instruct-4bit",
             displayName: "Qwen2.5 14B",
-            details: "Groß, ~8 GB+",
+            details: String(localized: "Groß, ~8 GB+"),
             sizeHint: "8+ GB"
         ),
         LocalModel(
             id: "mlx-community/Qwen2.5-32B-Instruct-4bit",
             displayName: "Qwen2.5 32B",
-            details: "Sehr groß — High-RAM",
+            details: String(localized: "Sehr groß — High-RAM"),
             sizeHint: "18+ GB"
         ),
         LocalModel(
             id: "mlx-community/gemma-2-9b-it-4bit",
             displayName: "Gemma 2 9B",
-            details: "Google groß, ~5 GB",
+            details: String(localized: "Google groß, ~5 GB"),
             sizeHint: "5 GB"
         ),
         LocalModel(
             id: "mlx-community/gemma-2-27b-it-4bit",
             displayName: "Gemma 2 27B",
-            details: "Google sehr groß — High-RAM",
+            details: String(localized: "Google sehr groß — High-RAM"),
             sizeHint: "15+ GB"
         ),
         LocalModel(
@@ -276,7 +276,7 @@ final class LocalModelStore: ObservableObject {
                 refresh()
             } catch {
                 progress[modelId] = nil
-                errorMessage = "Download fehlgeschlagen: \(error.localizedDescription). Großes Modell? Speicher/RAM prüfen — Download trotzdem möglich wenn genug freier Platz."
+                errorMessage = String(localized: "Download fehlgeschlagen: \(error.localizedDescription). Großes Modell? Speicher/RAM prüfen — Download trotzdem möglich wenn genug freier Platz.")
             }
         }
     }

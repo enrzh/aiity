@@ -100,7 +100,7 @@ enum ProviderError: LocalizedError {
         case .badResponse(_, let body):
             // `body` is often already a friendly German string from ProviderRequestSupport.
             let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
-            if trimmed.hasPrefix("API-Fehler") || trimmed.hasPrefix("Modell") || trimmed.hasPrefix("Auth")
+            if trimmed.hasPrefix("API-Fehler") || trimmed.hasPrefix(String(localized: "Modell")) || trimmed.hasPrefix("Auth")
                 || trimmed.hasPrefix("Dieses Modell") || trimmed.hasPrefix("Kein Modell")
                 || trimmed.hasPrefix("Ungültige") || trimmed.hasPrefix("Leere") {
                 return String(trimmed.prefix(500))

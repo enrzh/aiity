@@ -37,7 +37,7 @@ enum ContentReport {
             case .hateful: return "Hass oder Beleidigung"
             case .sexual: return "Sexueller Inhalt"
             case .violent: return "Gewalt"
-            case .dangerous: return "Gefährliche Anleitung"
+            case .dangerous: return String(localized: "Gefährliche Anleitung")
             case .falseInfo: return "Falsche Angaben"
             case .other: return "Etwas anderes"
             }

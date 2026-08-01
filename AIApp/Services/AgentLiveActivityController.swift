@@ -96,7 +96,7 @@ final class AgentLiveActivityController {
         }
     }
 
-    func complete(summary: String = "Fertig") {
+    func complete(summary: String = String(localized: "Fertig")) {
         finishBusyState()
         endBackgroundTask()
         guard #available(iOS 16.2, *) else {
@@ -166,7 +166,7 @@ final class AgentLiveActivityController {
             return
         }
         let state = AgentActivityAttributes.ContentState(
-            phase: "Gestoppt",
+            phase: String(localized: "Gestoppt"),
             detail: String(lastPrompt.prefix(60)),
             progress: 0,
             isComplete: true,
@@ -193,7 +193,7 @@ final class AgentLiveActivityController {
     func enterBackgroundWhileBusy() {
         wasBackgrounded = true
         beginBackgroundTask()
-        update(phase: "Läuft im Hintergrund…", progress: nil)
+        update(phase: String(localized: "Läuft im Hintergrund…"), progress: nil)
     }
 
     /// Call when returning to foreground.
@@ -210,7 +210,7 @@ final class AgentLiveActivityController {
         endBackgroundTask()
         backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "aiity.agent") { [weak self] in
             Task { @MainActor in
-                self?.update(phase: "Hintergrundzeit fast abgelaufen — App öffnen", progress: 0.9)
+                self?.update(phase: String(localized: "Hintergrundzeit fast abgelaufen — App öffnen"), progress: 0.9)
                 self?.endBackgroundTask()
             }
         }
