@@ -133,8 +133,9 @@ for the OpenRouter OAuth redirect). The Xcode target is still named `AIApp`.
 
 ## Contributing
 
-Issues and pull requests welcome. Three things about this codebase are easy to
-trip over, and each was learned the expensive way:
+Issues and pull requests welcome — [CONTRIBUTING.md](CONTRIBUTING.md) covers what
+to run before opening one, and what is likely to be declined. Three things about
+this codebase are easy to trip over, and each was learned the expensive way:
 
 1. **Every persisted `Codable` type has a hand-written decoder** using
    `decodeIfPresent`. That is not a style preference. Swift's synthesized
@@ -153,6 +154,13 @@ trip over, and each was learned the expensive way:
    `errorMessage = "…"` does *not*, and needs `String(localized:)`. See
    [`docs/LOCALIZATION.md`](docs/LOCALIZATION.md); 116 entries once sat in the
    catalog doing nothing for exactly this reason.
+
+## Security
+
+No server means no infrastructure to attack, which leaves two things that
+matter: the sandbox the mini-apps run in, and what happens to your provider
+keys. [SECURITY.md](SECURITY.md) says where to look, what counts as a finding,
+and how to report one privately. It has not been audited, and says so there too.
 
 ## Licence
 

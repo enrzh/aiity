@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/enrzh/aiity/security/advisories/new
+    about: Sandbox escapes, key exposure and anything exploitable — privately, not here.
+  - name: Anything else
+    url: mailto:getaiityapp@gmail.com
+    about: Questions, or you built something with it and want to say so.
