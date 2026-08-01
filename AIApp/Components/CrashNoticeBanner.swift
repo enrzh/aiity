@@ -14,7 +14,12 @@ struct CrashNoticeBanner: View {
     private static let seenKey = "diagnostics.lastNoticedRun.v1"
 
     var body: some View {
-        Group {
+        // A real container, not a Group: `Group` forwards modifiers to its
+        // children, so `.task` below would never fire while the banner is
+        // hidden — and the banner starts hidden, so it could never appear at
+        // all. VStack owns the modifier itself and collapses to zero height
+        // when there is nothing to show.
+        VStack(spacing: 0) {
             if shouldShow {
                 HStack(spacing: Theme.space2) {
                     Image(systemName: icon)
@@ -49,7 +54,12 @@ struct CrashNoticeBanner: View {
                     in: RoundedRectangle(cornerRadius: Theme.chipRadius, style: .continuous)
                 )
                 .padding(.horizontal, Theme.space2)
+                // Combined so the banner is ONE element carrying the whole
+                // message; without this its parts are exposed separately and
+                // the identifier does not surface at all.
+                .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("crash-notice")
+                .accessibilityLabel(title)
             }
         }
         .task { load() }

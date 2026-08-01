@@ -164,7 +164,7 @@ struct SettingsView: View {
             .task {
                 backupSummary = BackupService.summary(apps: savedApps)
                 let snapshot = DiagnosticsRecorder.shared.lastRunSnapshot()
-                diagnosticsSummary = "Letzter Lauf: \(DiagnosticsReport.headline(snapshot.verdict))"
+                diagnosticsSummary = "Letzter Lauf: \(DiagnosticsReport.headline(snapshot.verdict, run: snapshot.run))"
             }
             .fileImporter(
                 isPresented: $showImporter,

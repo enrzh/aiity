@@ -58,7 +58,7 @@ struct DiagnosticsView: View {
                     .foregroundStyle(tint)
                     .frame(width: 32)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(DiagnosticsReport.headline(verdict))
+                    Text(DiagnosticsReport.headline(verdict, run: run))
                         .font(.headline)
                         .foregroundStyle(tint)
                     Text(explanation)

@@ -134,6 +134,45 @@ final class DiagnosticVerdictTests: XCTestCase {
         XCTAssertEqual(DiagnosticsRecorder.verdict(for: run()), .diedUnexpectedly)
     }
 
+    /// Taken from a real device report: a 3-agent group round on a local MLX
+    /// model drove the footprint to 2.8 GB and produced five memory warnings in
+    /// the last eight seconds. Calling that "Ursache nicht eindeutig" sends
+    /// someone hunting a logic bug that isn't there.
+    func testFiveWarningsSecondsBeforeTheEndNamesJetsam() {
+        let end = Date(timeIntervalSince1970: 770_000_020)
+        var record = DiagnosticRun(
+            appVersion: "0.6.0", build: "1", systemVersion: "27.0", deviceModel: "iPhone18,4",
+            lastActiveAt: end, memoryWarnings: 5, footprintMB: 2822, availableMemoryMB: 554,
+            provider: "mlx",
+            breadcrumbs: (0..<5).map {
+                DiagnosticBreadcrumb(
+                    at: end.addingTimeInterval(Double($0) - 8),
+                    category: "speicher", message: "Speicherwarnung"
+                )
+            }
+        )
+        XCTAssertTrue(DiagnosticsReport.diedUnderMemoryPressure(record))
+        XCTAssertTrue(
+            DiagnosticsReport.headline(.diedUnexpectedly, run: record).contains("Jetsam"),
+            DiagnosticsReport.headline(.diedUnexpectedly, run: record)
+        )
+
+        // A warning long before the end is not evidence about the end.
+        record.breadcrumbs = [DiagnosticBreadcrumb(
+            at: end.addingTimeInterval(-600), category: "speicher", message: "Speicherwarnung"
+        )]
+        XCTAssertFalse(DiagnosticsReport.diedUnderMemoryPressure(record))
+        XCTAssertTrue(
+            DiagnosticsReport.headline(.diedUnexpectedly, run: record).contains("nicht eindeutig")
+        )
+    }
+
+    /// Without a run there is nothing to reason from, so the headline must not
+    /// invent confidence.
+    func testTheHeadlineStaysHedgedWithoutARun() {
+        XCTAssertTrue(DiagnosticsReport.headline(.diedUnexpectedly).contains("nicht eindeutig"))
+    }
+
     func testMemoryPressureIsRankedFirstWhenThereWereWarnings() {
         let causes = DiagnosticsReport.unexpectedCauses(run(warnings: 3))
         XCTAssertTrue(causes.first?.contains("Speicher") == true, "\(causes)")

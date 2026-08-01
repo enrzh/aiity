@@ -70,7 +70,7 @@ enum DiagnosticsReport {
             return out
         }
 
-        out.append("Ergebnis: \(headline(verdict))")
+        out.append("Ergebnis: \(headline(verdict, run: run))")
         out.append("")
         out.append(contentsOf: runFacts(run))
         out.append("")
@@ -154,17 +154,40 @@ enum DiagnosticsReport {
         return causes
     }
 
-    static func headline(_ verdict: DiagnosticVerdict) -> String {
+    /// Memory warnings arriving in the seconds before the process disappears
+    /// are about as close to proof of a jetsam kill as a process can get from
+    /// the inside. Below this, memory is one candidate among several.
+    private static let jetsamWindow: TimeInterval = 60
+
+    /// Passing `run` lets the headline use the run's own evidence. Without it
+    /// the verdict alone is reported, which is all a caller that has no run can
+    /// honestly say.
+    static func headline(_ verdict: DiagnosticVerdict, run: DiagnosticRun? = nil) -> String {
         switch verdict {
         case .clean:
             return "sauber beendet"
         case .crashed(let fatal):
             return "ABSTURZ · \(fatal.name)"
         case .diedUnexpectedly:
+            if let run, diedUnderMemoryPressure(run) {
+                // Still hedged — iOS never confirms a jetsam to the app it
+                // killed — but "nicht eindeutig" would understate five
+                // warnings in the last seconds and send someone hunting a
+                // logic bug that isn't there.
+                return "UNERWARTET BEENDET · sehr wahrscheinlich Speicher (Jetsam)"
+            }
             return "UNERWARTET BEENDET (Ursache nicht eindeutig)"
         case .noPreviousRun:
             return "kein früherer Lauf"
         }
+    }
+
+    static func diedUnderMemoryPressure(_ run: DiagnosticRun) -> Bool {
+        guard run.memoryWarnings > 0 else { return false }
+        let end = run.endedCleanlyAt ?? run.lastActiveAt
+        guard let lastWarning = run.breadcrumbs.last(where: { $0.category == "speicher" })
+        else { return false }
+        return end.timeIntervalSince(lastWarning.at) <= jetsamWindow
     }
 
     // MARK: Pieces

@@ -276,6 +276,14 @@ final class DiagnosticsRecorder: @unchecked Sendable {
         self.directory = base
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
 
+        #if DEBUG
+        // Stage a prior run so the crash paths can be driven in a UI test
+        // without having to actually kill the process mid-test.
+        if let seed = ProcessInfo.processInfo.environment["AIITY_DIAGNOSTICS_SEED"] {
+            try? Data(seed.utf8).write(to: base.appendingPathComponent("current-run.json"))
+        }
+        #endif
+
         let info = Bundle.main.infoDictionary
         self.current = DiagnosticRun(
             appVersion: info?["CFBundleShortVersionString"] as? String ?? "?",
@@ -477,6 +485,15 @@ final class DiagnosticsRecorder: @unchecked Sendable {
     /// handed one over yet.
     func lastRunSnapshot() -> (run: DiagnosticRun?, verdict: DiagnosticVerdict, metricKit: String?) {
         queue.sync {
+            // Re-read rather than trust what `rotate()` saw. MetricKit delivers
+            // its payload a moment AFTER launch, so a value cached at init is
+            // stale exactly when it matters: the report would claim iOS had
+            // sent nothing while its crash diagnostic sat unread on disk. Seen
+            // for real on device — the breadcrumb said the payload had arrived
+            // and the section above it said there was none.
+            if let fresh = try? String(contentsOf: metricURL, encoding: .utf8), !fresh.isEmpty {
+                previousMetric = fresh
+            }
             guard let previousRun else { return (nil, .noPreviousRun, previousMetric) }
             return (previousRun, DiagnosticsRecorder.verdict(for: previousRun), previousMetric)
         }
