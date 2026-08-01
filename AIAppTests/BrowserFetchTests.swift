@@ -191,7 +191,7 @@ final class WebAppTargetTests: XCTestCase {
 final class NetworkTargetValidatorTests: XCTestCase {
     func testPrivateAndDisguisedAddressesAreBlocked() {
         for host in ["127.0.0.1", "localhost", "10.0.0.5", "192.168.1.10",
-                     "169.254.1.1", "100.93.237.25", "nas.local", "2130706433"] {
+                     "169.254.1.1", "100.64.0.1", "nas.local", "2130706433"] {
             XCTAssertTrue(NetworkTargetValidator.isBlocked(host: host), "should block \(host)")
         }
     }
@@ -270,7 +270,7 @@ final class StableIdentifierTests: XCTestCase {
 /// gate as any other model-chosen URL.
 final class OpenTargetValidationTests: XCTestCase {
     func testPrivateTargetsAreNotDirectlyLoadable() {
-        for raw in ["http://127.0.0.1:8080/", "http://192.168.1.10/admin", "http://100.93.237.25:8090/"] {
+        for raw in ["http://127.0.0.1:8080/", "http://192.168.1.10/admin", "http://100.64.0.1:8090/"] {
             let html = "<!-- capability: browser --><!-- open: \(raw) -->"
             let target = WebAppBuilder.openTarget(in: html)
             XCTAssertNotNil(target, "parsing should succeed for \(raw)")
@@ -316,7 +316,7 @@ final class HTTPPolicyTests: XCTestCase {
     /// Cleartext is about WHO chose the address: the user's own LAN box, yes;
     /// a public host, never.
     func testCleartextOnlyForTheUsersOwnNetwork() {
-        for raw in ["http://192.168.1.10:11434/v1", "http://127.0.0.1:8090", "http://100.93.237.25:8090"] {
+        for raw in ["http://192.168.1.10:11434/v1", "http://127.0.0.1:8090", "http://100.64.0.1:8090"] {
             XCTAssertTrue(HTTPPolicy.allowsCleartext(for: URL(string: raw)!), raw)
             XCTAssertNil(HTTPPolicy.cleartextRefusal(for: URL(string: raw)!))
         }

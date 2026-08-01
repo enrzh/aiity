@@ -1,114 +1,139 @@
 # aiity
 
-**aiity** — „AI it yourself" (von *do it yourself*). Native iOS-App (SwiftUI): Du chattest mit einem KI-Agenten — er beantwortet Fragen, recherchiert im Web und **baut dir auf Zuruf Mini-Apps**, die als eigene Seite in der App wohnen.
+**AI it yourself.** A native iOS chat app where you talk to AI agents — one, or
+several at once — and the small tools you need get *built* in the conversation
+instead of installed.
 
-> Bundle-ID: **`com.aiity.app`**. URL-Schemes: `aiity://` (primary) and `aiapp://` (kept for OpenRouter OAuth redirect). Xcode target name remains `AIApp`.
+Ask for a timer that does your intervals, a converter for a recipe, a tracker
+for something only you care about. It appears as a self-contained web app inside
+a sandbox, usable immediately. Keep it and it lives with your apps and works
+offline; don't, and it's gone.
 
-## Architektur
+There is no aiity server. You bring your own access — a cloud API key you
+already have, your own machine on the network, or a model running on the iPhone
+itself.
 
-- **Chat-first mit Threads:** Haupttab ist der Chat (`ChatView` + `ChatSession`-Agent-Loop); mehrere Unterhaltungen über die Thread-Liste (Toolbar links), alle persistent über App-Neustarts (`chat-threads.json`, v1-Format wird migriert). Generierte Mini-Apps erscheinen als Karte im Chat (Vorschau / Behalten); „Behalten“ legt sie in die Bibliothek (zweiter Tab, `LibraryView`, SwiftData); „Im Chat bearbeiten“ öffnet einen eigenen Editier-Thread.
-- **Mini-Apps = sandboxed Web:** Eine Mini-App ist ein einzelnes selbst-enthaltenes HTML-Dokument. Der Runner (`MiniAppRunnerView`) härtet es mit strikter CSP (kein Netz, keine externen Ressourcen) und injiziert die Bridge: `miniapp.storage.get/set`, `miniapp.haptic()`, `miniapp.notify(...)`, `miniapp.health.query(...)`.
-- **BYO-Modelle + Diagnose:** Provider-Katalog (Anthropic, OpenAI, OpenRouter, Gemini, Mistral, Groq, DeepSeek, xAI, Together, **Ollama / LM Studio / LocalAI**, Custom OpenAI/Anthropic, **MLX on-device**). **Verbindung testen** (`ConnectionProbe`): lädt Modelle und sendet einen kurzen Test-Chat — Fehler mit klarem Text, kein stilles Scheitern. Lokale Runtimes haben ein geführtes Host-Feld.
-- **Agent-Skills als Pakete:** Settings → Agent-Skills. Built-ins plus Install von **GitHub-Style-Quellen** (`owner/repo`, `owner/repo/path@branch`, GitHub-URL) oder Markdown-URL. Format: `SKILL.md` mit optionalem YAML-Frontmatter (`name`, `summary`, `version`). Enable/Disable/Remove/Update; enabled Skills fließen in den System-Prompt.
-- **Mini-App-Qualität:** Template-Katalog (todo, tracker, timer, quiz, calculator, list-form) im System-Prompt; **validate → repair**-Loop nach der Generierung (`MiniAppValidator`). Schwächere/lokale Runtimes laufen im **Template-Modus** (kein freies Pro-HTML).
-- **On-Device (MLX):** kuratierter Katalog mit Download-Manager; Tool-Calls via `<tool_call>…</tool_call>`.
-- **Internet-Tools:** `web_search`, `fetch_url` nativ in der App.
+<p align="center">
+  <img src="docs/screenshots/01-chats.png" width="24%" alt="Conversation list">
+  <img src="docs/screenshots/02-agents.png" width="24%" alt="Agents">
+  <img src="docs/screenshots/05-conversation.png" width="24%" alt="A conversation">
+  <img src="docs/screenshots/04-more.png" width="24%" alt="Settings">
+</p>
 
-## Lokale Runtime (Ollama / LM Studio)
+> **Status: in development.** Not on the App Store yet, and the interface is
+> German only. 276 unit tests; the notes in [`docs/`](docs/) try to be honest
+> about what is verified and what isn't.
 
-1. Einstellungen → **KI-Anbieter** → Ollama (oder LM Studio / LocalAI / Custom OpenAI).
-2. **Für den Chat verwenden**.
-3. Host eintragen, z. B. `http://192.168.x.x:11434` (vom iPhone aus **nicht** `localhost` des Macs — LAN-IP nutzen). Ollama: `ollama serve` auf dem Mac.
-4. **Verbindung testen** — bei Erfolg erscheinen Modelle; sonst eine lesbare Fehlermeldung (HTTP/Netzwerk/JSON).
-5. Modell wählen und chatten. Mini-Apps: Template-Modus empfohlen.
-
-`NSAllowsLocalNetworking` ist gesetzt (HTTP zu Geräten im LAN).
-
-## Skill-Pakete
-
-```
-my-skill/
-  SKILL.md          # optional YAML frontmatter + markdown body
-  references/       # optional (noch nicht gebündelt; Body reicht)
-```
-
-Beispiel `SKILL.md`:
-
-```markdown
 ---
-name: Widget Craft
-summary: Builds polished widgets
-version: 1.0.0
----
-Always use CSS variables and 44px touch targets.
-```
 
-Install in der App:
+## What is actually interesting here
 
-- `owner/repo` → `raw.githubusercontent.com/…/main/SKILL.md`
-- `owner/repo/skills/ui@develop` → Pfad + Branch
-- volle `https://github.com/…/blob/…/SKILL.md` URL
-- beliebige HTTPS-URL zu Markdown
+**Agents that argue instead of monologuing.** Give an agent a name, a job and a
+model; put several in one conversation. Two details make it a discussion rather
+than three answers side by side. Each agent sees the others' turns *attributed
+by name* rather than as its own train of thought — a chat model treats every
+`assistant` message as something it said, and nobody argues with themselves. And
+one agent is the lead: it speaks last, and its brief is to decide and name the
+next step, not to summarise. See
+[`GroupChatRunner.swift`](AIApp/Agent/GroupChatRunner.swift).
 
-Aktive Skills: `SkillStore.enabledInstructions()` → System-Prompt jeder neuen Unterhaltung.
+**Mini-apps are genuinely sandboxed.** Each runs in a `WKWebView` under a strict
+CSP, with storage separated per app, no access to your conversations or keys,
+and network only if you grant it. The hardened document is *generated around*
+the model's markup rather than spliced into it — an earlier version inserted the
+CSP after the first literal `<head>`, and a leading comment merely containing
+that text swallowed the whole policy.
 
-## Mini-App-Pipeline
+**Bring your own everything.** Anthropic, OpenAI, Google, OpenRouter, Mistral,
+Groq, DeepSeek, xAI, Together — or Ollama / LM Studio / LocalAI on your own
+network, or Apple MLX on the device with no network at all. Keys live in the
+keychain. Requests go from the phone straight to the provider.
 
-1. System-Prompt enthält **Templates** + Qualitätsregeln (+ Template-only bei lokalen/MLX-Runtimes).
-2. Modell liefert ` ```html ` … ` ``` `.
-3. `MiniAppDraft.extract` + `MiniAppValidator.validate` (DOCTYPE/html/head/body/viewport, keine externen URLs).
-4. Bei Fehlern: **eine** automatische Repair-Runde mit Issue-Liste.
-5. Draft-Karte → Behalten in der Bibliothek.
+**It tells you when it broke.** Mehr → Diagnose reports how the last run ended —
+a caught signal, iOS's own MetricKit crash diagnostic, and the events leading up
+to it — and exports it in one tap. It keeps *known* and *inferred* apart: a
+process cannot distinguish a crash from an out-of-memory kill after the fact, so
+the report says exactly that instead of guessing.
 
-## Entwickeln
+## Build
 
-```sh
+Needs Xcode 26 (iOS 26 SDK), [XcodeGen](https://github.com/yonaskolb/XcodeGen),
+and an iOS 17+ device or simulator.
+
+```bash
+brew install xcodegen
 xcodegen generate
 open AIApp.xcodeproj
 ```
 
-CLI-Build:
+`project.yml` is the source of truth — **regenerate after adding or removing any
+file**, or it silently will not be compiled. Several tests in this repo's history
+quietly never ran for exactly that reason, so check the test *count*, not just
+the exit code.
 
-```sh
-DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer \
-  xcodebuild -project AIApp.xcodeproj -scheme AIApp \
-  -destination 'generic/platform=iOS Simulator' \
+```bash
+# unit tests
+xcodebuild -project AIApp.xcodeproj -scheme AIApp \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
   -skipPackagePluginValidation -skipMacroValidation \
-  build CODE_SIGNING_ALLOWED=NO
+  -only-testing:AIAppTests test
+
+# UI tests need the stub model server
+python3 tools/stub_llm_server.py 8555 &
+xcodebuild ... -only-testing:AIAppUITests test
 ```
 
-Unit tests (AIAppTests):
+`-skipPackagePluginValidation -skipMacroValidation` are required (mlx-swift).
+On-device models do not run in the simulator — that path needs real hardware.
 
-```sh
-DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer \
-  xcodebuild -project AIApp.xcodeproj -scheme AIApp \
-  -destination 'platform=iOS Simulator,name=iPhone 16' \
-  -skipPackagePluginValidation -skipMacroValidation \
-  -only-testing:AIAppTests \
-  test CODE_SIGNING_ALLOWED=NO
+Screenshots in this README are generated, not taken by hand:
+
+```bash
+xcodebuild ... -resultBundlePath /tmp/shots.xcresult \
+  -only-testing:AIAppUITests/ScreenshotTests test
+xcrun xcresulttool export attachments --path /tmp/shots.xcresult --output-path /tmp/shots
 ```
 
-## End-to-End-Test (hermetisch, ohne API-Key)
+## Layout
 
-`tools/stub_llm_server.py` (Port 8555). UI-Test `AIAppUITests/FullFlowUITests`.
+| | |
+|---|---|
+| `AIApp/Agent/` | the turn loop, group rounds, sub-agents |
+| `AIApp/Providers/` | one file per dialect: Anthropic, OpenAI-compatible, MLX |
+| `AIApp/Tools/` | web search, URL fetching, agent delegation |
+| `AIApp/Views/` | SwiftUI screens |
+| `AIApp/Services/` | mini-app bundling and validation, diagnostics, backups |
+| `AIAppLiveActivity/` | Lock Screen / Dynamic Island progress |
+| `web/` | the aiity.de site — ten locales generated from one template |
+| `docs/` | App Store readiness, design notes |
 
-```sh
-python3 tools/stub_llm_server.py &
-# then xcodebuild test as above (full scheme)
-```
+Bundle id `com.aiity.app`; URL schemes `aiity://` and `aiapp://` (the latter kept
+for the OpenRouter OAuth redirect). The Xcode target is still named `AIApp`.
 
-`PROVIDER_SETTINGS_JSON` Env überschreibt Provider-Settings für Tests.
+## Contributing
 
-## Build-Hinweise
+Issues and pull requests welcome. Two things about this codebase are easy to
+trip over, and both were learned the expensive way:
 
-- `xcodebuild` braucht `-skipPackagePluginValidation -skipMacroValidation` (mlx-swift).
-- Xcode 26/27: ggf. `xcodebuild -downloadComponent MetalToolchain`.
+1. **Every persisted `Codable` type has a hand-written decoder** using
+   `decodeIfPresent`. That is not a style preference. Swift's synthesized
+   decoder treats a property *with a default value* as **required**, so adding
+   one field makes every stored record fail to decode — which once opened the
+   app with an empty chat list on top of a full archive of real conversations.
+   If you add a stored field, add it to the decoder.
 
-## Roadmap
+2. **Never let an unreadable file be read as empty and then overwritten.** That
+   one bug class was found in five separate places here. A failed decode
+   quarantines the bytes; if the quarantine itself fails, writing is disabled
+   rather than allowed to destroy the only copy that exists.
 
-- **v1–v4 ✅:** Chat, Mini-Apps, Provider, Skills, Threads, Bridge (Notify/Health), MLX.
-- **v6 ✅ (Reliability):** Connection probe + local wizard, skill packages (GitHub), mini-app templates + validate/repair, template-mode for local models.
-- **v6.1 ✅ (UX):** Stop generation, live settings in chat, active model chip, starter prompts, system-prompt budget for local/OAuth, dismissible errors.
-- **v6.2 ✅ (Components + expand):** Shared modal components, onboarding, skill file/zip import, multi-file mini-apps (css/js fences), soft freemium gates, analytics façade. See `docs/IMPROVEMENT-PLAN.md`.
-- **v6.3 ✅ (Models layer):** Unified catalog + probe + chat request path; auto-pick after load; capability tags; image/video tools only when supported; OpenAI API-key vs Codex OAuth UI note.
-- **Later refine:** StoreKit IAP, deflate ZIP, crash reporting, multi-file library editor.
+## Licence
+
+[MIT](LICENSE) — © 2026 Xianjie Zhan.
+
+Do what you like with it, including shipping your own version. If you build
+something with it I'd like to hear about it.
+
+## Contact
+
+<getaiityapp@gmail.com> · [aiity.de](https://aiity.de)

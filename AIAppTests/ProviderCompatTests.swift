@@ -88,7 +88,7 @@ final class ProviderCompatTests: XCTestCase {
 
     func testFetchURLBlocksPrivateHosts() {
         for host in ["localhost", "127.0.0.1", "10.1.2.3", "192.168.0.5", "172.16.9.9",
-                     "169.254.169.254", "100.93.237.25", "nas.local", "box.internal", "::1"] {
+                     "169.254.169.254", "100.64.0.1", "nas.local", "box.internal", "::1"] {
             XCTAssertTrue(FetchURLTool.isPrivateHost(host), "should block \(host)")
         }
         for host in ["example.com", "api.openai.com", "8.8.8.8", "172.32.0.1", "100.200.0.1", "duckduckgo.com"] {
@@ -234,7 +234,7 @@ final class ProviderCompatTests: XCTestCase {
 
     func testFetchURLBlocksEncodedAndPrivateHosts() {
         for host in ["2130706433", "0x7f000001", "192.168.1.1", "169.254.169.254",
-                     "100.93.237.25", "localhost", "10.0.0.1", "::1",
+                     "100.64.0.1", "localhost", "10.0.0.1", "::1",
                      // Alternative encodings that a plain dotted-quad check misses:
                      "0177.0.0.1",              // octal
                      "127.1",                   // short form
