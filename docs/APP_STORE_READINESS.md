@@ -20,13 +20,23 @@ the method is noted so it can be re-run.
 
 ## Needs you — cannot be done from here
 
-1. **Impressum and the DSGVO "Verantwortlicher"**. Both pages carry visible
-   `[PLACEHOLDER]` fields for name, address and email. An Impressum is legally
-   required for a site operated from Germany (§ 5 DDG) and the details were
-   deliberately not invented. Edit `web/static/impressum/index.html` and
-   section 1 of both `web/static/datenschutz/index.html` (German) and
-   `web/static/privacy/index.html` (English), then rebuild and redeploy — see
-   `web/README.md`.
+1. **Trader vs non-trader in App Store Connect.** This one is worth thinking
+   about before you submit, because it decides whether Apple publishes your
+   home address.
+
+   Under the EU Digital Services Act, Apple asks every developer distributing
+   in the EU to declare trader status, and it publishes the **trader's** name,
+   address, phone and email on the listing. A **non-trader** declaration does
+   not get published that way. aiity is a free app by a private individual with
+   no revenue and no company, which is the ordinary non-trader case — but the
+   test is whether you act "for purposes relating to trade, business, craft or
+   profession", so the moment you add a paid tier or ads, it flips to trader
+   and the address goes public. Declare honestly; Apple can ask for evidence
+   and will remove apps over a wrong declaration.
+
+   Either way the **website Impressum stays** — § 5 DDG applies to
+   *geschäftsmäßige* telemedia, which is read broadly enough to cover a landing
+   page for a published app even without revenue.
 
 2. **App Store Connect metadata** — app name, subtitle, keywords, description,
    support URL, category, age rating. Screenshots for every required device
@@ -51,10 +61,11 @@ assistant message offers "Inhalt melden": pick a reason, add an optional note,
 conversation, not your keys, not the diagnostics record — and a test asserts
 that. Both privacy policies describe it.
 
-**One thing you must actually do: make `support@aiity.de` exist and read it.**
-1.2 asks for a way to report *and* for responses to those reports; a bouncing
-address is worse at review than no button. The address is a single constant in
-`AIApp/Services/ContentReport.swift` if you want a different one.
+Reports go to `getaiityapp@gmail.com`. **Read that mailbox** — 1.2 asks for a
+way to report *and* for responses to those reports, and an unattended address
+is a rejection risk on the second submission rather than the first. The address
+is a single constant in `AIApp/Services/ContentReport.swift`, and it also
+appears in the Impressum and both privacy policies.
 
 **Metadata positioning.** In the app, "build the tool you need instead of
 installing another app" is a fine idea. In App Store *metadata*, phrasing it as

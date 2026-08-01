@@ -17,10 +17,10 @@ enum ContentReport {
 
     /// Where reports go.
     ///
-    /// A domain address rather than a personal mailbox, and it must actually
-    /// exist and be read: guideline 1.2 asks for responses, not just a form.
-    /// Also published in the privacy policy and the App Store listing.
-    static let contactAddress = "support@aiity.de"
+    /// Must exist and be read: guideline 1.2 asks for responses to reports,
+    /// not just a form. Also published in the privacy policy, the Impressum
+    /// and the App Store listing, so changing it means changing those too.
+    static let contactAddress = "getaiityapp@gmail.com"
 
     enum Reason: String, CaseIterable, Identifiable {
         case hateful

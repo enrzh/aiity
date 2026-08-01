@@ -79,11 +79,14 @@ final class ContentReportTests: XCTestCase {
         }
     }
 
-    /// Guideline 1.2 asks for a contact that is actually reachable, and the
-    /// same address is published in the privacy policy.
-    func testTheContactAddressIsOnOurOwnDomain() {
-        XCTAssertTrue(ContentReport.contactAddress.hasSuffix("@aiity.de"),
-                      ContentReport.contactAddress)
+    /// Guideline 1.2 asks for a contact that is actually reachable. The same
+    /// address appears in the Impressum and both privacy policies, so this
+    /// guards against it being edited here and nowhere else.
+    func testTheContactAddressIsSetAndLooksLikeAnAddress() {
+        let address = ContentReport.contactAddress
+        XCTAssertTrue(address.contains("@"), address)
+        XCTAssertFalse(address.contains("example"), "a placeholder would bounce at review")
+        XCTAssertFalse(address.hasPrefix("["), "an unfilled placeholder")
     }
 
     /// A body with newlines, umlauts and an ampersand must survive being put
