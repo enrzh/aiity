@@ -22,6 +22,24 @@ struct AIAppApp: App {
             print(DiagnosticsRecorder.shared.renderReport())
             print("=== AIITY DIAGNOSTICS END ===")
         }
+        // Switch the chat provider from the command line and PERSIST it, so a
+        // device left on a local model can be moved back without tapping
+        // through Mehr → Anbieter. Unlike PROVIDER_SETTINGS_JSON, which only
+        // overrides the current launch, this writes the setting.
+        //   --environment-variables '{"AIITY_SET_PROVIDER":"anthropic"}'
+        //   …or "anthropic:claude-sonnet-4-5" to pin the model too.
+        if let request = ProcessInfo.processInfo.environment["AIITY_SET_PROVIDER"],
+           !request.isEmpty {
+            let parts = request.split(separator: ":", maxSplits: 1).map(String.init)
+            var settings = ProviderSettings.load()
+            settings.presetId = parts[0]
+            settings.model = parts.count > 1
+                ? parts[1]
+                : ProviderPreset.preset(for: parts[0]).defaultModel
+            settings.save()
+            print("AIITY-PROVIDER set to \(settings.presetId) model=\(settings.model)")
+        }
+
         MLXSelfTest.runIfRequested()
         GroupSelfTest.runIfRequested()
         #endif
