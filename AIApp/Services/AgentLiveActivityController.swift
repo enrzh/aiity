@@ -121,7 +121,7 @@ final class AgentLiveActivityController {
         }
         activity = nil
         if wasBackgrounded {
-            notifyDone(title: "Antwort fertig", body: summary)
+            notifyDone(title: String(localized: "Antwort fertig"), body: summary)
         }
         wasBackgrounded = false
     }

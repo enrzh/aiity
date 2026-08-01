@@ -31,11 +31,11 @@ struct OnboardingModal: View {
                     VStack(spacing: 10) {
                         Text("Modell verbinden")
                             .font(.title2.bold())
-                        connectButton("API-Key", subtitle: "OpenAI, Anthropic, OpenRouter…",
+                        connectButton(String(localized: "API-Key"), subtitle: String(localized: "OpenAI, Anthropic, OpenRouter…"),
                                       systemImage: "key.fill", presetId: "openrouter")
-                        connectButton("Gateway", subtitle: "sub2api / eigener Server",
+                        connectButton(String(localized: "Gateway"), subtitle: String(localized: "sub2api / eigener Server"),
                                       systemImage: "server.rack", presetId: "sub2api")
-                        connectButton("Lokal", subtitle: "Ollama / On-Device",
+                        connectButton(String(localized: "Lokal"), subtitle: String(localized: "Ollama / On-Device"),
                                       systemImage: "desktopcomputer", presetId: "ollama")
                     }
                     .padding(.horizontal)

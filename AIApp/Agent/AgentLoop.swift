@@ -931,7 +931,7 @@ final class ChatSession: ObservableObject {
             // is idle.
             runningThreadId = nil
             statusLine = nil
-            AgentLiveActivityController.shared.fail(message: "Keine aktiven Agenten")
+            AgentLiveActivityController.shared.fail(message: String(localized: "Keine aktiven Agenten"))
             return
         }
         busy = true
@@ -1023,7 +1023,7 @@ final class ChatSession: ObservableObject {
                     self.runningThreadId = nil
                     self.statusLine = nil
                     ScreenWake.shared.setAgentBusy(false)
-                    AgentLiveActivityController.shared.fail(message: "Zu wenig Speicher")
+                    AgentLiveActivityController.shared.fail(message: String(localized: "Zu wenig Speicher"))
                     self.persistPublic()
                     return
                 }

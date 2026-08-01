@@ -101,7 +101,7 @@ struct LibraryView: View {
             title: String(localized: "Noch keine Apps"),
             systemImage: "square.grid.2x2",
             message: String(localized: "Im Chat bauen und behalten."),
-            actionTitle: "Zum Chat",
+            actionTitle: String(localized: "Zum Chat"),
             action: openChatTab
         )
     }

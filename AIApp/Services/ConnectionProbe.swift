@@ -78,7 +78,7 @@ enum ConnectionProbe {
     static func parseCompletionProbe(data: Data, statusCode: Int) -> Result<String, ProbeFailure> {
         guard (200...299).contains(statusCode) else {
             let snippet = String(decoding: data.prefix(240), as: UTF8.self)
-            return .failure(ProbeFailure(message: "Test-Chat fehlgeschlagen (HTTP \(statusCode))"
+            return .failure(ProbeFailure(message: String(localized: "Test-Chat fehlgeschlagen (HTTP \(statusCode))")
                             + (snippet.isEmpty ? "" : ": \(snippet)")))
         }
         guard let object = jsonObject(data) else {
@@ -102,7 +102,7 @@ enum ConnectionProbe {
             if !text.isEmpty { return .success(text) }
             return .success("(leer)")
         }
-        return .failure(ProbeFailure(message: "Test-Chat: unerwartete Antwortform."))
+        return .failure(ProbeFailure(message: String(localized: "Test-Chat: unerwartete Antwortform.")))
     }
 
     // MARK: - Network probe

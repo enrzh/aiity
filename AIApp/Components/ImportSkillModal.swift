@@ -13,7 +13,7 @@ struct ImportSkillModal: View {
 
     var body: some View {
         ModalChrome(
-            title: "Skill installieren",
+            title: String(localized: "Skill installieren"),
             confirmTitle: importing ? nil : String(localized: "Installieren"),
             confirmDisabled: spec.trimmingCharacters(in: .whitespaces).isEmpty || importing,
             onCancel: { dismiss() },

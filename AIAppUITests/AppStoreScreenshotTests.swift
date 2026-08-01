@@ -128,7 +128,17 @@ final class AppStoreScreenshotTests: XCTestCase {
         // 2 — the mini-app actually running in its sandbox.
         if card.exists {
             card.tap()
-            sleep(4)
+            // The mini-app is a WKWebView, and a fixed sleep here raced its
+            // load: the store frame came out as an empty sheet with only the
+            // title bar. Wait for the web content itself to reach the
+            // accessibility tree — locale-independent, unlike matching text.
+            let web = app.webViews.firstMatch
+            _ = web.waitForExistence(timeout: 30)
+            let deadline = Date().addingTimeInterval(30)
+            while Date() < deadline && web.staticTexts.count == 0 {
+                usleep(300_000)
+            }
+            sleep(1)
             capture("02-miniapp")
             // Back out of the preview however this build presents it.
             let done = app.buttons.matching(
@@ -136,6 +146,17 @@ final class AppStoreScreenshotTests: XCTestCase {
             ).firstMatch
             if done.exists { done.tap() } else { app.swipeDown() }
             sleep(2)
+
+            // Keep it. Without this the Apps tab below photographs its own
+            // empty state — "No apps yet" is a poor advertisement for the one
+            // feature the frame exists to show.
+            let keep = app.buttons.matching(
+                NSPredicate(format: "label CONTAINS[c] 'keep' OR label CONTAINS[c] 'behalten'")
+            ).firstMatch
+            if keep.waitForExistence(timeout: 10) {
+                keep.tap()
+                sleep(3)
+            }
         }
 
         // 3 — the agents, with a real model name under each.
