@@ -90,10 +90,20 @@ struct ProviderSettings: Codable, Equatable {
         // Plain-JSON override for UI tests and debugging. Passed as an
         // environment variable — launch-argument values go through
         // UserDefaults' plist parsing, which mangles JSON braces.
+        //
+        // DEBUG-gated, unlike every other test seam in this app, which this one
+        // was not: `strings` on a Release build showed PROVIDER_SETTINGS_JSON
+        // still in the binary. It overrides presetId AND baseURL, so in a
+        // shipped build it is a way to point the app's requests at another
+        // host. Reaching it on a stock iPhone needs a debugger or a jailbreak,
+        // so this is not a live exploit — but a redirect-the-API backdoor has
+        // no business in a store build regardless.
+        #if DEBUG
         if let json = ProcessInfo.processInfo.environment["PROVIDER_SETTINGS_JSON"],
            let settings = try? JSONDecoder().decode(ProviderSettings.self, from: Data(json.utf8)) {
             return settings
         }
+        #endif
         guard let data = UserDefaults.standard.data(forKey: storageKey),
               var settings = try? JSONDecoder().decode(ProviderSettings.self, from: data) else {
             return ProviderSettings()
