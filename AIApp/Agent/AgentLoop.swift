@@ -305,6 +305,14 @@ final class ChatSession: ObservableObject {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !busy else { return }
         errorMessage = nil
+        // Which provider a run was using is the first question about any crash
+        // in this app, so it goes into the run record, not just a breadcrumb.
+        DiagnosticsRecorder.shared.noteProvider(settings.presetId, model: settings.model)
+        DiagnosticsRecorder.shared.record(
+            "chat",
+            "Senden · \(text.count) Zeichen · \(activeThreadIsGroup ? "Gruppe" : "Einzel")"
+                + " · Modus \(AppPreferences.storedChatMode.rawValue)"
+        )
         // A group thread is a different conversation shape entirely — the
         // participants answer, not the mini-app-building assistant.
         if activeThreadIsGroup {
@@ -889,6 +897,11 @@ final class ChatSession: ObservableObject {
         runningThreadId = roundThreadId
         statusLine = nil
         ScreenWake.shared.setAgentBusy(true)
+        DiagnosticsRecorder.shared.record(
+            "gruppe",
+            "Runde \(groupRoundsThisTurn + 1) · \(participants.count) Teilnehmer"
+                + " · \(self.messages.count) Nachrichten im Verlauf"
+        )
 
         activeTask = Task { [weak self] in
             guard let self else { return }
@@ -1005,6 +1018,9 @@ final class ChatSession: ObservableObject {
         // participants and appends by id), so the user can read another
         // conversation meanwhile.
         guard threads.contains(where: { $0.id == threadId }) else { return }
+        DiagnosticsRecorder.shared.record(
+            "chat", "Unterhaltung gewechselt\(busy ? " — während ein Lauf aktiv ist" : "")"
+        )
         syncActiveIntoThreads()
         activeThreadId = threadId
         loadActiveThread()

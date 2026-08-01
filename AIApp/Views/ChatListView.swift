@@ -17,6 +17,12 @@ struct ChatListView: View {
 
     var body: some View {
         NavigationStack {
+            VStack(spacing: 0) {
+            // Surfaced here rather than buried in Mehr: after a crash this is
+            // the first screen the user lands on.
+            CrashNoticeBanner()
+                .padding(.top, 4)
+
             Group {
                 if threads.isEmpty {
                     AppEmptyState(
@@ -34,6 +40,7 @@ struct ChatListView: View {
                     }
                     .listStyle(.plain)
                 }
+            }
             }
             .navigationTitle("Chats")
             .toolbar {

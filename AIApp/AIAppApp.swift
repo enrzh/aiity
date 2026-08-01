@@ -7,7 +7,21 @@ struct AIAppApp: App {
     private let container = AIAppApp.makeContainer()
 
     init() {
+        // First thing, before any other subsystem gets a chance to crash: this
+        // rotates the previous run's record into place and installs the signal
+        // and exception handlers.
+        DiagnosticsRecorder.shared.install()
+
         #if DEBUG
+        // Pull the last run's report over the console instead of asking anyone
+        // to open Settings on the phone:
+        //   devicectl device process launch --console \
+        //     --environment-variables '{"AIITY_DUMP_DIAGNOSTICS":"1"}' com.aiity.app
+        if ProcessInfo.processInfo.environment["AIITY_DUMP_DIAGNOSTICS"] != nil {
+            print("=== AIITY DIAGNOSTICS BEGIN ===")
+            print(DiagnosticsRecorder.shared.renderReport())
+            print("=== AIITY DIAGNOSTICS END ===")
+        }
         MLXSelfTest.runIfRequested()
         GroupSelfTest.runIfRequested()
         #endif
@@ -179,8 +193,10 @@ struct RootView: View {
             // Keep agent streaming alive briefly in background + Live Activity.
             switch phase {
             case .background:
+                DiagnosticsRecorder.shared.noteScenePhase(background: true)
                 session.handleAppBackground()
             case .active:
+                DiagnosticsRecorder.shared.noteScenePhase(background: false)
                 session.handleAppForeground()
             default:
                 break

@@ -14,6 +14,7 @@ struct SettingsView: View {
     @State private var showImporter = false
     @State private var importSummary = "Aus einer Backup-Datei ergänzen"
     @State private var needsRestartNotice = false
+    @State private var diagnosticsSummary = "Letzter Lauf prüfen"
 
     var body: some View {
         NavigationStack {
@@ -141,11 +142,30 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    NavigationLink {
+                        DiagnosticsView()
+                    } label: {
+                        AppSettingsRow(
+                            title: "Diagnose",
+                            subtitle: diagnosticsSummary,
+                            systemImage: "stethoscope"
+                        )
+                    }
+                    .accessibilityIdentifier("open-diagnostics")
+                } footer: {
+                    Text("Zeigt, wie der letzte Lauf geendet ist, und lässt den Bericht direkt teilen — ohne Umweg über die iOS-Einstellungen.")
+                }
+
+                Section {
                     LabeledContent("Version", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—")
                 }
             }
             .navigationTitle("Mehr")
-            .task { backupSummary = BackupService.summary(apps: savedApps) }
+            .task {
+                backupSummary = BackupService.summary(apps: savedApps)
+                let snapshot = DiagnosticsRecorder.shared.lastRunSnapshot()
+                diagnosticsSummary = "Letzter Lauf: \(DiagnosticsReport.headline(snapshot.verdict))"
+            }
             .fileImporter(
                 isPresented: $showImporter,
                 allowedContentTypes: [.json],
