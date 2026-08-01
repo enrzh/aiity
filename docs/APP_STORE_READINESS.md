@@ -10,13 +10,14 @@ the method is noted so it can be re-run.
 | Privacy manifest complete | `PrivacyInfo.xcprivacy` declares UserDefaults (CA92.1) **and** FileTimestamp (C617.1). The app reads file timestamps in `MediaStore` and `DiagnosticsRecorder`; an undeclared required-reason API is rejected on upload as ITMS-91053. |
 | Manifest actually ships | `ls AIApp.app` in the built bundle |
 | No debug seams in Release | Release build, then `strings -a AIApp.app/AIApp` for all eight `AIITY_*` / `PROVIDER_SETTINGS_JSON` / `AIITY_TEST_API_KEY` hooks — all absent. This caught `PROVIDER_SETTINGS_JSON`, which was **not** DEBUG-gated and shipped a way to redirect the app's API base URL. |
-| Extension version matches the app | Both now `$(MARKETING_VERSION)` / `$(CURRENT_PROJECT_VERSION)`. A hardcoded 1.0 against an app at 0.6.0 is ITMS-90473. |
+| Extension version matches the app | Both now `$(MARKETING_VERSION)` / `$(CURRENT_PROJECT_VERSION)`, single-sourced from the build settings — verified by reading `CFBundleShortVersionString` out of both built plists. A version hardcoded in either plist drifts from the other and is rejected as ITMS-90473. |
 | App icon present | 1024pt `icon_1024.png` in `AppIcon.appiconset`, present in the built bundle |
 | Privacy policy URL | <https://aiity.de/privacy> (English, for App Store Connect) and <https://aiity.de/datenschutz> (German) — both live |
 | Export compliance declared | `ITSAppUsesNonExemptEncryption: false` in the built Info.plist |
 | Release configuration builds | `xcodebuild -configuration Release -destination generic/platform=iOS` |
 | Report path for model output | Guideline 1.2 — context menu on assistant messages, `ContentReportTests` pins what the report may contain |
 | Blockers / races | Adversarial audit, 19 confirmed findings — **all 19 fixed** (`8973b60` + `HEAD`), each with a regression test |
+| Version set for release | `1.0.0` (build `1`) in **both** bundles, read back out of the built `.app` and `.appex`. On a resubmission App Store Connect requires a higher build number: bump `CURRENT_PROJECT_VERSION`, not `MARKETING_VERSION`. |
 | Ten languages ship | `CFBundleLocalizations` declares all ten and `AIApp/Localizable.xcstrings` has an entry per key. Verified by generating the store screenshots in each locale — a missing string shows up as German text in an English frame. |
 | Unit tests | 276 tests, 0 failures. Check the **count**: a test file absent from `project.yml` never compiles and `xcodebuild` still exits 0. |
 

@@ -35,8 +35,9 @@ targets:
       path: AIApp/Info.plist
       properties:
         CFBundleDisplayName: aiity
-        # Version is single-sourced from the build settings below (was hardcoded
-        # 1.0/1 in the plist, mismatching MARKETING_VERSION 0.6.0). App content is
+        # Version is single-sourced from the build settings below (it was once
+        # hardcoded here and drifted from MARKETING_VERSION, which is rejected
+        # on upload as ITMS-90473). App content is
         # German, so declare the dev region as such (was $(DEVELOPMENT_LANGUAGE)=en).
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
@@ -92,7 +93,7 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         CURRENT_PROJECT_VERSION: 1
-        MARKETING_VERSION: 0.6.0
+        MARKETING_VERSION: 1.0.0
         CODE_SIGN_ENTITLEMENTS: AIApp/AIApp.entitlements
         # Device install: Xcode auto-creates the profile once a team is picked.
         CODE_SIGN_STYLE: Automatic
@@ -108,6 +109,13 @@ targets:
       path: AIAppLiveActivity/Info.plist
       properties:
         CFBundleDisplayName: aiity
+        # Must match the containing app exactly or the upload is rejected as
+        # ITMS-90473. Without these two lines XcodeGen writes its own defaults
+        # (1.0 / 1) into this plist, which silently disagreed with the app's
+        # MARKETING_VERSION — read them out of the BUILT .appex to check, not
+        # out of project.yml.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
         NSSupportsLiveActivities: true
@@ -117,7 +125,7 @@ targets:
         SWIFT_VERSION: "5.9"
         TARGETED_DEVICE_FAMILY: "1"
         CURRENT_PROJECT_VERSION: 1
-        MARKETING_VERSION: 0.6.0
+        MARKETING_VERSION: 1.0.0
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: H8FW6W6K2D
         SKIP_INSTALL: true
