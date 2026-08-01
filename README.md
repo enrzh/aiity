@@ -126,7 +126,6 @@ same idea at store dimensions.
 | `AIApp/Views/` | SwiftUI screens |
 | `AIApp/Services/` | mini-app bundling and validation, diagnostics, backups |
 | `AIAppLiveActivity/` | Lock Screen / Dynamic Island progress |
-| `web/` | the aiity.de site — ten locales generated from one template |
 | `docs/` | App Store readiness, localization, design notes |
 
 Bundle id `com.aiity.app`; URL schemes `aiity://` and `aiapp://` (the latter kept
