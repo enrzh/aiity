@@ -21,7 +21,7 @@ struct AgentModelPicker: View {
         List {
             Section {
                 row(
-                    title: "Wie der Chat",
+                    title: String(localized: "Wie der Chat"),
                     subtitle: chatProviderLabel,
                     selected: presetId.isEmpty
                 ) {
@@ -39,7 +39,7 @@ struct AgentModelPicker: View {
             )
             providerSection(
                 ProviderPreset.catalog(maturity: .untested),
-                header: "Weitere Anbieter"
+                header: String(localized: "Weitere Anbieter")
             )
         }
         .navigationTitle("Modell")

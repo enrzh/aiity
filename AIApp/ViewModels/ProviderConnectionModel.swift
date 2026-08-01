@@ -13,7 +13,7 @@ enum ProviderConnectionModel {
             if preset.oauth?.flow == .pasteCode {
                 return "API-Key · Abo optional"
             }
-            return preset.oauthAvailable ? "API-Key oder Login" : "API-Key"
+            return preset.oauthAvailable ? String(localized: "API-Key oder Login") : "API-Key"
         case 1:
             return "1 Konto"
         default:

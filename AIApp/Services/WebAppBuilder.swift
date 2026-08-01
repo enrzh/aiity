@@ -68,7 +68,7 @@ enum WebAppBuilder {
     /// a URL/host, optionally wrapped in an open-verb / "als Browser-Mini-App".
     static func detectOpenRequest(_ text: String) -> String? {
         var t = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let prefixes = ["öffne ", "oeffne ", "open ", "besuche ", "visit ", "lade ",
+        let prefixes = [String(localized: "öffne "), "oeffne ", "open ", "besuche ", "visit ", "lade ",
                         "ruf ", "rufe ", "zeig mir ", "zeige mir ", "zeige ", "go to ", "browse ", "gehe zu "]
         let lower = t.lowercased()
         for p in prefixes where lower.hasPrefix(p) {
@@ -77,7 +77,7 @@ enum WebAppBuilder {
         }
         let suffixes = [" als browser-mini-app", " als browser mini-app", " als browser-app",
                         " als mini-app", " als web-app", " als webapp", " im browser",
-                        " als browser", " als app", " öffnen", " aufrufen"]
+                        " als browser", " als app", String(localized: " öffnen"), " aufrufen"]
         var lower2 = t.lowercased()
         for s in suffixes where lower2.hasSuffix(s) {
             t = String(t.dropLast(s.count)).trimmingCharacters(in: .whitespaces)

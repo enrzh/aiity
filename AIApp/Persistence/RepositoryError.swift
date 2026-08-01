@@ -19,9 +19,9 @@ enum RepositoryError: LocalizedError, Equatable {
         case .notFound:
             return "Noch nichts gespeichert."
         case .corrupt(let path, _):
-            return "Gespeicherte Daten in \(path) sind unlesbar. Eine Kopie wurde beiseitegelegt."
+            return String(localized: "Gespeicherte Daten in \(path) sind unlesbar. Eine Kopie wurde beiseitegelegt.")
         case .writeFailed(let path, let underlying):
-            return "Konnte \(path) nicht speichern: \(underlying)"
+            return String(localized: "Konnte \(path) nicht speichern: \(underlying)")
         }
     }
 

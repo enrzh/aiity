@@ -131,6 +131,7 @@
 		DEFB0E361D6D325BB82B0C31 /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = B87EE1D71C2386865E3FE7A7 /* MLXLMCommon */; };
 		E0CE34C7AD86D9B4F85A3A54 /* SyncStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0406DECBE62CEB9AB0FE4A2 /* SyncStatus.swift */; };
 		E6D527A59BB3712771A26E75 /* ReportContentSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FAABD9AFCC0E572641D5FE3 /* ReportContentSheet.swift */; };
+		EC6D7C02A57E219BC7DA97E0 /* AppStoreScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00508ACA50A84161BE410545 /* AppStoreScreenshotTests.swift */; };
 		EE87BB72426368F4AD0BA5DB /* ModelCatalogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C60F49D56B0F41AE9A20553C /* ModelCatalogService.swift */; };
 		F206DAD2CFE1E06CECA4FC55 /* ImageGenerationTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4831D1C0C33774F1B4FB92C5 /* ImageGenerationTool.swift */; };
 		F8B17C15C9DDEA1736CB0232 /* MiniAppConsent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03CD3A873E43E090E151702D /* MiniAppConsent.swift */; };
@@ -180,6 +181,7 @@
 
 /* Begin PBXFileReference section */
 		001ACFE23DC3902551F49327 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
+		00508ACA50A84161BE410545 /* AppStoreScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStoreScreenshotTests.swift; sourceTree = "<group>"; };
 		03CD3A873E43E090E151702D /* MiniAppConsent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniAppConsent.swift; sourceTree = "<group>"; };
 		05541A04F12A85851A1D5B9D /* PasteCodeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteCodeSheet.swift; sourceTree = "<group>"; };
 		07F4919952C177D32E92BB59 /* ProviderProfiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderProfiles.swift; sourceTree = "<group>"; };
@@ -380,6 +382,7 @@
 		373C355511B00B4BBB9D084E /* AIAppUITests */ = {
 			isa = PBXGroup;
 			children = (
+				00508ACA50A84161BE410545 /* AppStoreScreenshotTests.swift */,
 				77FA12D4F5198A0234EC746A /* DiagnosticsUITests.swift */,
 				495B0ABB1A3B34D0175425E4 /* FullFlowUITests.swift */,
 				98BC40E8C2E345AF205629CD /* GroupChatUITests.swift */,
@@ -765,6 +768,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EC6D7C02A57E219BC7DA97E0 /* AppStoreScreenshotTests.swift in Sources */,
 				83326E929AE4F22D82E7BE1E /* DiagnosticsUITests.swift in Sources */,
 				4106AB5865694E8A510FC65E /* FullFlowUITests.swift in Sources */,
 				4550F790431214563EBD56C2 /* GroupChatUITests.swift in Sources */,

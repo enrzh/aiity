@@ -28,8 +28,8 @@ final class BrowserFetch: NSObject {
 
         var errorDescription: String? {
             switch self {
-            case .timedOut: return "Seite hat nicht rechtzeitig geantwortet."
-            case .blockedRedirect(let host): return "Weiterleitung auf eine private Adresse (\(host)) blockiert."
+            case .timedOut: return String(localized: "Seite hat nicht rechtzeitig geantwortet.")
+            case .blockedRedirect(let host): return String(localized: "Weiterleitung auf eine private Adresse (\(host)) blockiert.")
             case .navigationFailed(let reason): return reason
             case .noContent: return "Seite lieferte keinen lesbaren Text."
             }
@@ -78,7 +78,7 @@ final class BrowserFetch: NSObject {
         // `finished` is one-shot by design; a reused instance would return
         // immediately and never resume its continuation.
         guard !finished, continuation == nil else {
-            throw FetchError.navigationFailed("BrowserFetch ist einmal verwendbar.")
+            throw FetchError.navigationFailed(String(localized: "BrowserFetch ist einmal verwendbar."))
         }
         self.allowPrivateHosts = allowPrivateHosts
 

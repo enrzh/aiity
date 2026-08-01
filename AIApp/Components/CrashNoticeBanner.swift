@@ -80,7 +80,7 @@ struct CrashNoticeBanner: View {
 
     private var title: String {
         switch verdict {
-        case .crashed(let fatal): return "Letzter Start endete mit einem Absturz (\(fatal.name))"
+        case .crashed(let fatal): return String(localized: "Letzter Start endete mit einem Absturz (\(fatal.name))")
         default: return "Letzter Start wurde unerwartet beendet"
         }
     }

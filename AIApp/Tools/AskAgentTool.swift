@@ -52,7 +52,7 @@ struct AskAgentTool: AgentTool {
         let task = (arguments["task"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !task.isEmpty else {
-            return ToolRunResult("Error: leere Aufgabe — beschreibe, was der Agent tun soll.")
+            return ToolRunResult(String(localized: "Error: leere Aufgabe — beschreibe, was der Agent tun soll."))
         }
         // Match on slug first, then on name, so a model that echoes the display
         // name instead of the id still routes correctly.
@@ -60,7 +60,7 @@ struct AskAgentTool: AgentTool {
         guard let agent = agents.first(where: { $0.slug == lowered })
             ?? agents.first(where: { $0.name.lowercased() == lowered }) else {
             let known = agents.map(\.slug).joined(separator: ", ")
-            return ToolRunResult("Error: kein Agent „\(requested)“. Verfügbar: \(known)")
+            return ToolRunResult(String(localized: "Error: kein Agent „\(requested)“. Verfügbar: \(known)"))
         }
 
         let answer = await SubAgentRunner.run(

@@ -13,6 +13,7 @@ Implements:
 Run: python3 tools/stub_llm_server.py [port]   (default 8555)
 """
 import json
+import os
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -49,6 +50,40 @@ NETWORK_APP = """<!doctype html>
 def sse_chunk(delta):
     payload = {"choices": [{"index": 0, "delta": delta}]}
     return f"data: {json.dumps(payload)}\n\n".encode()
+
+
+
+# --- Screenshot mode -------------------------------------------------------
+# STUB_SCRIPT=screenshot serves one curated English conversation instead of the
+# test fixtures. The UI in a store screenshot is the real app; only the model's
+# side of the conversation is scripted, so the frames are reproducible and no
+# real API credits are spent producing them.
+SCREENSHOT = os.environ.get("STUB_SCRIPT") == "screenshot"
+
+TIMER_APP = """<!doctype html>
+<html><head><meta charset="utf-8"><title>Interval Timer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+ body{margin:0;font:16px/1.5 -apple-system,sans-serif;background:#0e0d12;color:#f2f0f6;
+      display:grid;place-items:center;min-height:100vh;text-align:center}
+ .t{font:600 84px/1 ui-rounded,-apple-system,sans-serif;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+ .p{color:#9b90ff;letter-spacing:.16em;text-transform:uppercase;font-size:13px;font-weight:700;margin-bottom:14px}
+ button{margin-top:28px;padding:14px 34px;border:0;border-radius:999px;font-size:17px;font-weight:600;
+        background:#6b4df2;color:#fff}
+ .r{margin-top:12px;color:#8b849b;font-size:14px}
+</style></head>
+<body><div>
+ <div class="p" id="phase">Work</div>
+ <div class="t" id="clock">40</div>
+ <div class="r">Round <span id="round">1</span> of 8</div>
+ <button id="go">Start</button>
+</div></body></html>"""
+
+SCREENSHOT_REPLY = [
+    "Here's an interval timer: 40 seconds of work, 20 of rest, eight rounds, "
+    "with a tone at every switch.\n\n",
+    "```html\n" + TIMER_APP + "\n```",
+]
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -134,6 +169,11 @@ class Handler(BaseHTTPRequestHandler):
         image_done = any("Bild erstellt" in (t or "") for t in tool_texts)
 
         self._send_sse_headers()
+        if SCREENSHOT:
+            for part in SCREENSHOT_REPLY:
+                self.wfile.write(sse_chunk({"content": part}))
+            self.wfile.write(b"data: [DONE]\n\n")
+            return
         if image_done:
             self.wfile.write(sse_chunk({"content": "Hier ist dein Bild."}))
         elif wants_network and not tool_texts:

@@ -36,7 +36,7 @@ struct PasteCodeSheet: View {
                         .onChange(of: code) { _, newValue in
                             // System paste can dump RTFD paths — strip immediately.
                             if PlainPasteboard.looksLikePasteboardArtifact(newValue) {
-                                pasteWarning = "Zwischenablage enthielt formatierten Text (RTF). Bitte erneut als reinen Text kopieren oder „Einfügen“ tippen."
+                                pasteWarning = String(localized: "Zwischenablage enthielt formatierten Text (RTF). Bitte erneut als reinen Text kopieren oder „Einfügen“ tippen.")
                                 code = PlainPasteboard.plainText() ?? ""
                                 return
                             }
@@ -50,7 +50,7 @@ struct PasteCodeSheet: View {
                         if let clip = PlainPasteboard.plainText() {
                             code = clip
                         } else {
-                            pasteWarning = "Kein nutzbarer Klartext in der Zwischenablage (kein RTF/RTFD-Pfad)."
+                            pasteWarning = String(localized: "Kein nutzbarer Klartext in der Zwischenablage (kein RTF/RTFD-Pfad).")
                         }
                     } label: {
                         Label("Als Klartext einfügen", systemImage: "doc.on.clipboard")

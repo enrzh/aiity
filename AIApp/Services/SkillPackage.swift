@@ -191,7 +191,7 @@ enum SkillPackage {
     static func resolveInstallURL(_ spec: String, defaultBranch: String = "main") -> Result<URL, ProbeFailure> {
         let urls = candidateInstallURLs(spec, defaultBranch: defaultBranch)
         guard let first = urls.first else {
-            return .failure(ProbeFailure(message: "Format: owner/repo oder owner/repo/pfad/zum/skill"))
+            return .failure(ProbeFailure(message: String(localized: "Format: owner/repo oder owner/repo/pfad/zum/skill")))
         }
         return .success(first)
     }

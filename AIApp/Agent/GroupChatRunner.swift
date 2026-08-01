@@ -58,7 +58,7 @@ enum GroupChatRunner {
             // Silently muting members looks like a broken app; say it once.
             onTurn(Turn(
                 agent: AgentDefinition(name: "aiity", role: "", emoji: "ℹ️"),
-                text: "Diese Runde spricht nur mit den ersten \(maxAgentsPerRound) Agenten der Gruppe."
+                text: String(localized: "Diese Runde spricht nur mit den ersten \(maxAgentsPerRound) Agenten der Gruppe.")
             ))
         }
         for agent in speaking {
@@ -106,7 +106,7 @@ enum GroupChatRunner {
         isCancelled: @escaping () -> Bool
     ) async -> String {
         if settings.preset.needsKey, apiKey.isEmpty, !ConnectionProbe.isLocalStyle(settings.presetId) {
-            return "(kein Konto hinterlegt — unter Anbieter einen Key eintragen)"
+            return String(localized: "(kein Konto hinterlegt — unter Anbieter einen Key eintragen)")
         }
         // MLX keeps its model in a DIFFERENT field. `makeProvider` builds
         // MLXProvider(modelId: localModelId) and never looks at `model`, which
@@ -121,7 +121,7 @@ enum GroupChatRunner {
                 return String(localized: "(kein lokales Modell gewählt — unter Anbieter eins laden und auswählen)")
             }
             if !LocalModelLocation.isDownloaded(localId) {
-                return "(lokales Modell nicht geladen — unter Anbieter herunterladen)"
+                return String(localized: "(lokales Modell nicht geladen — unter Anbieter herunterladen)")
             }
         } else if settings.effectiveModel.trimmingCharacters(in: .whitespaces).isEmpty {
             return String(localized: "(kein Modell gewählt)")
@@ -155,7 +155,7 @@ enum GroupChatRunner {
             return "(Fehler: \(NetworkErrorFriendly.message(for: error)))"
         }
         let answer = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        return answer.isEmpty ? "(keine Antwort)" : answer
+        return answer.isEmpty ? String(localized: "(keine Antwort)") : answer
     }
 
     /// Rewrite the shared transcript from one agent's point of view.

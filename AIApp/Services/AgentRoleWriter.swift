@@ -17,7 +17,7 @@ enum AgentRoleWriter {
 
         var errorDescription: String? {
             switch self {
-            case .notConfigured: return "Kein Chat-Modell verbunden — unter Anbieter einrichten."
+            case .notConfigured: return String(localized: "Kein Chat-Modell verbunden — unter Anbieter einrichten.")
             case .empty: return String(localized: "Das Modell hat nichts zurückgegeben.")
             }
         }

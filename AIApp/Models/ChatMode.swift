@@ -39,9 +39,9 @@ enum ChatMode: String, CaseIterable, Identifiable, Codable {
 
     var detail: String {
         switch self {
-        case .approval: return "Sagt erst, was es vorhat, und wartet auf dein OK."
-        case .plan: return "Denkt nur mit — nutzt keine Tools und baut nichts."
-        case .auto: return "Arbeitet durch, bis die App steht."
+        case .approval: return String(localized: "Sagt erst, was es vorhat, und wartet auf dein OK.")
+        case .plan: return String(localized: "Denkt nur mit — nutzt keine Tools und baut nichts.")
+        case .auto: return String(localized: "Arbeitet durch, bis die App steht.")
         }
     }
 

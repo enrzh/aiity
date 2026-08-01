@@ -238,7 +238,7 @@ struct DiagnosticsView: View {
             return String(localized: "Die App wurde regulär beendet oder in den Hintergrund geschickt.")
         case .crashed(let fatal):
             return fatal.reason.isEmpty
-                ? "Der Absturz wurde in der App abgefangen."
+                ? String(localized: "Der Absturz wurde in der App abgefangen.")
                 : fatal.reason
         case .diedUnexpectedly:
             return String(localized: "Der Prozess endete, ohne dass die App es mitbekommen hat. Die Ursachen unten sind nach Plausibilität geordnet.")

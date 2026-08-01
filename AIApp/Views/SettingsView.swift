@@ -85,7 +85,7 @@ struct SettingsView: View {
                         backupURL = BackupService.writeBackup(apps: savedApps, createdAt: .now)
                     } label: {
                         AppSettingsRow(
-                            title: "Backup-Datei erstellen",
+                            title: String(localized: "Backup-Datei erstellen"),
                             subtitle: backupSummary,
                             systemImage: "arrow.down.doc"
                         )
@@ -102,7 +102,7 @@ struct SettingsView: View {
                         showImporter = true
                     } label: {
                         AppSettingsRow(
-                            title: "Backup einspielen",
+                            title: String(localized: "Backup einspielen"),
                             subtitle: importSummary,
                             systemImage: "arrow.up.doc"
                         )
@@ -243,7 +243,7 @@ private struct SearchSettingsView: View {
                 }
             } footer: {
                 Text(selected == .auto || selected == .duckduckgo
-                     ? "DuckDuckGo braucht keinen Key und ist die Standardquelle."
+                     ? String(localized: "DuckDuckGo braucht keinen Key und ist die Standardquelle.")
                      : String(localized: "Braucht einen eigenen Key bzw. Server. Ohne gültige Angaben fällt die Suche auf DuckDuckGo zurück."))
             }
 

@@ -53,7 +53,7 @@ enum ConnectionProbe {
     static func parseModelsList(data: Data, statusCode: Int) -> Result<[String], ProbeFailure> {
         guard (200...299).contains(statusCode) else {
             let snippet = String(decoding: data.prefix(240), as: UTF8.self)
-            return .failure(ProbeFailure(message: "Modelle laden fehlgeschlagen (HTTP \(statusCode))"
+            return .failure(ProbeFailure(message: String(localized: "Modelle laden fehlgeschlagen (HTTP \(statusCode))")
                             + (snippet.isEmpty ? "" : ": \(snippet)")))
         }
         guard let object = jsonObject(data) else {
@@ -62,16 +62,16 @@ enum ConnectionProbe {
         // OpenAI / Ollama OpenAI-compat: { "data": [ { "id": "…" } ] }
         if let entries = object["data"] as? [[String: Any]] {
             let ids = entries.compactMap { $0["id"] as? String }
-            if ids.isEmpty { return .failure(ProbeFailure(message: "Server meldet keine Modelle (data[] leer).")) }
+            if ids.isEmpty { return .failure(ProbeFailure(message: String(localized: "Server meldet keine Modelle (data[] leer)."))) }
             return .success(ids.sorted())
         }
         // Native Ollama: { "models": [ { "name": "llama3" } ] } on /api/tags
         if let models = object["models"] as? [[String: Any]] {
             let ids = models.compactMap { ($0["name"] as? String) ?? ($0["model"] as? String) }
-            if ids.isEmpty { return .failure(ProbeFailure(message: "Ollama meldet keine Modelle.")) }
+            if ids.isEmpty { return .failure(ProbeFailure(message: String(localized: "Ollama meldet keine Modelle."))) }
             return .success(ids.sorted())
         }
-        return .failure(ProbeFailure(message: "Unerwartetes Modelle-JSON (weder data[] noch models[])."))
+        return .failure(ProbeFailure(message: String(localized: "Unerwartetes Modelle-JSON (weder data[] noch models[]).")))
     }
 
     /// Interprets a non-stream chat/completions (or messages) response.
@@ -82,7 +82,7 @@ enum ConnectionProbe {
                             + (snippet.isEmpty ? "" : ": \(snippet)")))
         }
         guard let object = jsonObject(data) else {
-            return .failure(ProbeFailure(message: "Test-Chat: Antwort ist kein JSON."))
+            return .failure(ProbeFailure(message: String(localized: "Test-Chat: Antwort ist kein JSON.")))
         }
         // OpenAI chat.completion
         if let choices = object["choices"] as? [[String: Any]], let first = choices.first {
@@ -149,7 +149,7 @@ enum ConnectionProbe {
                 return ConnectionProbeResult(
                     ok: false,
                     models: models,
-                    reason: "Modelle gefunden (\(models.count)), aber keine Modell-ID zum Testen.",
+                    reason: String(localized: "Modelle gefunden (\(models.count)), aber keine Modell-ID zum Testen."),
                     toolsLikely: false,
                     chatOnly: isLocalStyle(settings.presetId)
                 )
@@ -158,7 +158,7 @@ enum ConnectionProbe {
             guard let completionReq = completionRequest(
                 base: base, dialect: dialect, model: modelId, apiKey: apiKey
             ) else {
-                return .failure("Konnte Test-Request nicht bauen.")
+                return .failure(String(localized: "Konnte Test-Request nicht bauen."))
             }
             let (compData, compResponse) = try await session.data(for: completionReq)
             let compCode = (compResponse as? HTTPURLResponse)?.statusCode ?? 0

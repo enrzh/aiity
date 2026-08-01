@@ -176,7 +176,7 @@ struct ChatView: View {
                 // Overlaid rather than stacked above: the transcript has to pass
                 // BEHIND the card for its glass to refract anything — in a VStack
                 // it sat on the window background and read as a solid block.
-                .overlay(alignment: .top) {
+                .safeAreaInset(edge: .top, spacing: 0) {
                     if let draft = session.draftMiniApp {
                         MiniAppCard(
                             draft: draft,
@@ -268,7 +268,7 @@ struct ChatView: View {
                     Image(systemName: "cpu")
                 }
                 .accessibilityIdentifier("chat-provider")
-                .accessibilityLabel("Modell: \(activeModelLabel)")
+                .accessibilityLabel(String(localized: "Modell: \(activeModelLabel)"))
                 .accessibilityHint("Anbieter und Modell wählen")
 
                 // Skills used to hide behind an overflow menu whose only other
@@ -347,7 +347,7 @@ struct ChatView: View {
 
     private var setupBanner: some View {
         BannerView(
-            message: "Noch kein Modell — oben tippen.",
+            message: String(localized: "Noch kein Modell — oben tippen."),
             kind: .info
         )
     }
@@ -382,7 +382,7 @@ struct ChatView: View {
     private var inputBar: some View {
         ChatComposer(
             text: $input,
-            placeholder: isEditingApp ? String(localized: "Änderung beschreiben…") : "Nachricht",
+            placeholder: isEditingApp ? String(localized: "Änderung beschreiben…") : String(localized: "Nachricht"),
             isBusy: session.busy,
             canSend: !sanitizedInput.isEmpty,
             onSend: send,
@@ -460,6 +460,7 @@ private struct InputBarHeightKey: PreferenceKey {
     static var defaultValue: CGFloat = 64
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
+
 
 // MARK: - Bubbles
 

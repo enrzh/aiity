@@ -354,7 +354,7 @@ struct ProviderConnectionView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else if presetId == "openai" || presetId == "xai" {
-                    Text("Für \(presetId == "openai" ? "ChatGPT" : "Grok") gibt es hier keinen Abo-Login — das Abo-Token wird nur vom jeweiligen CLI-Backend akzeptiert. Nutze einen API-Key, oder dein eigenes sub2api-Gateway (Schnellstart → Gateway).")
+                    Text(String(localized: "Für \(presetId == ")openai" ? "ChatGPT" : "GrokString(localized: ") gibt es hier keinen Abo-Login — das Abo-Token wird nur vom jeweiligen CLI-Backend akzeptiert. Nutze einen API-Key, oder dein eigenes sub2api-Gateway (Schnellstart → Gateway)."))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -371,7 +371,7 @@ struct ProviderConnectionView: View {
             Text("Konten")
         } footer: {
             Text(accounts.isEmpty
-                 ? "Noch kein Konto — am besten einen API-Key eintragen (Pay-as-you-go)."
+                 ? String(localized: "Noch kein Konto — am besten einen API-Key eintragen (Pay-as-you-go).")
                  : String(localized: "Mehrere Konten möglich; das angehakte gilt für alle Nutzungsarten dieses Anbieters."))
         }
     }
@@ -406,10 +406,10 @@ struct ProviderConnectionView: View {
 
     private var apiKeyLinkTitle: String {
         switch presetId {
-        case "openai": return "API-Key erstellen (platform.openai.com)"
-        case "anthropic": return "API-Key erstellen (console.anthropic.com)"
-        case "xai": return "API-Key erstellen (console.x.ai)"
-        default: return "API-Key erstellen"
+        case "openai": return String(localized: "API-Key erstellen (platform.openai.com)")
+        case "anthropic": return String(localized: "API-Key erstellen (console.anthropic.com)")
+        case "xai": return String(localized: "API-Key erstellen (console.x.ai)")
+        default: return String(localized: "API-Key erstellen")
         }
     }
 
@@ -552,9 +552,9 @@ struct ProviderConnectionView: View {
     private var modelPlaceholder: String {
         switch modality {
         case .chat:
-            return preset.defaultModel.isEmpty ? "Modell-ID" : "Modell (Standard: \(preset.defaultModel))"
+            return preset.defaultModel.isEmpty ? "Modell-ID" : String(localized: "Modell (Standard: \(preset.defaultModel))")
         case .image:
-            return "Bild-Modell (z. B. gpt-image-1)"
+            return String(localized: "Bild-Modell (z. B. gpt-image-1)")
         }
     }
 
@@ -581,9 +581,9 @@ struct ProviderConnectionView: View {
         switch modality {
         case .chat:
             if isLocalWizard {
-                return "Liste erscheint sofort aus Cache; „Aktualisieren“ holt frische Modelle vom Server."
+                return String(localized: "Liste erscheint sofort aus Cache; „Aktualisieren“ holt frische Modelle vom Server.")
             }
-            return "Modelle sind vorab geladen (Cache/Standard). „Aktualisieren“ holt die Live-Liste vom Anbieter."
+            return String(localized: "Modelle sind vorab geladen (Cache/Standard). „Aktualisieren“ holt die Live-Liste vom Anbieter.")
         case .image:
             return String(localized: "Nur das Bild-Modell für generate_image. Unabhängig vom Chat-Modell.")
         }

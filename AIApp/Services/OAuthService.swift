@@ -37,7 +37,7 @@ final class OAuthService: NSObject, ObservableObject {
             switch self {
             case .cancelled: return "Anmeldung abgebrochen."
             case .badCallback: return String(localized: "Ungültige OAuth-Antwort.")
-            case .noCode: return "Kein Code erkannt — kopiere den Code (oder die ganze Weiterleitungs-URL) aus dem Browser."
+            case .noCode: return String(localized: "Kein Code erkannt — kopiere den Code (oder die ganze Weiterleitungs-URL) aus dem Browser.")
             case .exchangeFailed(let detail): return "Token-Austausch fehlgeschlagen: \(detail)"
             }
         }
@@ -70,7 +70,7 @@ final class OAuthService: NSObject, ObservableObject {
             "code_challenge_method": "S256",
         ])
         guard let key = object["key"] as? String, !key.isEmpty else {
-            throw OAuthError.exchangeFailed("keine key-Antwort")
+            throw OAuthError.exchangeFailed(String(localized: "keine key-Antwort"))
         }
         return .apiKey(key)
     }
@@ -218,7 +218,7 @@ final class OAuthService: NSObject, ObservableObject {
 
     private nonisolated static func credential(from object: [String: Any]) throws -> OAuthCredential {
         guard let accessToken = object["access_token"] as? String, !accessToken.isEmpty else {
-            throw OAuthError.exchangeFailed("kein access_token")
+            throw OAuthError.exchangeFailed(String(localized: "kein access_token"))
         }
         var expiresAt: Date?
         if let expiresIn = (object["expires_in"] as? NSNumber)?.doubleValue {

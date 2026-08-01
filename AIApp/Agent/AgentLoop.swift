@@ -64,7 +64,7 @@ struct ChatThread: Codable, Identifiable, Equatable {
                 continue
             }
         }
-        return "Noch keine Nachrichten"
+        return String(localized: "Noch keine Nachrichten")
     }
 }
 
@@ -369,7 +369,7 @@ final class ChatSession: ObservableObject {
                runSettings.effectiveModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 errorMessage = String(localized: "Kein Modell gewählt — Mehr → KI-Anbieter → Modell aus der Liste wählen.")
                 busy = false
-                AgentLiveActivityController.shared.fail(message: errorMessage ?? "Kein Modell")
+                AgentLiveActivityController.shared.fail(message: errorMessage ?? String(localized: "Kein Modell"))
                 return
             }
             if runSettings.preset.needsKey && apiKey.isEmpty && !ConnectionProbe.isLocalStyle(runSettings.presetId) {
@@ -626,7 +626,7 @@ final class ChatSession: ObservableObject {
                     for msg in messages.reversed() where msg.role == .assistant {
                         if let draft = MiniAppDraft.extract(from: msg.text) {
                             draftMiniApp = draft
-                            errorMessage = friendly + " — unvollständige Mini-App gerettet, bitte prüfen."
+                            errorMessage = friendly + String(localized: " — unvollständige Mini-App gerettet, bitte prüfen.")
                             return
                         }
                     }
@@ -941,7 +941,7 @@ final class ChatSession: ObservableObject {
         DiagnosticsRecorder.shared.record(
             "gruppe",
             "Runde \(groupRoundsThisTurn + 1) · \(participants.count) Teilnehmer"
-                + " · \(self.messages.count) Nachrichten im Verlauf"
+                + String(localized: " · \(self.messages.count) Nachrichten im Verlauf")
         )
 
         activeTask = Task { [weak self] in
@@ -1326,11 +1326,11 @@ final class ChatSession: ObservableObject {
             // saving would overwrite it — a few hundred bytes fit where the
             // multi-megabyte copy did not. Come up empty and refuse to write
             // instead, so a restart or freeing some space can still recover it.
-            persistDisabledReason = "Der Chat-Verlauf konnte weder gelesen noch gesichert werden "
-                + "(vermutlich zu wenig Speicherplatz). Es wird nichts geschrieben, damit die Datei "
-                + "erhalten bleibt — bitte Speicher freigeben und die App neu starten."
+            persistDisabledReason = String(localized: "Der Chat-Verlauf konnte weder gelesen noch gesichert werden ")
+                + String(localized: "(vermutlich zu wenig Speicherplatz). Es wird nichts geschrieben, damit die Datei ")
+                + String(localized: "erhalten bleibt — bitte Speicher freigeben und die App neu starten.")
             errorMessage = persistDisabledReason
-            DiagnosticsRecorder.shared.record("chat", "Archiv unlesbar UND nicht sicherbar — Schreiben gesperrt")
+            DiagnosticsRecorder.shared.record("chat", String(localized: "Archiv unlesbar UND nicht sicherbar — Schreiben gesperrt"))
             let placeholder = ChatThread()
             threads = [placeholder]
             activeThreadId = placeholder.id

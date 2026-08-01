@@ -36,7 +36,7 @@ final class MLXRuntime: @unchecked Sendable {
         }
         lock.unlock()
         for id in evicted {
-            DiagnosticsRecorder.shared.record("mlx", "Modell aus dem Speicher entfernt: \(id)")
+            DiagnosticsRecorder.shared.record("mlx", String(localized: "Modell aus dem Speicher entfernt: \(id)"))
         }
         if !evicted.isEmpty { MLX.GPU.clearCache() }
     }
@@ -181,7 +181,7 @@ struct MLXProvider: LLMProvider {
                 #if canImport(MLXLLM)
                 do {
                     guard LocalModelLocation.isDownloaded(modelId) else {
-                        throw ProviderError.badResponse(0, "Modell nicht heruntergeladen — bitte in den Einstellungen laden.")
+                        throw ProviderError.badResponse(0, String(localized: "Modell nicht heruntergeladen — bitte in den Einstellungen laden."))
                     }
                     let container = try await MLXRuntime.shared.container(for: modelId)
                     // Tools only when the user opted local models in; the <tool_call>

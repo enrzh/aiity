@@ -32,7 +32,7 @@ enum BackupService {
             "version": 1,
             "createdAt": ISO8601DateFormatter().string(from: createdAt),
             "miniApps": appPayload,
-            "note": "Enthält keine API-Keys oder Logins — die bleiben im Schlüsselbund des Geräts.",
+            "note": String(localized: "Enthält keine API-Keys oder Logins — die bleiben im Schlüsselbund des Geräts."),
         ]
         if let skills = jsonValue(atFile: "skills.json") { payload["skills"] = skills }
         // Agents were missing entirely — a backup that omits them means the
@@ -107,8 +107,8 @@ enum BackupService {
 
         var errorDescription: String? {
             switch self {
-            case .unreadable: return "Die Datei konnte nicht gelesen werden."
-            case .wrongFormat: return "Das ist kein aiity-Backup."
+            case .unreadable: return String(localized: "Die Datei konnte nicht gelesen werden.")
+            case .wrongFormat: return String(localized: "Das ist kein aiity-Backup.")
             }
         }
     }

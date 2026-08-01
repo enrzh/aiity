@@ -57,7 +57,7 @@ struct ReportContentSheet: View {
                 } header: {
                     Text("Das wird gesendet")
                 } footer: {
-                    Text("Nur diese eine Nachricht — nicht die Unterhaltung, nicht deine Schlüssel. Es geht an \(ContentReport.contactAddress); es gibt keinen aiity-Server, der das automatisch entgegennimmt.")
+                    Text(String(localized: "Nur diese eine Nachricht — nicht die Unterhaltung, nicht deine Schlüssel. Es geht an \(ContentReport.contactAddress); es gibt keinen aiity-Server, der das automatisch entgegennimmt."))
                 }
 
                 Section {

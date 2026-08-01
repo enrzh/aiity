@@ -25,7 +25,9 @@ final class ContentReportTests: XCTestCase {
     func testTheReportCarriesTheMessageAndTheContextNeededToActOnIt() {
         let body = report(ChatMessage(role: .assistant, text: "etwas Verletzendes"))
         XCTAssertTrue(body.contains("etwas Verletzendes"))
-        XCTAssertTrue(body.contains("Hass oder Beleidigung"))
+        // The reason is localized now, so assert the label the app would show
+        // rather than one language's wording.
+        XCTAssertTrue(body.contains(ContentReport.Reason.hateful.title))
         XCTAssertTrue(body.contains("anthropic · claude-sonnet-4-5"))
         XCTAssertTrue(body.contains("0.6.0"))
     }
@@ -49,8 +51,11 @@ final class ContentReportTests: XCTestCase {
         let huge = String(repeating: "z", count: 50_000)
         let body = report(ChatMessage(role: .assistant, text: huge))
         XCTAssertLessThan(body.count, ContentReport.maxReportedCharacters + 600)
-        XCTAssertTrue(body.contains("gekürzt"))
-        XCTAssertTrue(body.contains("50000"))
+        // Built through the same API the app uses, so the assertion does not
+        // depend on the language OR on how the locale formats the number.
+        let notice = String(localized: "[gekürzt — \(huge.count) Zeichen insgesamt]")
+        XCTAssertTrue(body.contains(notice), "the report must say how much was cut")
+        XCTAssertFalse(body.contains(huge), "the whole message must not be included")
     }
 
     func testAnOptionalNoteIsIncludedAndAnEmptyOneIsNot() {

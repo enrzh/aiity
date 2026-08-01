@@ -53,7 +53,7 @@ struct ImageGenerationTool: AgentTool {
             guard status == 200, let object = jsonObject(data),
                   let first = (object["data"] as? [[String: Any]])?.first else {
                 let detail = String(decoding: data.prefix(300), as: UTF8.self)
-                return ToolRunResult("Bildgenerierung fehlgeschlagen (HTTP \(status), Modell '\(route.model)'): \(detail)")
+                return ToolRunResult(String(localized: "Bildgenerierung fehlgeschlagen (HTTP \(status), Modell '\(route.model)'): \(detail)"))
             }
             // Providers return either inline base64 or a URL.
             var pngData: Data?
@@ -62,9 +62,9 @@ struct ImageGenerationTool: AgentTool {
                 pngData = try? await URLSession.shared.data(from: remoteURL).0
             }
             guard let pngData, let mediaId = MediaStore.saveImage(pngData: pngData) else {
-                return ToolRunResult("Bildgenerierung lieferte keine nutzbaren Bilddaten")
+                return ToolRunResult(String(localized: "Bildgenerierung lieferte keine nutzbaren Bilddaten"))
             }
-            return ToolRunResult("Bild erstellt und dem Nutzer angezeigt.", mediaIds: [mediaId])
+            return ToolRunResult(String(localized: "Bild erstellt und dem Nutzer angezeigt."), mediaIds: [mediaId])
         } catch {
             return ToolRunResult("Bildgenerierung fehlgeschlagen: \(error.localizedDescription)")
         }

@@ -29,8 +29,8 @@ enum DiagnosticsReport {
         if let metricKit, !metricKit.isEmpty {
             out.append("━━━ SYSTEMBERICHT (MetricKit) ━━━")
             out.append(
-                "Von iOS selbst erstellt. Enthält den symbolisierten Stack und den "
-                + "Abbruchgrund — genauer als alles, was die App selbst mitschreiben kann."
+                String(localized: "Von iOS selbst erstellt. Enthält den symbolisierten Stack und den ")
+                + String(localized: "Abbruchgrund — genauer als alles, was die App selbst mitschreiben kann.")
             )
             out.append("")
             out.append(contentsOf: metricKitHighlights(metricKit))
@@ -43,7 +43,7 @@ enum DiagnosticsReport {
             out.append(
                 String(localized: "Noch keiner. iOS liefert seinen Absturzbericht erst nach dem nächsten ")
                 + String(localized: "Start an die App aus — meist beim übernächsten Öffnen. Bis dahin zählt ")
-                + "nur, was oben steht."
+                + String(localized: "nur, was oben steht.")
             )
             out.append("")
         }
@@ -66,7 +66,7 @@ enum DiagnosticsReport {
 
         guard let run else {
             out.append(String(localized: "Kein früherer Lauf gespeichert — entweder der erste Start nach ")
-                       + "der Installation, oder die Diagnose wurde geleert.")
+                       + String(localized: "der Installation, oder die Diagnose wurde geleert."))
             return out
         }
 
@@ -87,10 +87,10 @@ enum DiagnosticsReport {
             if fatal.frames.isEmpty {
                 out.append("  Stack:   keiner erfasst")
             } else if fatal.kind == .signal {
-                out.append("  Stack (Rückkehradressen, nicht symbolisiert —")
-                out.append("         der Signal-Handler darf nichts allozieren, was zum")
-                out.append("         Symbolisieren nötig wäre. Der MetricKit-Bericht unten")
-                out.append("         liefert dieselben Frames mit Namen, sobald iOS ihn ausliefert):")
+                out.append(String(localized: "  Stack (Rückkehradressen, nicht symbolisiert —"))
+                out.append(String(localized: "         der Signal-Handler darf nichts allozieren, was zum"))
+                out.append(String(localized: "         Symbolisieren nötig wäre. Der MetricKit-Bericht unten"))
+                out.append(String(localized: "         liefert dieselben Frames mit Namen, sobald iOS ihn ausliefert):"))
                 for frame in fatal.frames.prefix(40) {
                     out.append("    \(frame)")
                 }
@@ -102,21 +102,21 @@ enum DiagnosticsReport {
             }
 
         case .diedUnexpectedly:
-            out.append("Der Prozess ist beendet worden, ohne dass die App das mitbekommen hat.")
+            out.append(String(localized: "Der Prozess ist beendet worden, ohne dass die App das mitbekommen hat."))
             out.append(String(localized: "Ein Prozess kann das im Nachhinein nicht sicher unterscheiden. Möglich sind:"))
             out.append(contentsOf: unexpectedCauses(run).map { "  • \($0)" })
             out.append("")
             out.append(String(localized: "Was dafür/dagegen spricht, steht in den Fakten oben und den Ereignissen unten."))
 
         case .clean:
-            out.append("Sauber beendet — kein Absturz.")
+            out.append(String(localized: "Sauber beendet — kein Absturz."))
 
         case .noPreviousRun:
             break
         }
 
         out.append("")
-        out.append("Letzte Ereignisse vor dem Ende:")
+        out.append(String(localized: "Letzte Ereignisse vor dem Ende:"))
         out.append(contentsOf: breadcrumbLines(run.breadcrumbs))
         return out
     }
@@ -135,21 +135,21 @@ enum DiagnosticsReport {
         }
         if run.wasInBackground {
             causes.append(
-                "Im Hintergrund beendet — das ist normales iOS-Verhalten und kein Fehler."
+                String(localized: "Im Hintergrund beendet — das ist normales iOS-Verhalten und kein Fehler.")
             )
         } else {
             causes.append(
                 "Absturz ohne abfangbares Signal — z. B. ein Absturz im Systemcode, "
-                + "bevor der Handler greifen konnte."
+                + String(localized: "bevor der Handler greifen konnte.")
             )
             causes.append(
-                "Watchdog: die App war zu lange blockiert (Hauptthread blockiert, "
+                String(localized: "Watchdog: die App war zu lange blockiert (Hauptthread blockiert, ")
                 + "0x8BADF00D im Systembericht)."
             )
-            causes.append("Vom Benutzer aus dem App-Switcher geworfen.")
+            causes.append(String(localized: "Vom Benutzer aus dem App-Switcher geworfen."))
         }
         if run.memoryWarnings == 0 && !run.wasInBackground {
-            causes.append("Speicherdruck ist unwahrscheinlich — es gab keine Speicherwarnung.")
+            causes.append(String(localized: "Speicherdruck ist unwahrscheinlich — es gab keine Speicherwarnung."))
         }
         return causes
     }
@@ -176,7 +176,7 @@ enum DiagnosticsReport {
                 // logic bug that isn't there.
                 return "UNERWARTET BEENDET · sehr wahrscheinlich Speicher (Jetsam)"
             }
-            return "UNERWARTET BEENDET (Ursache nicht eindeutig)"
+            return String(localized: "UNERWARTET BEENDET (Ursache nicht eindeutig)")
         case .noPreviousRun:
             return String(localized: "kein früherer Lauf")
         }
@@ -201,18 +201,18 @@ enum DiagnosticsReport {
         out.append("  Version:  \(run.appVersion) (\(run.build))")
         out.append("  System:   iOS \(run.systemVersion) · \(run.deviceModel)")
         if !run.provider.isEmpty {
-            let model = run.model.isEmpty ? "— kein Modell gesetzt" : run.model
-            out.append("  Anbieter: \(run.provider) · \(model)")
+            let model = run.model.isEmpty ? String(localized: "— kein Modell gesetzt") : run.model
+            out.append(String(localized: "  Anbieter: \(run.provider) · \(model)"))
         }
         out.append(String(
-            format: "  Speicher: %.0f MB belegt · %.0f MB verfügbar · %d Warnung(en)",
+            format: String(localized: "  Speicher: %.0f MB belegt · %.0f MB verfügbar · %d Warnung(en)"),
             run.footprintMB, run.availableMemoryMB, run.memoryWarnings
         ))
         return out
     }
 
     private static func breadcrumbLines(_ crumbs: [DiagnosticBreadcrumb]) -> [String] {
-        guard !crumbs.isEmpty else { return ["  (keine)"] }
+        guard !crumbs.isEmpty else { return [String(localized: "  (keine)")] }
         return crumbs.suffix(60).map { crumb in
             "  \(time(crumb.at))  \(crumb.category.padding(toLength: 10, withPad: " ", startingAt: 0))  \(crumb.message)"
         }
@@ -221,7 +221,7 @@ enum DiagnosticsReport {
     /// Pull the few fields that answer "why" out of MetricKit's large JSON, so
     /// the answer is not buried under the raw payload appended below it.
     static func metricKitHighlights(_ json: String) -> [String] {
-        guard let data = json.data(using: .utf8) else { return ["  (nicht lesbar)"] }
+        guard let data = json.data(using: .utf8) else { return [String(localized: "  (nicht lesbar)")] }
 
         var found: [String] = []
         // The payload nests crashDiagnostics under a top-level key; walk rather
@@ -239,7 +239,7 @@ enum DiagnosticsReport {
                 }
             }
         }
-        return found.isEmpty ? ["  (keine Absturzfelder im Bericht)"] : found.map { "  \($0)" }
+        return found.isEmpty ? [String(localized: "  (keine Absturzfelder im Bericht)")] : found.map { "  \($0)" }
     }
 
     private static let interestingKeys: Set<String> = [

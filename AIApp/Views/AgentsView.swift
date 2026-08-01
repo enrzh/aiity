@@ -92,7 +92,7 @@ struct AgentsView: View {
                 }
                 Button("Abbrechen", role: .cancel) { deleteCandidate = nil }
             } message: { agent in
-                Text("„\(agent.name)“ wird entfernt.")
+                Text(String(localized: "„\(agent.name)“ wird entfernt."))
             }
         }
     }
@@ -286,7 +286,7 @@ struct AgentEditSheet: View {
                             .environmentObject(settingsStore)
                     } label: {
                         AppSettingsRow(
-                            title: "Anbieter & Modell",
+                            title: String(localized: "Anbieter & Modell"),
                             subtitle: agent.providerLabel(fallback: settingsStore.settings),
                             systemImage: "cpu"
                         )

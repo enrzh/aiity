@@ -13,7 +13,7 @@ enum ZipSkillExtractor {
         var errorDescription: String? {
             switch self {
             case .notAZip: return String(localized: "Datei ist kein gültiges ZIP.")
-            case .noSkillMarkdown: return "Im ZIP wurde keine SKILL.md gefunden."
+            case .noSkillMarkdown: return String(localized: "Im ZIP wurde keine SKILL.md gefunden.")
             }
         }
     }

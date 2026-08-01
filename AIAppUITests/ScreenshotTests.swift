@@ -104,22 +104,27 @@ final class ScreenshotTests: XCTestCase {
         // Back to chat and open a conversation so the composer and the mode
         // selector are visible — that is where the app's idea actually shows.
         tab(app, tabLabels[3])
-        // Localised, so match the identifier or any plausible label rather
-        // than one language's word.
-        let newChat = app.buttons.matching(
-            NSPredicate(format: "label CONTAINS[c] 'chat' OR label CONTAINS[c] 'neu'")
-        ).firstMatch
-        if newChat.waitForExistence(timeout: 5) { newChat.tap() }
-        sleep(2)
+        // Opening a conversation is two taps: compose, then pick solo.
+        // Identifiers, not labels — the labels are localised now.
+        let compose = app.descendants(matching: .any).matching(identifier: "new-chat").firstMatch
+        XCTAssertTrue(compose.waitForExistence(timeout: 10), "no compose button")
+        compose.tap()
+        let solo = app.descendants(matching: .any).matching(identifier: "new-solo-chat").firstMatch
+        XCTAssertTrue(solo.waitForExistence(timeout: 10), "no solo option")
+        solo.tap()
+
+        // `TextField(axis: .vertical)` is backed by a TEXT VIEW, so
+        // app.textFields["chat-input"] never matched and this frame was
+        // silently skipped on every previous run. Match the identifier alone.
+        let input = app.descendants(matching: .any).matching(identifier: "chat-input").firstMatch
+        XCTAssertTrue(input.waitForExistence(timeout: 15), "no composer")
+        sleep(1)
         capture("05-conversation")
 
-        let input = app.textFields["chat-input"].firstMatch
-        if input.waitForExistence(timeout: 8) {
-            input.tap()
-            input.typeText("Build me a timer for interval training")
-            sleep(1)
-            capture("06-composer")
-        }
+        input.tap()
+        input.typeText("Build me a timer for interval training")
+        sleep(1)
+        capture("06-composer")
 
         print("AIITY-SHOTS \(shotDirectory.path)")
     }

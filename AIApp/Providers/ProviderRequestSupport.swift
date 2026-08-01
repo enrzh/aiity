@@ -74,7 +74,7 @@ enum ProviderRequestSupport {
             if status == 0 {
                 return String(localized: "Keine Antwort vom Server — Netz oder Base-URL prüfen.")
             }
-            return "API-Fehler \(status) (keine Details)."
+            return String(localized: "API-Fehler \(status) (keine Details).")
         }
         // Common model-id failures
         let lower = detail.lowercased()
@@ -100,7 +100,7 @@ enum ProviderRequestSupport {
                 || lower.contains("billing") || lower.contains("payment") || lower.contains("credit") {
                 return String(localized: "Kontingent/Guthaben aufgebraucht — Abrechnung/Guthaben beim Anbieter prüfen (ein Abo deckt die API-Nutzung meist nicht ab; API-Key nutzen).")
             }
-            return "Rate-Limit erreicht — kurz warten und erneut versuchen (ggf. anderes Modell/Konto)."
+            return String(localized: "Rate-Limit erreicht — kurz warten und erneut versuchen (ggf. anderes Modell/Konto).")
         }
         if isToolUnsupportedError(status: status, body: detail) {
             return String(localized: "Dieses Modell unterstützt keine Tool-Calls. Die App versucht es ohne Tools erneut…")

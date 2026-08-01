@@ -26,9 +26,9 @@ struct ChatListView: View {
             Group {
                 if threads.isEmpty {
                     AppEmptyState(
-                        title: "Noch keine Chats",
+                        title: String(localized: "Noch keine Chats"),
                         systemImage: "bubble.left.and.bubble.right",
-                        message: "Starte eine Unterhaltung — allein mit der KI oder als Gruppe mit mehreren Agenten.",
+                        message: String(localized: "Starte eine Unterhaltung — allein mit der KI oder als Gruppe mit mehreren Agenten."),
                         actionTitle: String(localized: "Neuer Chat"),
                         action: { startSolo() }
                     )

@@ -146,7 +146,7 @@ enum MiniAppValidator {
                 // Allow inside comments only roughly — still flag real CDN usage.
                 if lower.contains(pattern), !lower.contains("capability: network"), !lower.contains("capability: browser") {
                     // Soft: still valid for preview if we strip? Keep as issue but allow draft show.
-                    issues.append("External URL (\(pattern)) — besser `<!-- capability: network -->` oder inline.")
+                    issues.append(String(localized: "External URL (\(pattern)) — besser `<!-- capability: network -->` oder inline."))
                     break
                 }
             }

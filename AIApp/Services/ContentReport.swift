@@ -34,12 +34,12 @@ enum ContentReport {
 
         var title: String {
             switch self {
-            case .hateful: return "Hass oder Beleidigung"
-            case .sexual: return "Sexueller Inhalt"
-            case .violent: return "Gewalt"
+            case .hateful: return String(localized: "Hass oder Beleidigung")
+            case .sexual: return String(localized: "Sexueller Inhalt")
+            case .violent: return String(localized: "Gewalt")
             case .dangerous: return String(localized: "Gefährliche Anleitung")
-            case .falseInfo: return "Falsche Angaben"
-            case .other: return "Etwas anderes"
+            case .falseInfo: return String(localized: "Falsche Angaben")
+            case .other: return String(localized: "Etwas anderes")
             }
         }
     }
@@ -80,7 +80,7 @@ enum ContentReport {
         lines.append("--- Nachricht ---")
         lines.append(String(message.text.prefix(maxReportedCharacters)))
         if message.text.count > maxReportedCharacters {
-            lines.append("[gekürzt — \(message.text.count) Zeichen insgesamt]")
+            lines.append(String(localized: "[gekürzt — \(message.text.count) Zeichen insgesamt]"))
         }
         return lines.joined(separator: "\n")
     }

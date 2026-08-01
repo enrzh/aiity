@@ -122,7 +122,7 @@ enum AgentSuggestion {
             name: "Rechercheur",
             emoji: "🔎",
             role: String(localized: "Recherchiert Fakten im Web, prüft sie an mehreren Quellen und fasst sie mit Quellenangabe zusammen. Sagt ausdrücklich, wenn etwas unsicher oder widersprüchlich ist."),
-            modelHint: "Ein starkes Cloud-Modell — Recherche lebt von Sorgfalt."
+            modelHint: String(localized: "Ein starkes Cloud-Modell — Recherche lebt von Sorgfalt.")
         ),
         Template(
             name: "Kritiker",

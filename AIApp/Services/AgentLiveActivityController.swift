@@ -130,13 +130,13 @@ final class AgentLiveActivityController {
         finishBusyState()
         endBackgroundTask()
         guard #available(iOS 16.2, *) else {
-            if wasBackgrounded { notifyDone(title: "Fehler", body: message) }
+            if wasBackgrounded { notifyDone(title: String(localized: "Fehler"), body: message) }
             activity = nil
             return
         }
         if let activity {
             let state = AgentActivityAttributes.ContentState(
-                phase: "Fehler",
+                phase: String(localized: "Fehler"),
                 detail: String(message.prefix(100)),
                 progress: 1,
                 isComplete: true,

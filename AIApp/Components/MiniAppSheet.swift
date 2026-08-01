@@ -41,8 +41,8 @@ struct MiniAppSheet: View {
                 // whatever the app holds to a server, not just load data.
                 let what = pendingDeclared == .browser
                     ? String(localized: "Webseiten öffnen und laden")
-                    : "Daten aus dem Internet laden"
-                Text("Die App „\(name)“ möchte \(what) (\(pendingDeclared.label)). Sie kann dabei auch Daten an fremde Server senden. Nur erlauben, wenn du dieser App vertraust.")
+                    : String(localized: "Daten aus dem Internet laden")
+                Text(String(localized: "Die App „\(name)“ möchte \(what) (\(pendingDeclared.label)). Sie kann dabei auch Daten an fremde Server senden. Nur erlauben, wenn du dieser App vertraust."))
             }
             .navigationTitle(name)
             .navigationBarTitleDisplayMode(.inline)

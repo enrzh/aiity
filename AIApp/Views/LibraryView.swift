@@ -91,16 +91,16 @@ struct LibraryView: View {
                 }
                 Button("Abbrechen", role: .cancel) { deleteCandidate = nil }
             } message: { app in
-                Text("„\(app.name)“ wird dauerhaft entfernt.")
+                Text(String(localized: "„\(app.name)“ wird dauerhaft entfernt."))
             }
         }
     }
 
     private var emptyState: some View {
         AppEmptyState(
-            title: "Noch keine Apps",
+            title: String(localized: "Noch keine Apps"),
             systemImage: "square.grid.2x2",
-            message: "Im Chat bauen und behalten.",
+            message: String(localized: "Im Chat bauen und behalten."),
             actionTitle: "Zum Chat",
             action: openChatTab
         )

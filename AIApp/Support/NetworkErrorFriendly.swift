@@ -28,8 +28,8 @@ enum NetworkErrorFriendly {
         }
         let text = error.localizedDescription
         let lower = text.lowercased()
-        if lower.contains("network connection was lost")
-            || lower.contains("connection was lost")
+        if lower.contains(String(localized: "network connection was lost"))
+            || lower.contains(String(localized: "connection was lost"))
             || (lower.contains("nsurlerrordomain") && lower.contains("-1005")) {
             return String(localized: "Verbindung unterbrochen — Netz prüfen und erneut senden.")
         }

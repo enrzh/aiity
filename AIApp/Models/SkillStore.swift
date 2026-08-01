@@ -209,7 +209,7 @@ final class SkillStore: ObservableObject {
             version: doc.version
         )
         errorMessage = nil
-        lastInstallMessage = "„\(doc.name)“ installiert und aktiv."
+        lastInstallMessage = String(localized: "„\(doc.name)“ installiert und aktiv.")
         // add() inserts before builtins — find by name
         return skills.first { !$0.builtin && $0.name == doc.name }
     }
@@ -269,7 +269,7 @@ final class SkillStore: ObservableObject {
                     continue
                 }
                 if text.count < 40 {
-                    lastError = "Datei zu kurz: \(url.absoluteString)"
+                    lastError = String(localized: "Datei zu kurz: \(url.absoluteString)")
                     continue
                 }
                 if installPackage(markdown: text, source: spec) != nil {
@@ -333,7 +333,7 @@ final class SkillStore: ObservableObject {
         ),
         AgentSkill(
             name: "Spiele-Entwickler",
-            summary: "Canvas-Games mit Touch-Steuerung",
+            summary: String(localized: "Canvas-Games mit Touch-Steuerung"),
             instructions: """
             When building games:
             - Use a <canvas> sized to devicePixelRatio with a requestAnimationFrame loop and delta-time based movement (never setInterval).

@@ -335,7 +335,7 @@ struct OpenAICompatibleProvider: LLMProvider {
             || (lower.contains("model") && (lower.contains("not found") || lower.contains("does not exist") || lower.contains("invalid")))
         guard looksLikeMissingModel, case .badResponse(let s, let msg) = error else { return error }
         if msg.contains("Modelle laden") { return error }
-        return .badResponse(s, msg + " — Einstellungen → Modelle laden und ein anderes Modell wählen.")
+        return .badResponse(s, msg + String(localized: " — Einstellungen → Modelle laden und ein anderes Modell wählen."))
     }
 
     /// o-series / some newer OpenAI models reject `max_tokens` and want `max_completion_tokens`.

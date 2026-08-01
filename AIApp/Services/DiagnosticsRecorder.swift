@@ -455,7 +455,7 @@ final class DiagnosticsRecorder: @unchecked Sendable {
             }
             flushLocked(force: true)
         }
-        record("app", background ? "In den Hintergrund" : "Wieder im Vordergrund")
+        record("app", background ? String(localized: "In den Hintergrund") : "Wieder im Vordergrund")
     }
 
     func markCleanExit(reason: String) {
@@ -653,7 +653,7 @@ final class DiagnosticsRecorder: @unchecked Sendable {
     static func signalMeaning(_ number: Int32) -> String {
         switch number {
         case SIGABRT:
-            return "Abbruch — meist eine nicht abgefangene Ausnahme oder ein fehlgeschlagenes assert."
+            return String(localized: "Abbruch — meist eine nicht abgefangene Ausnahme oder ein fehlgeschlagenes assert.")
         case SIGSEGV:
             return String(localized: "Ungültiger Speicherzugriff — Zugriff auf bereits freigegebenen Speicher.")
         case SIGBUS:

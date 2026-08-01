@@ -20,9 +20,12 @@ itself.
   <img src="docs/screenshots/04-more.png" width="24%" alt="Settings">
 </p>
 
-> **Status: in development.** Not on the App Store yet, and the interface is
-> German only. 276 unit tests; the notes in [`docs/`](docs/) try to be honest
-> about what is verified and what isn't.
+> **Status: in development.** Not on the App Store yet. 276 unit tests, and the
+> notes in [`docs/`](docs/) try to be honest about what is verified and what
+> isn't — including the parts that aren't.
+
+Ten languages: German (the source), English, Spanish, French, Portuguese,
+Italian, Simplified Chinese, Japanese, Russian and Arabic.
 
 ---
 
@@ -55,6 +58,19 @@ to it — and exports it in one tap. It keeps *known* and *inferred* apart: a
 process cannot distinguish a crash from an out-of-memory kill after the fact, so
 the report says exactly that instead of guessing.
 
+## What it is not
+
+Worth saying plainly before you clone it:
+
+- **It is not a hosted service.** There is no backend, no account, no sync of
+  your conversations anywhere. If you have no API key and no local model, the
+  app cannot answer anything.
+- **It is not audited.** One adversarial review has been run over it (19
+  confirmed findings, all fixed) and the security-relevant reasoning is written
+  down, but that is not the same as an audit.
+- **It is not finished.** It has not shipped, so nothing here has met real users
+  in numbers. Expect rough edges in the places nobody has walked yet.
+
 ## Build
 
 Needs Xcode 26 (iOS 26 SDK), [XcodeGen](https://github.com/yonaskolb/XcodeGen),
@@ -86,13 +102,19 @@ xcodebuild ... -only-testing:AIAppUITests test
 `-skipPackagePluginValidation -skipMacroValidation` are required (mlx-swift).
 On-device models do not run in the simulator — that path needs real hardware.
 
-Screenshots in this README are generated, not taken by hand:
+Screenshots are generated, not taken by hand — against a fresh container with a
+seeded roster, so no real conversation can end up in a public image and the
+frames are identical on every run:
 
 ```bash
-xcodebuild ... -resultBundlePath /tmp/shots.xcresult \
+python3 tools/stub_llm_server.py 8555 &
+AIITY_SHOT_LANG=en xcodebuild ... -resultBundlePath /tmp/shots.xcresult \
   -only-testing:AIAppUITests/ScreenshotTests test
 xcrun xcresulttool export attachments --path /tmp/shots.xcresult --output-path /tmp/shots
 ```
+
+`AIITY_SHOT_LANG` takes any of the ten locales. `AppStoreScreenshotTests` is the
+same idea at store dimensions.
 
 ## Layout
 
@@ -105,15 +127,15 @@ xcrun xcresulttool export attachments --path /tmp/shots.xcresult --output-path /
 | `AIApp/Services/` | mini-app bundling and validation, diagnostics, backups |
 | `AIAppLiveActivity/` | Lock Screen / Dynamic Island progress |
 | `web/` | the aiity.de site — ten locales generated from one template |
-| `docs/` | App Store readiness, design notes |
+| `docs/` | App Store readiness, localization, design notes |
 
 Bundle id `com.aiity.app`; URL schemes `aiity://` and `aiapp://` (the latter kept
 for the OpenRouter OAuth redirect). The Xcode target is still named `AIApp`.
 
 ## Contributing
 
-Issues and pull requests welcome. Two things about this codebase are easy to
-trip over, and both were learned the expensive way:
+Issues and pull requests welcome. Three things about this codebase are easy to
+trip over, and each was learned the expensive way:
 
 1. **Every persisted `Codable` type has a hand-written decoder** using
    `decodeIfPresent`. That is not a style preference. Swift's synthesized
@@ -126,6 +148,12 @@ trip over, and both were learned the expensive way:
    one bug class was found in five separate places here. A failed decode
    quarantines the bytes; if the quarantine itself fails, writing is disabled
    rather than allowed to destroy the only copy that exists.
+
+3. **German text is the localization key.** `Text("Chats")` resolves through
+   `AIApp/Localizable.xcstrings` with no code change — but a plain
+   `errorMessage = "…"` does *not*, and needs `String(localized:)`. See
+   [`docs/LOCALIZATION.md`](docs/LOCALIZATION.md); 116 entries once sat in the
+   catalog doing nothing for exactly this reason.
 
 ## Licence
 

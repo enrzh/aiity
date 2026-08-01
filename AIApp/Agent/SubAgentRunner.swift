@@ -23,7 +23,7 @@ enum SubAgentRunner {
         let apiKey = await AuthStore.effectiveKey(for: settings)
 
         if settings.preset.needsKey, apiKey.isEmpty, !ConnectionProbe.isLocalStyle(settings.presetId) {
-            return "[\(agent.name) hat kein Konto — unter Anbieter einen Key hinterlegen.]"
+            return String(localized: "[\(agent.name) hat kein Konto — unter Anbieter einen Key hinterlegen.]")
         }
         if settings.effectiveModel.trimmingCharacters(in: .whitespaces).isEmpty,
            settings.preset.dialect != .mlx {
@@ -56,7 +56,7 @@ enum SubAgentRunner {
                 }
                 if Task.isCancelled { return "[\(agent.name): abgebrochen.]" }
             } catch {
-                return "[\(agent.name) meldet einen Fehler: \(NetworkErrorFriendly.message(for: error))]"
+                return String(localized: "[\(agent.name) meldet einen Fehler: \(NetworkErrorFriendly.message(for: error))]")
             }
 
             guard !calls.isEmpty else {

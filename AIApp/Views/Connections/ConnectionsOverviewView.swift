@@ -110,8 +110,8 @@ struct ConnectionsView: View {
 
     private func emptySlotText(_ modality: ModelModality) -> String {
         switch modality {
-        case .chat: return "Kein Chat-Anbieter"
-        case .image: return "Kein Bild-Anbieter"
+        case .chat: return String(localized: "Kein Chat-Anbieter")
+        case .image: return String(localized: "Kein Bild-Anbieter")
         }
     }
 

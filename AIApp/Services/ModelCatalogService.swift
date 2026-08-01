@@ -199,7 +199,7 @@ enum ModelCatalogService {
             enrich(id: entry.id, name: entry.name, settings: settings, mediaGenerationLikely: mediaLikely)
         }
         if mapped.isEmpty {
-            throw ProviderError.badResponse(status, "Server meldet keine Modelle.")
+            throw ProviderError.badResponse(status, String(localized: "Server meldet keine Modelle."))
         }
         return rank(mapped, preferTools: true, presetId: settings.presetId)
     }
