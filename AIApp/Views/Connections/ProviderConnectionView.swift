@@ -354,7 +354,7 @@ struct ProviderConnectionView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else if presetId == "openai" || presetId == "xai" {
-                    Text(String(localized: "Für \(presetId == ")openai" ? "ChatGPT" : "GrokString(localized: ") gibt es hier keinen Abo-Login — das Abo-Token wird nur vom jeweiligen CLI-Backend akzeptiert. Nutze einen API-Key, oder dein eigenes sub2api-Gateway (Schnellstart → Gateway)."))
+                    Text(String(localized: "Für \(presetId == "openai" ? "ChatGPT" : "Grok") gibt es hier keinen Abo-Login — das Abo-Token wird nur vom jeweiligen CLI-Backend akzeptiert. Nutze einen API-Key, oder dein eigenes sub2api-Gateway (Schnellstart → Gateway)."))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

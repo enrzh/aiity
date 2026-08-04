@@ -42,6 +42,42 @@ App **6797102952**, SKU `aiity-ios-1000`, bundle `com.aiity.app`.
 | Copyright | 2026 Xianjie Zhan |
 | Release | **Manual** — it does not go live by itself after approval |
 
+## TestFlight
+
+**Internal testing needs no Beta App Review.** Add people under *Users and
+Access* first — an internal tester must be a user on the team (up to 100, and
+each can run it on up to 30 devices). They then accept the invite in the
+TestFlight app. That is the fast path to other people's phones.
+
+**External testing does need Beta App Review** on the first build, plus the
+text below.
+
+### Beta app description
+
+> aiity is a chat with AI agents that build the small tools you need, right in
+> the conversation. Ask for an interval timer, a unit converter, a tracker for
+> something only you care about — it appears as a small sandboxed app you can
+> use immediately, and keep if it is any good.
+>
+> There is no aiity account and no aiity server. You bring your own access: an
+> API key you already have, your own machine on the network, or a model running
+> on the iPhone itself.
+
+### What to test
+
+> 1. Ask for a small tool in your own words. Does it appear, run, and do what
+>    you asked? Keep it, then find it again under Apps.
+> 2. Put two or three agents in one conversation and give them something to
+>    disagree about. Does the lead actually decide at the end, or just summarise?
+> 3. Set up whichever provider you have — a cloud API key, your own server, or
+>    an on-device model — and check it answers. On-device needs real hardware.
+> 4. Switch the app to your language. Anything still in German is a bug worth
+>    reporting.
+> 5. If it breaks: More → Diagnose → export, and attach that. It carries what
+>    happened without any keys or conversation contents.
+
+Feedback email: `getaiityapp@gmail.com` · Privacy policy: `https://aiity.de/privacy`
+
 ## Still open
 
 - **Screenshots.** None uploaded. iPhone 6.5" wants 1242 × 2688 or 2688 × 1242.

@@ -70,6 +70,6 @@ enum HTTPPolicy {
     static func cleartextRefusal(for url: URL) -> String? {
         allowsCleartext(for: url)
             ? nil
-            : String(localized: "Unverschlüsseltes HTTP ist nur für eigene Server im lokalen Netz erlaubt — \(url.host ?? ")dieser HostString(localized: ") ist öffentlich erreichbar. Nutze https://.")
+            : String(localized: "Unverschlüsseltes HTTP ist nur für eigene Server im lokalen Netz erlaubt — \(url.host ?? "dieser Host") ist öffentlich erreichbar. Nutze https://.")
     }
 }
