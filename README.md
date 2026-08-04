@@ -82,6 +82,21 @@ xcodegen generate
 open AIApp.xcodeproj
 ```
 
+A **fresh Xcode install cannot build this** until two components are downloaded
+separately — neither ships with the app, and both fail late and confusingly:
+
+```bash
+xcodebuild -downloadPlatform iOS                  # ~8.5 GB; without it even
+                                                  # "Any iOS Device" is ineligible
+xcodebuild -downloadComponent MetalToolchain      # mlx-swift compiles .metal
+                                                  # shaders, so this is required
+                                                  # even to run the unit tests
+```
+
+`tools/release.sh` runs the whole chain — regenerate, test, archive, verify,
+optionally upload — and refuses to upload from a beta Xcode, because App Store
+Connect rejects beta-SDK builds only *after* the full archive-and-transfer.
+
 `project.yml` is the source of truth — **regenerate after adding or removing any
 file**, or it silently will not be compiled. Several tests in this repo's history
 quietly never ran for exactly that reason, so check the test *count*, not just

@@ -46,13 +46,55 @@ say "Regenerating the project"
 command -v xcodegen >/dev/null || fail "xcodegen not installed (brew install xcodegen)"
 xcodegen generate
 
+# --- 2b. components ---------------------------------------------------------
+# A fresh Xcode 26 install has neither of these, and both fail late: the iOS
+# platform makes every destination ineligible (including "Any iOS Device"), and
+# the missing Metal compiler surfaces as a mlx-swift shader build failure
+# partway through the unit tests. Seconds here beats ten minutes there.
+say "Preflight"
+xcrun metal --version >/dev/null 2>&1 \
+  || fail "the Metal toolchain is not installed, and mlx-swift compiles .metal
+    shaders, so even the unit tests cannot build. Fix (no password needed):
+      xcodebuild -downloadComponent MetalToolchain"
+echo "    metal toolchain ok"
+
+if ! xcodebuild -showdestinations -project AIApp.xcodeproj -scheme AIApp 2>/dev/null \
+     | grep -q 'platform:iOS[,}]'; then
+  fail "no usable iOS destination — the iOS platform is probably not installed
+    for this Xcode. Fix (no password needed, ~8.5 GB):
+      xcodebuild -downloadPlatform iOS"
+fi
+echo "    ios platform ok"
+
 # --- 3. tests ---------------------------------------------------------------
 # Check the COUNT, not the exit code: a test file absent from project.yml does
 # not compile, and xcodebuild still exits 0.
 say "Unit tests"
 MIN_TESTS="${MIN_TESTS:-276}"
-SIM=$(xcrun simctl list devices available --json \
-      | python3 -c "import json,sys;d=json.load(sys.stdin)['devices'];print(next(x['udid'] for v in d.values() for x in v if 'iPhone' in x['name']))")
+# Pick an iPhone on a runtime this Xcode can actually target: a newer
+# simulator runtime than the installed SDK (e.g. an iOS 27 sim under Xcode 26)
+# is listed as available but cannot be built for. Override with SIM=<udid>.
+SIM="${SIM:-}"
+if [[ -z "$SIM" ]]; then
+  SDK_MAJOR=$(xcodebuild -showsdks 2>/dev/null | sed -n 's/.*-sdk iphonesimulator\([0-9]*\).*/\1/p' | head -1)
+  SIM=$(xcrun simctl list devices available --json | SDK_MAJOR="$SDK_MAJOR" python3 -c "
+import json, os, sys, re
+sdk = int(os.environ.get('SDK_MAJOR') or 0)
+devices = json.load(sys.stdin)['devices']
+best = None
+for runtime, items in devices.items():
+    m = re.search(r'iOS-(\d+)-(\d+)', runtime)
+    if not m: continue
+    major = int(m.group(1))
+    if sdk and major > sdk: continue          # runtime newer than the SDK
+    for d in items:
+        if 'iPhone' in d['name']:
+            key = (major, int(m.group(2)))
+            if best is None or key > best[0]: best = (key, d['udid'])
+print(best[1] if best else '')")
+fi
+[[ -n "$SIM" ]] || fail "no iPhone simulator on a runtime this Xcode can target.
+    Install a matching simulator runtime in Xcode > Settings > Components."
 TEST_LOG="$OUT/tests.log"; mkdir -p "$OUT"
 xcodebuild test -project AIApp.xcodeproj -scheme AIApp \
   -destination "id=$SIM" -only-testing:AIAppTests \
