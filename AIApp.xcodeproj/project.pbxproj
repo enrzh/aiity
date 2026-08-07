@@ -104,6 +104,7 @@
 		AE469D82EC595E85864FCF6E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = C16E8E5E4E68B9F5FDCAEFBF /* PrivacyInfo.xcprivacy */; };
 		B175AA788AB0C9E894F020E1 /* SettingsTourUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93F8325DAC9548FB101F120A /* SettingsTourUITests.swift */; };
 		B3E712C8951A91F7642ED2DC /* ToolCallParsingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 592FAC2E2E94BA2A4E5FD5AF /* ToolCallParsingTests.swift */; };
+		B4BE292E26EB150B92CF74DB /* CloudSettingsSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = E01B36A1AC5AEAA61AB520F9 /* CloudSettingsSync.swift */; };
 		B868E23E754B579DDDA34019 /* BrowserFetchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 266D94DDD73F14B006FB2D68 /* BrowserFetchTests.swift */; };
 		B9AFB0660B84D6C0476A7E04 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 749E2BA724F63F627337FF5E /* LibraryView.swift */; };
 		B9F5D3A9F8438BCD8D21FD36 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5F264418E48EC4A1A1AE64F /* EmptyStateView.swift */; };
@@ -305,6 +306,7 @@
 		DA8466963EF2CD19656D9FEB /* LocalRuntimePolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalRuntimePolicyTests.swift; sourceTree = "<group>"; };
 		DE1DB4A73CD1F26E08C12318 /* GroupSelfTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupSelfTest.swift; sourceTree = "<group>"; };
 		DF3AC7A4A0BA71623D3D51B0 /* ProviderPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderPreset.swift; sourceTree = "<group>"; };
+		E01B36A1AC5AEAA61AB520F9 /* CloudSettingsSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSettingsSync.swift; sourceTree = "<group>"; };
 		E122081B01645D87980F6F32 /* GroupChatRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupChatRunner.swift; sourceTree = "<group>"; };
 		E3146C66FBE0536895AA0C01 /* RepositoryError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryError.swift; sourceTree = "<group>"; };
 		E9931F285A45AD02DD78F9BC /* CrashNoticeBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashNoticeBanner.swift; sourceTree = "<group>"; };
@@ -360,6 +362,7 @@
 				D6D341DD6A5EC5D8D7359130 /* AgentRoleWriter.swift */,
 				5E788FCA5BA9AE97A20E3AB3 /* Analytics.swift */,
 				F04C8896CDE2E3B7A606FC63 /* BackupService.swift */,
+				E01B36A1AC5AEAA61AB520F9 /* CloudSettingsSync.swift */,
 				F9FF8C6F144D582B46438129 /* ConnectionProbe.swift */,
 				76428C2E2A2205D360142202 /* ContentReport.swift */,
 				5A1518D6D1989698FF92DF5D /* DiagnosticsRecorder.swift */,
@@ -815,6 +818,7 @@
 				FCE07FF0DC972BAFCD86A126 /* ChatListView.swift in Sources */,
 				FCA89ADDA177C6FE08E60D6D /* ChatMode.swift in Sources */,
 				97B77AE2989796A7A348153B /* ChatView.swift in Sources */,
+				B4BE292E26EB150B92CF74DB /* CloudSettingsSync.swift in Sources */,
 				80862C128CB62D9B0BA431B6 /* ConnectionProbe.swift in Sources */,
 				59F430BC43E2753F665F45D6 /* ConnectionsOverviewView.swift in Sources */,
 				066E77B13FA75C16FF1C2CD5 /* ContentReport.swift in Sources */,
@@ -946,7 +950,7 @@
 				CODE_SIGN_ENTITLEMENTS = AIApp/AIApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = H8FW6W6K2D;
 				INFOPLIST_FILE = AIApp/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -965,7 +969,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = H8FW6W6K2D;
 				INFOPLIST_FILE = AIAppLiveActivity/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1064,7 +1068,7 @@
 				CODE_SIGN_ENTITLEMENTS = AIApp/AIApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = H8FW6W6K2D;
 				INFOPLIST_FILE = AIApp/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1083,7 +1087,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = H8FW6W6K2D;
 				INFOPLIST_FILE = AIAppLiveActivity/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

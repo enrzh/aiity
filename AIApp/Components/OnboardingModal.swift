@@ -6,7 +6,15 @@ struct OnboardingModal: View {
     var onFinished: () -> Void
 
     @State private var page = 0
-    @State private var setupPresetId: String?
+    /// "API-Key" and "Lokal" each promise more than one provider in their own
+    /// subtitle ("OpenAI, Anthropic, OpenRouter…", "Ollama / On-Device") but
+    /// used to jump straight into ONE hard-coded preset — OpenRouter, or
+    /// Ollama specifically, which is a REMOTE server and cannot show the
+    /// on-device MLX picker at all (ProviderConnectionView only renders that
+    /// for a preset whose dialect is .mlx). Neither screen offered a way
+    /// back out to actually choose. Both buttons now open a scoped picker
+    /// instead; only "Gateway" is genuinely one specific preset already.
+    @State private var connectRoute: OnboardingConnectRoute?
     @EnvironmentObject private var settingsStore: SettingsStore
     @EnvironmentObject private var accountStore: AccountStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -32,11 +40,11 @@ struct OnboardingModal: View {
                         Text("Modell verbinden")
                             .font(.title2.bold())
                         connectButton(String(localized: "API-Key"), subtitle: String(localized: "OpenAI, Anthropic, OpenRouter…"),
-                                      systemImage: "key.fill", presetId: "openrouter")
+                                      systemImage: "key.fill") { connectRoute = .apiKeyPicker }
                         connectButton(String(localized: "Gateway"), subtitle: String(localized: "sub2api / eigener Server"),
-                                      systemImage: "server.rack", presetId: "sub2api")
+                                      systemImage: "server.rack") { connectRoute = .preset("sub2api") }
                         connectButton(String(localized: "Lokal"), subtitle: String(localized: "Ollama / On-Device"),
-                                      systemImage: "desktopcomputer", presetId: "ollama")
+                                      systemImage: "desktopcomputer") { connectRoute = .localPicker }
                     }
                     .padding(.horizontal)
                     .transition(.opacity)
@@ -77,12 +85,22 @@ struct OnboardingModal: View {
                         .accessibilityIdentifier("onboarding-skip")
                 }
             }
-            .sheet(item: Binding(
-                get: { setupPresetId.map(OnboardingPreset.init(id:)) },
-                set: { setupPresetId = $0?.id }
-            )) { preset in
+            .sheet(item: $connectRoute) { route in
                 NavigationStack {
-                    ProviderConnectionView(presetId: preset.id, modality: .chat)
+                    switch route {
+                    case .preset(let presetId):
+                        ProviderConnectionView(presetId: presetId, modality: .chat)
+                    case .apiKeyPicker:
+                        ProviderPickerList(
+                            title: String(localized: "API-Key"),
+                            presetIds: Self.apiKeyPresetIds
+                        ) { connectRoute = .preset($0) }
+                    case .localPicker:
+                        ProviderPickerList(
+                            title: String(localized: "Lokal"),
+                            presetIds: ["mlx", "ollama"]
+                        ) { connectRoute = .preset($0) }
+                    }
                 }
                 .environmentObject(settingsStore)
                 .environmentObject(accountStore)
@@ -91,10 +109,21 @@ struct OnboardingModal: View {
         .interactiveDismissDisabled(true)
     }
 
-    private func connectButton(_ title: String, subtitle: String, systemImage: String, presetId: String) -> some View {
-        Button {
-            setupPresetId = presetId
-        } label: {
+    /// Every chat preset that takes a key or an OAuth login — excluding
+    /// sub2api/Ollama/LM Studio/LocalAI/MLX, which are what the Gateway and
+    /// Lokal buttons are for. NOT filtered to `isVerified`: only 3 presets
+    /// app-wide carry that flag, and excluding local/gateway ones from THAT
+    /// left exactly one — OpenRouter — reproducing the identical "only one
+    /// option" bug this exists to fix, just hidden behind a build that still
+    /// compiled and even passed a test that didn't check every option this
+    /// button's own subtitle promises by name (OpenAI, Anthropic, …).
+    private static let apiKeyPresetIds: [String] = ProviderPreset.catalog
+        .filter { $0.dialect != .mlx }
+        .filter { !["sub2api", "ollama", "lmstudio", "localai"].contains($0.id) }
+        .map(\.id)
+
+    private func connectButton(_ title: String, subtitle: String, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
             HStack(spacing: 12) {
                 Image(systemName: systemImage)
                     .font(.body.weight(.semibold))
@@ -122,8 +151,45 @@ struct OnboardingModal: View {
     }
 }
 
-private struct OnboardingPreset: Identifiable {
-    let id: String
+private enum OnboardingConnectRoute: Identifiable {
+    case preset(String)
+    case apiKeyPicker
+    case localPicker
+
+    var id: String {
+        switch self {
+        case .preset(let id): return "preset-\(id)"
+        case .apiKeyPicker: return "picker-apikey"
+        case .localPicker: return "picker-local"
+        }
+    }
+}
+
+/// A short, scoped list of providers — not the full catalog. Reused by both
+/// the "API-Key" and "Lokal" onboarding buttons, each with a different,
+/// small `presetIds` set, so tapping either always ends in an actual choice
+/// instead of one hard-coded preset with no way out.
+private struct ProviderPickerList: View {
+    let title: String
+    let presetIds: [String]
+    let onPick: (String) -> Void
+
+    var body: some View {
+        List(presetIds, id: \.self) { presetId in
+            let preset = ProviderPreset.preset(for: presetId)
+            Button {
+                onPick(presetId)
+            } label: {
+                AppSettingsRow(
+                    title: preset.label,
+                    systemImage: preset.dialect == .mlx ? "iphone" : "key.fill"
+                )
+                .foregroundStyle(.primary)
+            }
+        }
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
+    }
 }
 
 @MainActor

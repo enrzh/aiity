@@ -38,7 +38,7 @@ struct ProviderProfile: Codable, Equatable {
 }
 
 enum ProviderProfiles {
-    private static let storageKey = "provider-profiles-v1"
+    static let storageKey = "provider-profiles-v1"
 
     static func loadAll() -> [String: ProviderProfile] {
         guard let data = UserDefaults.standard.data(forKey: storageKey),
@@ -51,6 +51,7 @@ enum ProviderProfiles {
     static func saveAll(_ map: [String: ProviderProfile]) {
         if let data = try? JSONEncoder().encode(map) {
             UserDefaults.standard.set(data, forKey: storageKey)
+            CloudSettingsSync.push(key: storageKey, data: data)
         }
     }
 

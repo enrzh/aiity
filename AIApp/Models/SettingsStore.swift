@@ -13,6 +13,12 @@ final class SettingsStore: ObservableObject {
     }
 
     init() {
+        // Profiles have no live-observing owner (they're read on demand via
+        // `profile(for:)`, never cached), so this only needs the adopt-once
+        // half: if iCloud already has profiles and this device has none yet,
+        // pull them in before `ProviderProfiles.profile(for:)` below reads.
+        CloudSettingsSync.adopt(key: ProviderProfiles.storageKey) { _ in }
+
         var loaded = ProviderSettings.load()
         // Hydrate chat fields from per-provider profile if present.
         let profile = ProviderProfiles.profile(for: loaded.presetId)
@@ -24,6 +30,18 @@ final class SettingsStore: ObservableObject {
         }
         settings = loaded
         ProviderProfiles.capture(from: settings)
+
+        // `settings` above may have loaded the plain local default (a fresh
+        // install has nothing in UserDefaults yet) — this call, made only
+        // once per launch, both adopts an existing iCloud value synchronously
+        // right here (correcting `settings` before init ever returns, so no
+        // observer sees the wrong value) and keeps listening so a later
+        // change pushed from another device takes effect without a relaunch.
+        // `adopt` registers exactly one observer per key: this must stay the
+        // only call site for `ProviderSettings.storageKey`.
+        CloudSettingsSync.adopt(key: ProviderSettings.storageKey) { [weak self] _ in
+            self?.settings = ProviderSettings.load()
+        }
     }
 
     /// Switch which provider the chat talks to, restoring that provider's last
