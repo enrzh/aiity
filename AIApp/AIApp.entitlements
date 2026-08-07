@@ -9,6 +9,13 @@
 	<array>
 		<string>iCloud.com.aiity.app</string>
 	</array>
+	<!-- KVS is a SEPARATE entitlement from CloudKit above — without this key,
+	     NSUbiquitousKeyValueStore compiles and runs but silently syncs
+	     nothing to any other device, no error, no crash. This is what
+	     CloudSettingsSync (provider setup — active preset, model, base URL;
+	     deliberately never the API key itself) actually runs on. -->
+	<key>com.apple.developer.ubiquity-kvstore-identifier</key>
+	<string>$(TeamIdentifierPrefix)$(CFBundleIdentifier)</string>
 	<key>com.apple.developer.icloud-services</key>
 	<array>
 		<string>CloudKit</string>

@@ -24,6 +24,13 @@
 		<string>ja</string>
 		<string>ru</string>
 		<string>ar</string>
+		<string>hi</string>
+		<string>bn</string>
+		<string>ur</string>
+		<string>id</string>
+		<string>tr</string>
+		<string>vi</string>
+		<string>ko</string>
 	</array>
 	<key>CFBundleName</key>
 	<string>$(PRODUCT_NAME)</string>
