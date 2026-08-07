@@ -7,6 +7,7 @@ struct LibraryView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var session: ChatSession
     @Environment(\.openChatTab) private var openChatTab
+    @ObservedObject private var sync = SyncStatus.shared
     @State private var openApp: MiniApp?
     @State private var iconEditApp: MiniApp?
     @State private var showAddWebApp = false
@@ -17,7 +18,14 @@ struct LibraryView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if apps.isEmpty {
+                if apps.isEmpty && !sync.initialImportComplete {
+                    // An empty query and a store still waiting on its FIRST
+                    // CloudKit import look identical — without this, someone
+                    // reopening the app on a new device sees "no apps yet"
+                    // seconds before their apps actually arrive, and reasonably
+                    // reads that as sync being broken rather than just slow.
+                    syncingState
+                } else if apps.isEmpty {
                     emptyState
                 } else {
                     ScrollView {
@@ -103,6 +111,14 @@ struct LibraryView: View {
             message: String(localized: "Im Chat bauen und behalten."),
             actionTitle: String(localized: "Zum Chat"),
             action: openChatTab
+        )
+    }
+
+    private var syncingState: some View {
+        AppEmptyState(
+            title: String(localized: "Suche nach deinen Apps"),
+            systemImage: "icloud.and.arrow.down",
+            message: String(localized: "iCloud gleicht gerade ab — deine Apps von anderen Geräten sollten gleich erscheinen.")
         )
     }
 

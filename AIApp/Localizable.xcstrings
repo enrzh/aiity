@@ -21884,6 +21884,65 @@
         }
       }
     },
+    "Suche nach deinen Apps": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Looking for your apps"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buscando tus apps"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recherche de tes apps"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ricerca delle tue app"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A procurar as tuas apps"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリを探しています"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ищем твои приложения"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "جارٍ البحث عن تطبيقاتك"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在查找你的 App"
+          }
+        }
+      }
+    },
     "Sucht gezielt Schwachstellen in Plänen und Texten: falsche Annahmen, fehlende Fälle, unbegründete Behauptungen. Formuliert knapp und konkret, ohne Höflichkeitsfloskeln.": {
       "extractionState": "manual",
       "localizations": {
@@ -26541,6 +26600,65 @@
           "stringUnit": {
             "state": "translated",
             "value": "iCloud مُفعّل"
+          }
+        }
+      }
+    },
+    "iCloud gleicht gerade ab — deine Apps von anderen Geräten sollten gleich erscheinen.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud is syncing — your apps from other devices should appear in a moment."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud se está sincronizando: tus apps de otros dispositivos deberían aparecer enseguida."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud synchronise — tes apps des autres appareils devraient apparaître dans un instant."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud si sta sincronizzando — le tue app sugli altri dispositivi dovrebbero comparire a breve."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O iCloud está a sincronizar — as tuas apps de outros dispositivos devem aparecer em breve."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud が同期中です — 他のデバイスのアプリはまもなく表示されます。"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud синхронизируется — приложения с других устройств скоро появятся."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تتم مزامنة iCloud — يجب أن تظهر تطبيقاتك من الأجهزة الأخرى خلال لحظات."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud 正在同步 — 你在其他设备上的 App 很快就会出现。"
           }
         }
       }
