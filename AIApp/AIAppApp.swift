@@ -204,9 +204,18 @@ struct RootView: View {
             selectedTab = 0
         }
         .fullScreenCover(isPresented: $showOnboarding) {
+            // A cover presents a separate view hierarchy — .environmentObject
+            // calls positioned earlier in THIS chain (above) do not reliably
+            // reach it. OnboardingModal doesn't touch settingsStore/accountStore
+            // until the user taps a connect button on page 2, which is exactly
+            // why this crashed there and nowhere earlier: reading either
+            // property for the first time, with neither actually in the
+            // cover's environment, trips EnvironmentObject's own fatal error.
             OnboardingModal(isPresented: $showOnboarding) {
                 onboarding.complete()
             }
+            .environmentObject(settingsStore)
+            .environmentObject(accountStore)
         }
         .onChange(of: session.chatPresented) { _, presented in
             // Legacy flag from "edit in chat" / library — open Chat tab instead.
