@@ -10,7 +10,12 @@ struct ProviderConnectionView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     @EnvironmentObject private var accountStore: AccountStore
     @StateObject private var oauth = OAuthService()
-    @StateObject private var modelStore = LocalModelStore()
+    // Shared, not a fresh instance: this view is reached via NavigationLink,
+    // which deallocates it on pop — a per-view store meant a download kept
+    // running invisibly after the user navigated away, while navigating back
+    // in showed a fresh, empty "not downloaded" state that invited a second,
+    // concurrent download of the same files. See LocalModelStore's doc comment.
+    @ObservedObject private var modelStore = LocalModelStore.shared
 
     @State private var newKey = ""
     @State private var newLabel = ""

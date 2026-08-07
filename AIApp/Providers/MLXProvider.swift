@@ -105,13 +105,12 @@ final class MLXRuntime: @unchecked Sendable {
                 try? await Task.sleep(nanoseconds: UInt64(attempt) * 2_000_000_000)
             }
         }
-        // Keep a partial download when the failure was transport-level: those
-        // bytes are worth gigabytes of the user's bandwidth and the next
-        // attempt resumes from them. `isDownloaded` already refuses to treat an
-        // incomplete directory as usable, so leaving it is safe.
-        if let lastError, !Self.isRetriable(lastError) {
-            LocalModelLocation.removeIncomplete(modelId)
-        }
+        // Keep whatever is on disk regardless of why this attempt gave up: those
+        // bytes are worth gigabytes of the user's bandwidth, and
+        // `HubFileDownloader` already skips any file that finished in an
+        // earlier attempt — so the next attempt resumes from them.
+        // `isDownloaded` already refuses to treat an incomplete directory as
+        // usable, so leaving the partial files behind is safe either way.
         throw lastError ?? ProviderError.badResponse(0, "Download fehlgeschlagen.")
     }
 
@@ -124,6 +123,14 @@ final class MLXRuntime: @unchecked Sendable {
 
     /// Transport-level failures worth another attempt; a 404 for a bad model id
     /// or a full disk is not.
+    ///
+    /// `NSURLErrorCancelled` is in this list on purpose. There is no cancel
+    /// button in the UI today, so in practice this code only ever comes from
+    /// the OS force-closing the foreground `URLSession` when the app is
+    /// suspended — the ordinary way a multi-gigabyte download gets interrupted
+    /// by the screen locking or the user switching apps. Treating it as fatal
+    /// (the previous behavior) meant every such interruption ended the retry
+    /// loop and discarded the download.
     private static func isRetriable(_ error: Error) -> Bool {
         let ns = error as NSError
         guard ns.domain == NSURLErrorDomain else { return false }
@@ -136,6 +143,7 @@ final class MLXRuntime: @unchecked Sendable {
             NSURLErrorDNSLookupFailed,
             NSURLErrorResourceUnavailable,
             NSURLErrorDataNotAllowed,
+            NSURLErrorCancelled,
         ].contains(ns.code)
     }
 

@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 /// On-device models (Apple MLX, mostly 4-bit). Full list is shown regardless of
 /// device RAM — user chooses; larger downloads may fail or OOM on small phones.
@@ -241,21 +242,38 @@ enum LocalModelLocation {
         }
     }
 
-    /// Remove a partially downloaded model so the next attempt starts clean.
-    static func removeIncomplete(_ modelId: String) {
-        guard !isDownloaded(modelId) else { return }
-        try? FileManager.default.removeItem(at: directory(for: modelId))
-    }
 }
 
 /// Download state and lifecycle for local models.
+///
+/// A SINGLETON, not a per-screen `@StateObject`. This view is reached by
+/// `NavigationLink`, which fully deallocates the destination (and any
+/// `@StateObject` it owns) on pop — but `download()`'s `Task` has no tie to
+/// the view's lifetime and keeps running regardless. A per-view instance
+/// meant a download survived navigating away, invisibly, while the FRESH
+/// instance created by navigating back showed "not downloaded" (its own
+/// `progress` dict starts empty) — inviting a second, concurrent download of
+/// the same files, and making `delete()` look like it silently didn't work
+/// when the zombie download recreated the very files just removed. A shared
+/// instance means every screen sees the same in-flight state.
 @MainActor
 final class LocalModelStore: ObservableObject {
+    static let shared = LocalModelStore()
+
     @Published var downloadedIds: Set<String> = []
     @Published var progress: [String: Double] = [:]
     @Published var errorMessage: String?
 
-    init() {
+    /// Independent of `AppPreferences.keepScreenAwakeWhileBuilding` — that flag
+    /// is driven centrally by agent-turn state (AppPreferences.swift), and a
+    /// second, uncoordinated writer of `isIdleTimerDisabled` would race it.
+    /// `beginBackgroundTask` alone still buys the OS's background grace period
+    /// (the same mechanism AgentLiveActivityController already uses for agent
+    /// turns), which is what actually matters: it is the app being suspended,
+    /// not merely the screen dimming, that kills a foreground download.
+    private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
+
+    private init() {
         refresh()
     }
 
@@ -267,7 +285,9 @@ final class LocalModelStore: ObservableObject {
         guard progress[modelId] == nil else { return }
         progress[modelId] = 0
         errorMessage = nil
+        beginBackgroundProtection()
         Task {
+            defer { endBackgroundProtectionIfIdle() }
             do {
                 try await MLXRuntime.shared.ensureDownloaded(modelId: modelId) { [weak self] fraction in
                     Task { @MainActor in self?.progress[modelId] = fraction }
@@ -282,8 +302,31 @@ final class LocalModelStore: ObservableObject {
     }
 
     func delete(_ modelId: String) {
-        try? FileManager.default.removeItem(at: LocalModelLocation.directory(for: modelId))
+        do {
+            try FileManager.default.removeItem(at: LocalModelLocation.directory(for: modelId))
+        } catch {
+            let ns = error as NSError
+            if ns.code != NSFileNoSuchFileError {
+                errorMessage = String(localized: "Löschen fehlgeschlagen: \(error.localizedDescription)")
+            }
+        }
         MLXRuntime.shared.unload(modelId: modelId)
         refresh()
+    }
+
+    private func beginBackgroundProtection() {
+        guard backgroundTask == .invalid else { return }
+        backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "aiity.model-download") { [weak self] in
+            Task { @MainActor in self?.endBackgroundProtectionIfIdle(force: true) }
+        }
+    }
+
+    /// Ends the background task once nothing is downloading — or immediately,
+    /// if the OS is about to force-end it anyway (`force`, from the expiration
+    /// handler above).
+    private func endBackgroundProtectionIfIdle(force: Bool = false) {
+        guard (force || progress.isEmpty), backgroundTask != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(backgroundTask)
+        backgroundTask = .invalid
     }
 }
