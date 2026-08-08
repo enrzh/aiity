@@ -29,14 +29,47 @@ final class ProviderProfilesTests: XCTestCase {
         XCTAssertTrue(ollama.baseURL.contains("192.168"))
     }
 
-    func testApplyFillsDefaultModelWhenEmpty() {
+    /// Empty model = "the user has not chosen yet" — switching providers must
+    /// NOT paper over it with preset.defaultModel (the old behavior). Requests
+    /// still work through the transient effectiveModel fallback.
+    func testApplyKeepsAnUnchosenModelEmpty() {
         var settings = ProviderSettings()
         var profile = ProviderProfile()
         profile.model = ""
         ProviderProfiles.apply(profile, presetId: "anthropic", to: &settings)
         XCTAssertEqual(settings.presetId, "anthropic")
-        XCTAssertFalse(settings.model.isEmpty)
-        XCTAssertEqual(settings.model, ProviderPreset.preset(for: "anthropic").defaultModel)
+        XCTAssertTrue(settings.model.isEmpty,
+                      "apply must not silently commit a default model")
+        XCTAssertEqual(settings.effectiveModel,
+                       ProviderPreset.preset(for: "anthropic").defaultModel,
+                       "request-time fallback must stay intact")
+    }
+
+    /// A full switch round-trip (capture -> apply) preserves emptiness: the
+    /// "no model chosen" state survives leaving and re-entering a provider.
+    func testCaptureApplyRoundTripPreservesEmptyModel() {
+        var settings = ProviderSettings()
+        settings.presetId = "openai"
+        settings.model = ""
+        ProviderProfiles.capture(from: settings)
+
+        var restored = ProviderSettings()
+        ProviderProfiles.apply(
+            ProviderProfiles.profile(for: "openai"),
+            presetId: "openai",
+            to: &restored
+        )
+        XCTAssertTrue(restored.model.isEmpty)
+        XCTAssertTrue(ProviderProfiles.profile(for: "openai").model.isEmpty)
+    }
+
+    /// An actual prior choice, on the other hand, is restored verbatim.
+    func testApplyRestoresAnActualPriorChoice() {
+        var settings = ProviderSettings()
+        var profile = ProviderProfile()
+        profile.model = "claude-haiku-4-5"
+        ProviderProfiles.apply(profile, presetId: "anthropic", to: &settings)
+        XCTAssertEqual(settings.model, "claude-haiku-4-5")
     }
 
     func testApplyDoesNotTouchImageSlot() {

@@ -37,7 +37,7 @@ final class FullFlowUITests: XCTestCase {
         keepButton.tap()
 
         // 3. Open the kept app from the Apps tab.
-        app.tabBars.buttons["Apps"].tap()
+        openAppsTab()
         let libraryItem = app.buttons["library-app"].firstMatch
         XCTAssertTrue(libraryItem.waitForExistence(timeout: 10), "kept app should show up in the library")
         libraryItem.tap()
@@ -62,6 +62,7 @@ final class FullFlowUITests: XCTestCase {
         //    shows the LIST, so the conversation has to be opened from a row.
         app.terminate()
         app.launch()
+        dismissCrashNoticeIfShown()
         let rows = app.buttons.matching(identifier: "thread-row")
         XCTAssertTrue(rows.firstMatch.waitForExistence(timeout: 15), "the chat list should show past conversations")
         rows.firstMatch.tap()
@@ -108,7 +109,7 @@ final class FullFlowUITests: XCTestCase {
         let keep = app.buttons["keep-app"]
         XCTAssertTrue(keep.waitForExistence(timeout: 10))
         keep.tap()
-        app.tabBars.buttons["Apps"].tap()
+        openAppsTab()
         let item = app.buttons["library-app"].firstMatch
         XCTAssertTrue(item.waitForExistence(timeout: 10))
         item.tap()
@@ -140,7 +141,7 @@ final class FullFlowUITests: XCTestCase {
         XCTAssertTrue(keep.waitForExistence(timeout: 25), "network mini-app card should appear")
         keep.tap()
 
-        app.tabBars.buttons["Apps"].tap()
+        openAppsTab()
         let item = app.buttons["library-app"].firstMatch
         XCTAssertTrue(item.waitForExistence(timeout: 10), "kept app should be in the library")
         item.tap()
@@ -189,6 +190,45 @@ final class FullFlowUITests: XCTestCase {
     private func backToChatList() {
         let back = app.navigationBars.buttons.element(boundBy: 0)
         if back.exists { back.tap() }
+    }
+
+    /// The test's own `terminate()` reads as an unexpected end on the next
+    /// launch (a SIGKILL leaves no clean-exit marker), so DiagnosticsRecorder's
+    /// crash notice slides into the chat list a beat after it renders — via
+    /// `.task` — shifting the thread rows between XCUITest's hit-point
+    /// snapshot and the synthesized tap, which then lands on the banner
+    /// instead of the row. The banner is real, intended app behavior; the
+    /// test just clears it deterministically before touching rows.
+    private func dismissCrashNoticeIfShown() {
+        let notice = app.descendants(matching: .any)["crash-notice"].firstMatch
+        guard notice.waitForExistence(timeout: 5) else { return }
+        app.buttons["Hinweis schließen"].firstMatch.tap()
+        let deadline = Date().addingTimeInterval(5)
+        while Date() < deadline, notice.exists {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+    }
+
+    /// Switch to the Apps tab, dropping the keyboard first when the simulator
+    /// shows a software one. With the keyboard up the tab bar is covered, and
+    /// XCUITest computes a {-1,-1} hit point for the covered tab button — the
+    /// tap silently lands nowhere and the test then fails one assertion later
+    /// ("kept app should show up in the library") on machines whose simulator
+    /// has no hardware keyboard attached. Do what a user does: drag the
+    /// transcript (ChatView maps that to scrollDismissesKeyboard(.immediately)),
+    /// then navigate.
+    private func openAppsTab() {
+        if !app.keyboards.allElementsBoundByIndex.isEmpty {
+            let window = app.windows.firstMatch
+            let start = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+            let end = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55))
+            start.press(forDuration: 0.15, thenDragTo: end)
+            let deadline = Date().addingTimeInterval(5)
+            while Date() < deadline, !app.keyboards.allElementsBoundByIndex.isEmpty {
+                RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+            }
+        }
+        app.tabBars.buttons["Apps"].tap()
     }
 
     private func sendChatMessage(_ text: String) {

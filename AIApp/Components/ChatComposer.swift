@@ -4,6 +4,9 @@ struct ChatComposer: View {
     @ObservedObject private var prefs = AppPreferences.shared
 
     @Binding var text: String
+    /// Owned by ChatView so it can drop the keyboard before sheets present
+    /// and on disappear — see the stale-keyboard-inset fix there.
+    var focus: FocusState<Bool>.Binding
     let placeholder: String
     let isBusy: Bool
     let canSend: Bool
@@ -35,6 +38,7 @@ struct ChatComposer: View {
             .accessibilityHint(prefs.chatMode.detail)
 
             TextField(placeholder, text: $text, axis: .vertical)
+                .focused(focus)
                 .lineLimit(1...6)
                 .textFieldStyle(.plain)
                 .padding(.horizontal, Theme.space3)

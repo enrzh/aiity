@@ -104,6 +104,10 @@ struct MiniAppRunnerView: UIViewRepresentable {
     }
 
     static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
+        // A focused HTML input must not hold its keyboard through sheet
+        // teardown: WKWebView's keyboard-dismissal geometry racing the sheet
+        // transition is what left the chat composer's keyboard inset stale.
+        webView.endEditing(true)
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "bridge")
     }
 
@@ -236,6 +240,31 @@ struct MiniAppRunnerView: UIViewRepresentable {
                 confirmOpenExternal(url)
             }
             return nil
+        }
+
+        // MARK: WKUIDelegate permission policy
+        //
+        // Sandboxed mini-apps and browser-tier remote sites must never reach
+        // the camera, microphone or motion sensors. The app declares no
+        // NSCamera/NSMicrophoneUsageDescription, so leaving WebKit's default
+        // (`.prompt`) in place would surface an OS dialog in aiity's name at
+        // best and trip a TCC crash on grant at worst. Denying here makes
+        // "no capture from web content" an explicit policy instead of an
+        // undefined default; sites see an ordinary NotAllowedError.
+
+        func webView(_ webView: WKWebView,
+                     requestMediaCapturePermissionFor origin: WKSecurityOrigin,
+                     initiatedByFrame frame: WKFrameInfo,
+                     type: WKMediaCaptureType,
+                     decisionHandler: @escaping (WKPermissionDecision) -> Void) {
+            decisionHandler(.deny)
+        }
+
+        func webView(_ webView: WKWebView,
+                     requestDeviceOrientationAndMotionPermissionFor origin: WKSecurityOrigin,
+                     initiatedByFrame frame: WKFrameInfo,
+                     decisionHandler: @escaping (WKPermissionDecision) -> Void) {
+            decisionHandler(.deny)
         }
 
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {

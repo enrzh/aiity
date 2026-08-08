@@ -14,10 +14,16 @@ final class SettingsStore: ObservableObject {
 
     init() {
         // Profiles have no live-observing owner (they're read on demand via
-        // `profile(for:)`, never cached), so this only needs the adopt-once
-        // half: if iCloud already has profiles and this device has none yet,
-        // pull them in before `ProviderProfiles.profile(for:)` below reads.
-        CloudSettingsSync.adopt(key: ProviderProfiles.storageKey) { _ in }
+        // `profile(for:)`, never cached), so the handler is a no-op: if
+        // iCloud already has profiles and this device has none yet, pull
+        // them in before `ProviderProfiles.profile(for:)` below reads. Later
+        // remote changes go through the per-provider merge instead of
+        // whole-map overwrite, so a device that never configured a provider
+        // cannot erase another device's model pick for it.
+        CloudSettingsSync.adopt(
+            key: ProviderProfiles.storageKey,
+            merge: ProviderProfiles.mergedData
+        ) { _ in }
 
         var loaded = ProviderSettings.load()
         // Hydrate chat fields from per-provider profile if present.
@@ -29,17 +35,25 @@ final class SettingsStore: ObservableObject {
             loaded.baseURL = profile.baseURL
         }
         settings = loaded
-        ProviderProfiles.capture(from: settings)
+        // Local snapshot only, no iCloud push: on a fresh install this is
+        // the near-empty default map, and pushing it here raced the KVS
+        // initial sync — a reinstall could publish "nothing configured" over
+        // the map another device had already built. Real user-driven changes
+        // (the `didSet` above, provider screens) still push.
+        ProviderProfiles.capture(from: settings, push: false)
 
         // `settings` above may have loaded the plain local default (a fresh
-        // install has nothing in UserDefaults yet) — this call, made only
-        // once per launch, both adopts an existing iCloud value synchronously
-        // right here (correcting `settings` before init ever returns, so no
-        // observer sees the wrong value) and keeps listening so a later
-        // change pushed from another device takes effect without a relaunch.
-        // `adopt` registers exactly one observer per key: this must stay the
-        // only call site for `ProviderSettings.storageKey`.
-        CloudSettingsSync.adopt(key: ProviderSettings.storageKey) { [weak self] _ in
+        // install has nothing in UserDefaults yet) — this call both adopts an
+        // existing iCloud value synchronously right here (correcting
+        // `settings` before init ever returns, so no observer sees the wrong
+        // value) and keeps listening so a later change pushed from another
+        // device takes effect without a relaunch. Re-running init (SwiftUI
+        // recreating the @StateObject) re-binds the handler to THIS instance;
+        // the old one is dropped by CloudSettingsSync's registry.
+        CloudSettingsSync.adopt(
+            key: ProviderSettings.storageKey,
+            merge: ProviderSettings.mergedData
+        ) { [weak self] _ in
             self?.settings = ProviderSettings.load()
         }
     }

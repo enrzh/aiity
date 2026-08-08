@@ -6,7 +6,14 @@ import UIKit
 struct ProviderConnectionView: View {
     let presetId: String
     var modality: ModelModality = .chat
+    /// When true (default), leaving via back navigation with an active chat
+    /// provider that has no chosen model first asks the user to pick one.
+    /// The onboarding connect sheet passes false — OnboardingModal owns that
+    /// prompt on its sheet-dismiss/finish paths, and doubling it up would ask
+    /// the same question twice in a row.
+    var promptsOnExit: Bool = true
 
+    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var settingsStore: SettingsStore
     @EnvironmentObject private var accountStore: AccountStore
     @StateObject private var oauth = OAuthService()
@@ -28,7 +35,11 @@ struct ProviderConnectionView: View {
     @State private var probeResult: ConnectionProbeResult?
     @State private var hostDraft = ""
     /// Local draft for model when this provider is not yet the active slot.
+    /// For chat this may hold an UNCOMMITTED suggestion (a highlighted
+    /// recommendation in the picker) — only the Picker/TextField bindings
+    /// commit it.
     @State private var modelDraft = ""
+    @State private var showLeaveWithoutModelDialog = false
 
     private var preset: ProviderPreset { ProviderPreset.preset(for: presetId) }
     private var isLocalWizard: Bool { ConnectionProbe.isLocalStyle(presetId) }
@@ -39,6 +50,23 @@ struct ProviderConnectionView: View {
     private var accounts: [Account] { accountStore.accounts(for: presetId) }
     private var activeAccount: Account? { accountStore.activeAccount(for: presetId) }
     private var availableModelIds: [String] { catalogModels.map(\.id) }
+
+    /// Leaving this screen should first ask for a model: active chat provider,
+    /// connected enough to chat, nothing committed (see
+    /// `ProviderConnectionModel.needsModelChoice`). Reads the live
+    /// `settingsStore.settings.model` so committing a model immediately
+    /// restores the normal back button.
+    private var needsModelChoice: Bool {
+        ProviderConnectionModel.needsModelChoice(
+            preset: preset,
+            modality: modality,
+            isChatActive: isChatActive,
+            committedModel: settingsStore.settings.model,
+            accountCount: accounts.count
+        )
+    }
+
+    private var interceptsExit: Bool { promptsOnExit && needsModelChoice }
 
     /// Connection settings for this preset (chat-active uses live store; else profile).
     private var connectionSettings: ProviderSettings {
@@ -84,6 +112,40 @@ struct ProviderConnectionView: View {
         }
         .navigationTitle(preset.label)
         .navigationBarTitleDisplayMode(.inline)
+        // Exit prompt: an active chat provider without a chosen model asks on
+        // the way out — pick now, or leave anyway (allowed: chat has a clear
+        // "Kein Modell gewählt" error surface for that state). The system back
+        // button is swapped for one that raises the question first.
+        .navigationBarBackButtonHidden(interceptsExit)
+        .toolbar {
+            if interceptsExit {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showLeaveWithoutModelDialog = true
+                    } label: {
+                        Label("Zurück", systemImage: "chevron.backward")
+                    }
+                    .accessibilityIdentifier("provider-back")
+                }
+            }
+        }
+        .confirmationDialog(
+            "Kein Modell gewählt",
+            isPresented: $showLeaveWithoutModelDialog,
+            titleVisibility: .visible
+        ) {
+            if !modelDraft.isEmpty {
+                // The highlighted suggestion, one tap to make it real.
+                Button(String(localized: "\(modelDraft) verwenden")) {
+                    commitModel(modelDraft)
+                    dismiss()
+                }
+            }
+            Button("Ohne Modell verlassen") { dismiss() }
+            Button("Modell wählen", role: .cancel) {}
+        } message: {
+            Text("Ohne Modell kann dieser Anbieter nicht antworten. Ein Modell lässt sich auch später unter Mehr → KI-Anbieter wählen.")
+        }
         .onAppear {
             syncDraftsFromStore()
             // Instant model list from cache/defaults, then silent refresh.
@@ -119,15 +181,23 @@ struct ProviderConnectionView: View {
             hostDraft = snap.baseURL.isEmpty ? preset.defaultBaseURL : snap.baseURL
         }
         if isActiveForModality {
-            modelDraft = settingsStore.settings.model(for: modality)
-            if modality == .chat, modelDraft.isEmpty {
+            switch modality {
+            case .chat:
+                // Raw stored value, NOT effectiveModel: an empty chat model is
+                // the deliberate "user has not chosen" state and must stay
+                // visibly unchosen — only a real user pick fills it.
                 modelDraft = settingsStore.settings.model
+            case .image:
+                modelDraft = settingsStore.settings.model(for: .image)
             }
         } else {
             let profile = ProviderProfiles.profile(for: presetId)
             switch modality {
             case .chat:
-                modelDraft = profile.model.isEmpty ? preset.defaultModel : profile.model
+                // Only an actual prior choice — no preset.defaultModel
+                // pre-seeding. A recommendation may still appear as an
+                // uncommitted highlight via bootstrapModels().
+                modelDraft = profile.model
             case .image:
                 modelDraft = profile.lastImageModel.isEmpty
                     ? ModelModality.image.defaultModel : profile.lastImageModel
@@ -599,15 +669,22 @@ struct ProviderConnectionView: View {
         let seed = ModelCatalogCache.modelsForDisplay(presetId: presetId)
         if !seed.isEmpty {
             catalogModels = seed
-            if modelDraft.isEmpty || !seed.map(\.id).contains(modelDraft) {
-                if let pick = ModelCatalogService.autoPickModel(
-                    from: seed,
-                    settings: connectionSettings
-                ) {
-                    modelDraft = pick
-                    // Don't force-commit empty active slot without user intent for non-active.
-                    if isActiveForModality || isChatActive {
-                        commitModel(pick)
+            switch modality {
+            case .chat:
+                suggestChatModel(from: seed, settings: connectionSettings)
+            case .image:
+                // Image keeps its established auto-pick + commit (its own
+                // modality slot; deliberately outside the choose-on-exit
+                // semantics of the chat model).
+                if modelDraft.isEmpty || !seed.map(\.id).contains(modelDraft) {
+                    if let pick = ModelCatalogService.autoPickModel(
+                        from: seed,
+                        settings: connectionSettings
+                    ) {
+                        modelDraft = pick
+                        if isActiveForModality || isChatActive {
+                            commitModel(pick)
+                        }
                     }
                 }
             }
@@ -631,16 +708,33 @@ struct ProviderConnectionView: View {
                !models.isEmpty {
                 await MainActor.run {
                     catalogModels = models
-                    if modelDraft.isEmpty,
-                       let pick = ModelCatalogService.autoPickModel(from: models, settings: snapshot) {
-                        modelDraft = pick
-                        if isActiveForModality || isChatActive {
-                            commitModel(pick)
+                    switch modality {
+                    case .chat:
+                        suggestChatModel(from: models, settings: snapshot)
+                    case .image:
+                        if modelDraft.isEmpty,
+                           let pick = ModelCatalogService.autoPickModel(from: models, settings: snapshot) {
+                            modelDraft = pick
+                            if isActiveForModality || isChatActive {
+                                commitModel(pick)
+                            }
                         }
                     }
                 }
             }
         }
+    }
+
+    /// UI suggestion only — highlight a recommended CHAT model in the picker
+    /// when nothing is chosen yet. Never persists anything: `commitModel` runs
+    /// solely from the Picker/TextField bindings (genuine user actions) so a
+    /// catalog load can never silently decide the model for the user.
+    private func suggestChatModel(from models: [CatalogModel], settings: ProviderSettings) {
+        guard modality == .chat, modelDraft.isEmpty,
+              let pick = ModelCatalogService.autoPickModel(from: models, settings: settings) else {
+            return
+        }
+        modelDraft = pick
     }
 
     private func commitModel(_ value: String) {
@@ -764,10 +858,6 @@ struct ProviderConnectionView: View {
     private func fetchModels() {
         fetchingModels = true
         modelsError = nil
-        // For chat, activate so catalog + auto-pick land on live settings.
-        if modality == .chat, !isChatActive {
-            applyAsActive()
-        }
         var snapshot = probeSnapshot()
         Task {
             do {
@@ -781,19 +871,21 @@ struct ProviderConnectionView: View {
                 } else {
                     let pickPool = filteredCatalogModels.isEmpty ? models : filteredCatalogModels
                     if modality == .chat {
-                        if let pick = ModelCatalogService.autoPickModel(from: pickPool, settings: snapshot) {
-                            modelDraft = pick
-                            commitModel(pick)
-                        }
-                    } else if modelDraft.isEmpty || !pickPool.map(\.id).contains(modelDraft) {
-                        if let first = pickPool.first {
+                        // Loading models neither commits a model nor activates
+                        // the provider — the recommendation is a highlight in
+                        // the picker until the user actually taps it.
+                        suggestChatModel(from: pickPool, settings: snapshot)
+                    } else {
+                        // Image keeps its established behavior: first usable
+                        // model is committed and the slot is activated.
+                        if modelDraft.isEmpty || !pickPool.map(\.id).contains(modelDraft),
+                           let first = pickPool.first {
                             modelDraft = first.id
                             commitModel(first.id)
                         }
-                    }
-                    // Ensure modality slot is active after successful load.
-                    if !isActiveForModality {
-                        applyAsActive()
+                        if !isActiveForModality {
+                            applyAsActive()
+                        }
                     }
                 }
             } catch {
@@ -810,9 +902,9 @@ struct ProviderConnectionView: View {
     private func runProbe() {
         probing = true
         probeResult = nil
-        if modality == .chat, !isChatActive {
-            applyAsActive()
-        }
+        // Testing the connection neither activates the provider nor commits a
+        // model — ConnectionProbe auto-picks a model TRANSIENTLY for its test
+        // chat; here the result only refreshes the catalog and the suggestion.
         let snapshot = probeSnapshot()
         Task {
             let key = await AuthStore.effectiveKey(for: snapshot)
@@ -821,18 +913,10 @@ struct ProviderConnectionView: View {
             if result.ok, !result.models.isEmpty {
                 if let rich = try? await ModelCatalogService.fetchModels(settings: snapshot, apiKey: key) {
                     catalogModels = rich
-                    if modality == .chat,
-                       let pick = ModelCatalogService.autoPickModel(from: rich, settings: snapshot) {
-                        modelDraft = pick
-                        commitModel(pick)
-                    }
+                    suggestChatModel(from: rich, settings: snapshot)
                 } else {
                     catalogModels = result.models.map { CatalogModel(id: $0) }
-                    if modality == .chat,
-                       let pick = ModelCatalogService.autoPickModel(from: catalogModels, settings: snapshot) {
-                        modelDraft = pick
-                        commitModel(pick)
-                    }
+                    suggestChatModel(from: catalogModels, settings: snapshot)
                 }
             }
             probing = false

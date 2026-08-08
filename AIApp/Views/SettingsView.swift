@@ -60,7 +60,10 @@ struct SettingsView: View {
 
                     AppSettingsRow(
                         title: sync.title,
-                        subtitle: sync.detail,
+                        // `subtitle` swaps in the last CloudKit failure (quota,
+                        // auth, network) when there is one — "iCloud aktiv" must
+                        // not stand unqualified while every export quietly fails.
+                        subtitle: sync.subtitle,
                         systemImage: sync.systemImage
                     )
                     .accessibilityIdentifier("sync-status")
@@ -109,7 +112,10 @@ struct SettingsView: View {
                     }
                     .accessibilityIdentifier("import-backup")
                 } footer: {
-                    Text("Einmalige Kopie zum Weggeben oder Archivieren. iCloud spiegelt auch Löschungen — eine Datei nicht. Beim Einspielen wird nur ergänzt, nie überschrieben oder gelöscht.")
+                    // Honest about the two restore semantics: apps merge per
+                    // item, but chats/skills/agents are whole-file and only
+                    // land on a device that has none of its own yet.
+                    Text("Einmalige Kopie zum Weggeben oder Archivieren. iCloud spiegelt auch Löschungen — eine Datei nicht. Beim Einspielen werden Mini-Apps nur ergänzt, nie überschrieben oder gelöscht; Chats, Skills und Agenten werden nur übernommen, wenn dieses Gerät noch keine eigenen hat.")
                 }
 
                 Section("Anzeige") {
@@ -189,14 +195,40 @@ struct SettingsView: View {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
 
+        let data: Data
         do {
-            let data = try Data(contentsOf: url)
+            data = try Data(contentsOf: url)
+        } catch {
+            importSummary = error.localizedDescription
+            return
+        }
+
+        // Restoring while the FIRST CloudKit import is still in flight would
+        // insert records whose UUIDs may be seconds away from arriving via
+        // iCloud too — duplicates CloudKit can never dedup. Wait it out (the
+        // 20 s timeout in SyncStatus bounds this); usually it settled long
+        // before the user reached this screen and the wait is zero.
+        if !sync.initialImportComplete {
+            importSummary = String(localized: "Warte auf iCloud-Abgleich …")
+        }
+        Task {
+            await sync.waitUntilInitialImportSettled()
+            applyBackup(data)
+        }
+    }
+
+    private func applyBackup(_ data: Data) {
+        do {
             let existing = Set(savedApps.map(\.id))
             let (result, apps) = try BackupService.restore(from: data, existingIds: existing)
             for app in apps { modelContext.insert(app) }
             // Reporting success after swallowing the save error tells the user
             // their apps were restored when they were not.
             try modelContext.save()
+            // Defense in depth behind the wait above: if duplicates DID get in
+            // (older builds, an import racing a later sync), fold them —
+            // conservatively, see MiniAppDedup.
+            MiniAppDedup.removeDuplicates(in: modelContext)
             // The import wrote chat/skill/agent files under live stores that
             // still hold their own state — without a reload the next save
             // overwrites everything just restored. This was done for chats

@@ -15,6 +15,14 @@ struct OnboardingModal: View {
     /// back out to actually choose. Both buttons now open a scoped picker
     /// instead; only "Gateway" is genuinely one specific preset already.
     @State private var connectRoute: OnboardingConnectRoute?
+    /// Connect-sheet closed with an active provider but no chosen model —
+    /// ask (once) whether to pick one now or later.
+    @State private var showModelPromptAfterSheet = false
+    /// Same question at "Loslegen"/"Schließen" when it never got asked.
+    @State private var showModelPromptOnFinish = false
+    /// The user already answered "Später" once — don't nag again on the next
+    /// leave path in the same onboarding session.
+    @State private var declinedModelPrompt = false
     @EnvironmentObject private var settingsStore: SettingsStore
     @EnvironmentObject private var accountStore: AccountStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -85,11 +93,18 @@ struct OnboardingModal: View {
                         .accessibilityIdentifier("onboarding-skip")
                 }
             }
-            .sheet(item: $connectRoute) { route in
+            .sheet(item: $connectRoute, onDismiss: handleConnectSheetDismiss) { route in
                 NavigationStack {
                     switch route {
                     case .preset(let presetId):
-                        ProviderConnectionView(presetId: presetId, modality: .chat)
+                        // promptsOnExit: false — the modal asks the no-model
+                        // question itself on sheet dismiss / finish; the
+                        // in-view back interception would double it up.
+                        ProviderConnectionView(
+                            presetId: presetId,
+                            modality: .chat,
+                            promptsOnExit: false
+                        )
                     case .apiKeyPicker:
                         ProviderPickerList(
                             title: String(localized: "API-Key"),
@@ -105,8 +120,53 @@ struct OnboardingModal: View {
                 .environmentObject(settingsStore)
                 .environmentObject(accountStore)
             }
+            .confirmationDialog(
+                "Kein Modell gewählt",
+                isPresented: $showModelPromptAfterSheet,
+                titleVisibility: .visible
+            ) {
+                Button("Modell wählen") {
+                    connectRoute = .preset(settingsStore.settings.presetId)
+                }
+                Button("Später", role: .cancel) { declinedModelPrompt = true }
+            } message: {
+                Text("\(settingsStore.settings.preset.label) ist verbunden, aber noch ohne Modell. Ohne Modell kann der Chat nicht antworten.")
+            }
+            .confirmationDialog(
+                "Kein Modell gewählt",
+                isPresented: $showModelPromptOnFinish,
+                titleVisibility: .visible
+            ) {
+                Button("Modell wählen") {
+                    connectRoute = .preset(settingsStore.settings.presetId)
+                }
+                Button("Ohne Modell loslegen") {
+                    declinedModelPrompt = true
+                    completeFinish()
+                }
+            } message: {
+                Text("\(settingsStore.settings.preset.label) ist verbunden, aber noch ohne Modell. Ohne Modell kann der Chat nicht antworten.")
+            }
         }
         .interactiveDismissDisabled(true)
+    }
+
+    /// The chat slot is connected but has no chosen model — the state the
+    /// exit prompts exist for. Same trigger logic as the provider screen.
+    private var activeChatNeedsModel: Bool {
+        ProviderConnectionModel.needsModelChoice(
+            preset: settingsStore.settings.preset,
+            modality: .chat,
+            isChatActive: true,
+            committedModel: settingsStore.settings.model,
+            accountCount: accountStore.accounts(for: settingsStore.settings.presetId).count
+        )
+    }
+
+    private func handleConnectSheetDismiss() {
+        if activeChatNeedsModel && !declinedModelPrompt {
+            showModelPromptAfterSheet = true
+        }
     }
 
     /// Every chat preset that takes a key or an OAuth login — excluding
@@ -146,6 +206,17 @@ struct OnboardingModal: View {
     }
 
     private func finish() {
+        // Leaving onboarding with a connected-but-model-less chat provider
+        // asks once (skipping without ever connecting stays a clean exit —
+        // `activeChatNeedsModel` needs an account or a keyless preset).
+        if activeChatNeedsModel && !declinedModelPrompt {
+            showModelPromptOnFinish = true
+            return
+        }
+        completeFinish()
+    }
+
+    private func completeFinish() {
         onFinished()
         isPresented = false
     }

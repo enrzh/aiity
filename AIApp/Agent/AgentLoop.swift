@@ -348,6 +348,9 @@ final class ChatSession: ObservableObject {
         // Recorded, not applied: the window shapes the REQUEST (see
         // `outgoing`), never the stored conversation.
         usesLocalHistoryWindow = LocalRuntimePolicy.isLocal(settings)
+        // Everything from here on is the ACTIVE turn — `outgoing` must never
+        // strip its tool scaffolding, only window the turns before it.
+        turnStartIndex = messages.count
         messages.append(ChatMessage(role: .user, text: text))
         persist()
         busy = true
@@ -447,9 +450,26 @@ final class ChatSession: ObservableObject {
     /// per send from the resolved provider; never affects what is stored.
     private var usesLocalHistoryWindow = false
 
+    /// Where the ACTIVE turn begins in `messages` — set by `send` right before
+    /// it appends the user message. Everything from this index on is the turn
+    /// currently running (user text, assistant tool calls, `tool` results,
+    /// repair prompts).
+    private var turnStartIndex = 0
+
     /// The message list to send, as opposed to the one we keep.
+    ///
+    /// The local window is applied to the PREVIOUS turns only. It strips tool
+    /// scaffolding (`historyForLocal`), and stripping the active turn's too
+    /// meant a local model with web tools enabled could never see a tool's
+    /// result: the follow-up request lost the `tool` message, so the model
+    /// re-issued the same call every round until the cap — a dead loop where
+    /// a single web_search round used to work. (The pre-`outgoing` trim ran
+    /// once per send, before the turn's messages existed, so it could not
+    /// touch them; this split restores exactly that behavior.)
     private func outgoing(_ history: [ChatMessage]) -> [ChatMessage] {
-        usesLocalHistoryWindow ? Self.historyForLocal(history) : history
+        guard usesLocalHistoryWindow else { return history }
+        let split = min(max(turnStartIndex, 0), history.count)
+        return Self.historyForLocal(Array(history[..<split])) + Array(history[split...])
     }
 
     /// Insert / refresh the hidden full-source user message while editing.

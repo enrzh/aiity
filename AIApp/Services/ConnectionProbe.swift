@@ -270,7 +270,9 @@ enum ConnectionProbe {
         }
     }
 
-    private static func completionRequest(
+    /// Internal (not private) so the preset-catalog tests can assert request
+    /// construction — URL shape and auth headers — for both wire dialects.
+    static func completionRequest(
         base: String, dialect: ProviderDialect, model: String, apiKey: String
     ) -> URLRequest? {
         switch dialect {

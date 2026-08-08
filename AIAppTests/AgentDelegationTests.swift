@@ -178,6 +178,43 @@ final class GroupPerspectiveTests: XCTestCase {
             XCTAssertFalse(template.modelHint.isEmpty, "each suggestion should say what model suits it")
         }
     }
+
+    /// Suggestions persist after the first agent: an empty roster keeps all of
+    /// them, and creating one hides ONLY that template — matched by name
+    /// regardless of case and stray whitespace, the same normalisation the
+    /// edit sheet uses to refuse duplicate names.
+    func testRemainingHidesOnlyCreatedTemplates() {
+        XCTAssertEqual(
+            AgentSuggestion.remaining(existing: []).map(\.name),
+            AgentSuggestion.all.map(\.name),
+            "an empty roster must keep every suggestion"
+        )
+
+        let template = AgentSuggestion.all[0]
+        let created = AgentDefinition(name: "  \(template.name.uppercased()) ", role: "x")
+        let remaining = AgentSuggestion.remaining(existing: [created])
+        XCTAssertEqual(remaining.count, AgentSuggestion.all.count - 1)
+        XCTAssertFalse(
+            remaining.contains { $0.name == template.name },
+            "a created template must not be suggested again"
+        )
+    }
+
+    /// Once every template has been created there is nothing left to suggest —
+    /// that emptiness is what removes the section from the Agenten tab.
+    func testRemainingIsEmptyOnceEveryTemplateExists() {
+        let roster = AgentSuggestion.all.map { AgentSuggestion.agent(from: $0) }
+        XCTAssertTrue(AgentSuggestion.remaining(existing: roster).isEmpty)
+    }
+
+    /// A custom agent with its own name hides nothing.
+    func testRemainingIgnoresCustomAgents() {
+        let custom = AgentDefinition(name: "Mein Spezialist", role: "x")
+        XCTAssertEqual(
+            AgentSuggestion.remaining(existing: [custom]).count,
+            AgentSuggestion.all.count
+        )
+    }
 }
 
 /// The chat mode decides how much the agent does before asking.

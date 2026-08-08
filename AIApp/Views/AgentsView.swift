@@ -7,43 +7,59 @@ struct AgentsView: View {
     @ObservedObject private var store = AgentStore.shared
     @State private var editing: AgentDefinition?
     @State private var deleteCandidate: AgentDefinition?
+    /// Collapse state of the "Vorschläge" section once agents exist. Persisted
+    /// so the choice survives relaunches; ignored while the roster is empty —
+    /// a collapsed empty state would look like a blank screen.
+    @AppStorage("agentsSuggestionsExpanded") private var suggestionsExpanded = true
+
+    /// Templates the user has not created yet. Suggestions persist after the
+    /// first agent; only the ones already in the roster disappear.
+    private var remainingSuggestions: [AgentSuggestion.Template] {
+        AgentSuggestion.remaining(existing: store.agents)
+    }
+
+    private var suggestionsContentVisible: Bool {
+        store.agents.isEmpty || suggestionsExpanded
+    }
 
     var body: some View {
         NavigationStack {
-            Group {
+            List {
                 if store.agents.isEmpty {
-                    List {
-                        Section {
-                            Text("Lege Spezialisten an — der Chat fragt sie von sich aus, wenn eine Aufgabe passt.")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                            Button {
-                                editing = AgentDefinition(name: "", role: "")
-                            } label: {
-                                Label("Eigenen Agent anlegen", systemImage: "plus.circle")
-                            }
-                        } header: {
-                            Text("Noch keine Agenten")
+                    Section {
+                        Text("Lege Spezialisten an — der Chat fragt sie von sich aus, wenn eine Aufgabe passt.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Button {
+                            editing = AgentDefinition(name: "", role: "")
+                        } label: {
+                            Label("Eigenen Agent anlegen", systemImage: "plus.circle")
                         }
-
-                        Section {
-                            ForEach(AgentSuggestion.all) { template in
-                                suggestionRow(template)
-                            }
-                        } header: {
-                            Text("Vorschläge")
-                        } footer: {
-                            Text("Öffnet den Entwurf zum Anpassen. Das Modell wählst du selbst — jeder Vorschlag sagt dir, was dafür sinnvoll ist.")
-                        }
+                    } header: {
+                        Text("Noch keine Agenten")
                     }
                 } else {
-                    List {
-                        Section {
-                            ForEach(store.agents) { agent in
-                                agentRow(agent)
+                    Section {
+                        ForEach(store.agents) { agent in
+                            agentRow(agent)
+                        }
+                    } footer: {
+                        Text("Der Chat entscheidet selbst, wen er fragt. Ausgeschaltete Agenten werden nie gefragt.")
+                    }
+                }
+
+                if !remainingSuggestions.isEmpty {
+                    Section {
+                        if suggestionsContentVisible {
+                            ForEach(remainingSuggestions) { template in
+                                suggestionRow(template)
                             }
-                        } footer: {
-                            Text("Der Chat entscheidet selbst, wen er fragt. Ausgeschaltete Agenten werden nie gefragt.")
+                        }
+                    } header: {
+                        suggestionsHeader
+                    } footer: {
+                        if suggestionsContentVisible {
+                            Text("Öffnet den Entwurf zum Anpassen. Das Modell wählst du selbst — jeder Vorschlag sagt dir, was dafür sinnvoll ist.")
                         }
                     }
                 }
@@ -94,6 +110,35 @@ struct AgentsView: View {
             } message: { agent in
                 Text(String(localized: "„\(agent.name)“ wird entfernt."))
             }
+        }
+    }
+
+    /// Plain text while the roster is empty; a collapse toggle once agents
+    /// exist, so the suggestions can get out of the way without vanishing.
+    @ViewBuilder
+    private var suggestionsHeader: some View {
+        if store.agents.isEmpty {
+            Text("Vorschläge")
+        } else {
+            Button {
+                withAnimation { suggestionsExpanded.toggle() }
+            } label: {
+                HStack {
+                    Text("Vorschläge")
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .font(.caption.weight(.semibold))
+                        .rotationEffect(.degrees(suggestionsExpanded ? 0 : -90))
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("agent-suggestions-toggle")
+            .accessibilityLabel(
+                suggestionsExpanded
+                    ? String(localized: "Vorschläge einklappen")
+                    : String(localized: "Vorschläge ausklappen")
+            )
         }
     }
 

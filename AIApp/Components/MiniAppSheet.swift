@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Sheet hosting a sandboxed mini-app. Chrome: **AI · Title · Done**.
 /// Tapping AI dismisses and opens Chat linked to this app for further edits.
@@ -96,6 +97,13 @@ struct MiniAppSheet: View {
         } else {
             session.startEditingDraft(name: name, html: html, emoji: emoji)
         }
+        // Drop the web view's keyboard BEFORE the sheet starts dismissing.
+        // This path stacks three animations (sheet dismissal, keyboard hide,
+        // tab switch) — the race that could leave the chat composer's keyboard
+        // inset stale, floating the bar mid-screen with no keyboard visible.
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
+        )
         dismiss()
         // Defer so sheet dismissal doesn't fight tab switch.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {

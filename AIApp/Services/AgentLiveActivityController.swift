@@ -38,6 +38,22 @@ final class AgentLiveActivityController {
         isAgentBusy = true
         ScreenWake.shared.setAgentBusy(true)
 
+        // The user just kicked off an agent turn while the app is active — the
+        // one contextual moment to secure delivery for "Antwort fertig".
+        // `.provisional` shows NO dialog: the first completion arrives quietly
+        // in the notification centre and iOS itself offers keep/turn-off, so
+        // the decision stays with the user. Crucially, notifyDone — which only
+        // ever runs from the background — then never has to request
+        // authorization (the system cannot present the dialog back there; the
+        // old code lost the first notification and queued a context-free
+        // prompt for later). Fire-and-forget so the turn is never delayed.
+        Task {
+            if await AppNotifications.gate() == .ask {
+                _ = try? await UNUserNotificationCenter.current()
+                    .requestAuthorization(options: [.alert, .sound, .provisional])
+            }
+        }
+
         guard #available(iOS 16.2, *) else { return }
         guard isSupported else {
             // Silently returning here is why "no Live Activity" was
@@ -227,9 +243,14 @@ final class AgentLiveActivityController {
     }
 
     private func notifyDone(title: String, body: String) {
-        let center = UNUserNotificationCenter.current()
-        center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
-            guard granted else { return }
+        Task {
+            // Every caller is a wasBackgrounded path, i.e. the app is in the
+            // BACKGROUND: never requestAuthorization here (the system cannot
+            // present the first-time dialog, the notification would be lost
+            // and the prompt would surface later without context). Post only
+            // when the user — or the provisional grant from start() — already
+            // allows it.
+            guard await AppNotifications.gate() == .post else { return }
             let content = UNMutableNotificationContent()
             content.title = title
             content.body = body
@@ -239,7 +260,7 @@ final class AgentLiveActivityController {
                 content: content,
                 trigger: nil
             )
-            center.add(req)
+            try? await UNUserNotificationCenter.current().add(req)
         }
     }
 }

@@ -102,6 +102,7 @@ final class BrowserFetch: NSObject {
 
         let view = WKWebView(frame: CGRect(x: 0, y: 0, width: 1024, height: 1400), configuration: configuration)
         view.navigationDelegate = self
+        view.uiDelegate = self
         // Ask for the desktop-ish layout most articles are written for.
         view.customUserAgent = WebSearchTool.browserUA
         webView = view
@@ -155,6 +156,31 @@ final class BrowserFetch: NSObject {
             let text = (value as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             self.finish(text.isEmpty ? .failure(FetchError.noContent) : .success(text))
         }
+    }
+}
+
+extension BrowserFetch: WKUIDelegate {
+    /// Same deny-by-default policy as MiniAppRunnerView: a page fetched for
+    /// reading must never reach capture or motion sensors. This view is
+    /// offscreen with no window, so WebKit could not present a prompt anyway —
+    /// these turn "cannot present" into stated policy.
+    nonisolated func webView(
+        _ webView: WKWebView,
+        requestMediaCapturePermissionFor origin: WKSecurityOrigin,
+        initiatedByFrame frame: WKFrameInfo,
+        type: WKMediaCaptureType,
+        decisionHandler: @escaping (WKPermissionDecision) -> Void
+    ) {
+        decisionHandler(.deny)
+    }
+
+    nonisolated func webView(
+        _ webView: WKWebView,
+        requestDeviceOrientationAndMotionPermissionFor origin: WKSecurityOrigin,
+        initiatedByFrame frame: WKFrameInfo,
+        decisionHandler: @escaping (WKPermissionDecision) -> Void
+    ) {
+        decisionHandler(.deny)
     }
 }
 

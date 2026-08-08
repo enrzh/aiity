@@ -101,7 +101,10 @@ struct AgentDefinition: Identifiable, Codable, Equatable {
     }
 }
 
-/// Starting points offered when the user has no agents yet.
+/// Starting points for the agents roster. Suggestions persist after the first
+/// agent is created — only the templates whose name already exists disappear
+/// (see `remaining(existing:)`), so the section vanishes only once all of them
+/// have been used.
 ///
 /// Roles only — the model is deliberately NOT preset. Which brain an agent runs
 /// on is a cost and privacy decision that belongs to the user; a suggestion
@@ -149,6 +152,19 @@ enum AgentSuggestion {
             modelHint: String(localized: "Ein günstiges, schnelles Modell genügt.")
         ),
     ]
+
+    /// The templates not yet present in `existing`, matched by name —
+    /// case-insensitive and whitespace-trimmed, the same normalisation the
+    /// edit sheet uses to refuse duplicates. Name is the right key because
+    /// `Template.id` IS the name and agent names are enforced unique.
+    static func remaining(existing: [AgentDefinition]) -> [Template] {
+        let taken = Set(existing.map {
+            $0.name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        })
+        return all.filter {
+            !taken.contains($0.name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+        }
+    }
 
     /// A template as a fresh agent — provider intentionally left empty, so it
     /// inherits the chat provider until the user chooses one.

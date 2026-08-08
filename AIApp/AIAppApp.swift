@@ -14,6 +14,11 @@ struct AIAppApp: App {
         // Listening from launch, not from the first local generation: the
         // warning that matters arrives while a round is already running.
         MemoryPressure.shared.start()
+        // The app's ONE notification delegate, installed before anything can
+        // post. Without it iOS silently swallows every notification that fires
+        // while the app is foreground — the normal mini-app notify() case.
+        // Installing is not a permission request; no dialog is involved.
+        AppNotificationDelegate.install()
 
         #if DEBUG
         // Pull the last run's report over the console instead of asking anyone
@@ -52,6 +57,23 @@ struct AIAppApp: App {
             settings.save()
             let effective = settings.preset.dialect == .mlx ? settings.localModelId : settings.model
             print("AIITY-PROVIDER set to \(settings.presetId) model=\(effective)")
+        }
+
+        // Dump the provider-profiles blob and the active chat slot over the
+        // console, so "opening a provider screen and leaving does not mutate
+        // stored profiles" can be asserted from outside the app (launch, dump,
+        // drive the UI, relaunch, dump again, diff):
+        //   devicectl device process launch --console \
+        //     --environment-variables '{"AIITY_DUMP_PROVIDERS":"1"}' com.aiity.app
+        // DEBUG-gated like AIITY_DUMP_DIAGNOSTICS above — must never reach a
+        // Release binary (tools/release.sh strings-checks for debug seams).
+        if ProcessInfo.processInfo.environment["AIITY_DUMP_PROVIDERS"] != nil {
+            print("=== AIITY PROVIDERS BEGIN ===")
+            let blob = UserDefaults.standard.data(forKey: ProviderProfiles.storageKey)
+            print(blob.flatMap { String(data: $0, encoding: .utf8) } ?? "(no profiles blob)")
+            let settings = ProviderSettings.load()
+            print("active presetId=\(settings.presetId) model=\(settings.model.isEmpty ? "(unchosen)" : settings.model)")
+            print("=== AIITY PROVIDERS END ===")
         }
 
         MLXSelfTest.runIfRequested()
@@ -133,10 +155,12 @@ struct AIAppApp: App {
 
 struct RootView: View {
     @ObservedObject private var prefs = AppPreferences.shared
+    @ObservedObject private var sync = SyncStatus.shared
     @StateObject private var session = ChatSession()
     @StateObject private var settingsStore = SettingsStore()
     @StateObject private var accountStore = AccountStore()
     @StateObject private var onboarding = OnboardingStore()
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
     @State private var showOnboarding = false
     @State private var selectedTab = 0
@@ -165,10 +189,25 @@ struct RootView: View {
         // Applied at the root so every sheet and pushed screen inherits it.
         .preferredColorScheme(prefs.appearance.colorScheme)
         .task {
+            // Sync was just re-enabled after running local-only: records
+            // created in between may never be exported on their own (whether
+            // CloudKit catches up from persistent history is not guaranteed),
+            // so mark every record dirty once with an invisible +1 ms bump.
+            if SyncModeTransition.consumePendingCatchUp() {
+                SyncModeTransition.touchAllRecords(in: modelContext)
+            }
             // The store is already open by the time RootView appears, so there
             // is nothing to wait ON — this is purely the entrance finishing.
             try? await Task.sleep(nanoseconds: 950_000_000)
             splashFinished = true
+        }
+        .onChange(of: sync.initialImportComplete) { _, complete in
+            // CloudKit cannot enforce UUID uniqueness — once the first import
+            // has settled, fold any records that arrived as duplicates of
+            // local ones (keep-newest only, never on a tie; see MiniAppDedup).
+            if complete && sync.mode == .synced {
+                MiniAppDedup.removeDuplicates(in: modelContext)
+            }
         }
     }
 

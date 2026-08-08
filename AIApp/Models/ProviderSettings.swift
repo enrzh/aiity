@@ -15,7 +15,13 @@ struct ProviderSettings: Codable, Equatable {
     var presetId: String = "openrouter"
     /// Override for presets with editable endpoints (self-hosted, LAN).
     var baseURL: String = ""
-    /// Active chat model.
+    /// Active chat model. Empty string means "the user has not chosen a model
+    /// yet" — a deliberate, user-visible state, never auto-filled: neither
+    /// provider switching nor catalog fetches nor settings sync may write a
+    /// default into it silently (a sync/merge must prefer a non-empty value
+    /// chosen on another device, not invent one on this one). Only an explicit
+    /// user pick commits a model; `effectiveModel` provides the transient
+    /// request-time fallback for presets that have a default.
     var model: String = ""
     /// Optional search endpoint (SearXNG instance or similar). Empty = use
     /// the built-in DuckDuckGo HTML fallback.
@@ -133,6 +139,32 @@ struct ProviderSettings: Codable, Equatable {
         }
     }
 
+    /// `CloudSettingsSync.Merge` for the settings blob. The blob arriving
+    /// from another device wins — that is the point of sync — EXCEPT that an
+    /// empty `model`/`baseURL` for the SAME provider must not clobber this
+    /// device's explicit choice: per the contract on `model`, empty means
+    /// "deliberately unchosen", so adopting another device's non-empty pick
+    /// is fine but a remote empty erasing a local pick is not, and two
+    /// empties stay empty (nothing invents a default). When the remote blob
+    /// switched to a DIFFERENT provider it wins wholesale — filling its
+    /// fields from a different provider's local state would be wrong.
+    static func mergedData(local: Data, incoming: Data) -> Data {
+        let decoder = JSONDecoder()
+        guard let mine = try? decoder.decode(ProviderSettings.self, from: local),
+              var remote = try? decoder.decode(ProviderSettings.self, from: incoming) else {
+            return incoming
+        }
+        if remote.presetId == mine.presetId {
+            if remote.model.isEmpty { remote.model = mine.model }
+            if remote.baseURL.isEmpty { remote.baseURL = mine.baseURL }
+        }
+        if remote.imagePresetId == mine.imagePresetId, remote.imageModel.isEmpty {
+            remote.imageModel = mine.imageModel
+        }
+        if remote.localModelId.isEmpty { remote.localModelId = mine.localModelId }
+        return (try? JSONEncoder().encode(remote)) ?? incoming
+    }
+
     // MARK: - Modality slots
 
     func activePresetId(for modality: ModelModality) -> String {
@@ -173,6 +205,9 @@ struct ProviderSettings: Codable, Equatable {
         s.baseURL = profile.baseURL
         s.model = profile.model
         s.localModelId = profile.localModelId.isEmpty ? LocalModel.defaultId : profile.localModelId
+        // Transient request-time fallback (like `effectiveModel`) — this
+        // snapshot is never persisted, so filling the default here does not
+        // overwrite the user's "no model chosen yet" state.
         if s.model.isEmpty {
             s.model = ProviderPreset.preset(for: presetId).defaultModel
         }

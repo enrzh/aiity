@@ -7,8 +7,21 @@ Implements:
       call containing a tool result -> streams text + a mini-app ```html fence
       chat whose system prompt marks an editing session -> streams the
       updated mini-app (blue background) directly
+  POST /v1/chat/completions  (stream=false) — plain JSON completion ("ok"),
+      the shape the in-app connection probe ("Verbindung testen") sends.
+      The scripted SSE behavior above only ever sees stream=true requests.
+  POST /v1/messages — Anthropic-dialect non-stream message ("ok").
+  GET  /v1/models — provider model list; shape depends on STUB_MODE (below).
+  GET  /api/tags — native-Ollama tag list (a real Ollama serves both this
+      and the /v1 OpenAI-compat endpoints, so it is available in every mode).
   GET  /search?q=...&format=json — SearXNG-shaped results, so the app's
       web_search tool can run hermetically against this server too.
+
+Modes (env STUB_MODE, default "openai") only change the models-list dialect:
+  openai     GET /v1/models -> {"data":[{"id":...}]}
+  anthropic  GET /v1/models -> Anthropic-shaped {"data":[{"type":"model",...}]}
+  ollama     GET /v1/models -> 404 (native Ollama has no /v1/models; the app
+             must fall back to /api/tags)
 
 Run: python3 tools/stub_llm_server.py [port]   (default 8555)
 """
@@ -18,6 +31,7 @@ import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8555
+MODE = os.environ.get("STUB_MODE", "openai")  # openai | anthropic | ollama
 
 NOTES_APP = """<!doctype html>
 <!-- emoji: 📝 -->
@@ -98,8 +112,40 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Connection", "close")
         self.end_headers()
 
+    def _send_json(self, obj, status=200):
+        body = json.dumps(obj).encode()
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self):
-        if self.path.startswith("/search"):
+        if self.path.startswith("/v1/models") or self.path.endswith("/models"):
+            if MODE == "ollama":
+                # Native Ollama has no /v1/models — force the /api/tags fallback.
+                self.send_response(404)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+            elif MODE == "anthropic":
+                self._send_json({
+                    "data": [
+                        {"type": "model", "id": "claude-stub-1",
+                         "display_name": "Claude Stub"},
+                    ],
+                    "has_more": False,
+                })
+            else:
+                self._send_json({"data": [
+                    {"id": "stub-large", "object": "model"},
+                    {"id": "stub-mini", "object": "model"},
+                ]})
+        elif self.path.startswith("/api/tags"):
+            # Native-Ollama tag list (all modes — a real Ollama serves both).
+            self._send_json({"models": [
+                {"name": "qwen2.5:0.5b", "model": "qwen2.5:0.5b"},
+            ]})
+        elif self.path.startswith("/search"):
             body = json.dumps({
                 "results": [
                     {"title": "Notiz-Apps im Überblick", "url": f"http://127.0.0.1:{PORT}/page",
@@ -152,6 +198,18 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(body)
             return
 
+        if self.path.endswith("/messages"):
+            # Anthropic-dialect non-stream message — the connection probe's
+            # test chat for anthropic/custom-anthropic presets.
+            request = json.loads(raw)
+            self._send_json({
+                "id": "msg_stub", "type": "message", "role": "assistant",
+                "model": request.get("model", "claude-stub-1"),
+                "content": [{"type": "text", "text": "ok"}],
+                "stop_reason": "end_turn",
+            })
+            return
+
         if not self.path.endswith("/chat/completions"):
             self.send_response(404)
             self.send_header("Content-Length", "0")
@@ -159,6 +217,21 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         request = json.loads(raw)
+
+        if request.get("stream") is False:
+            # Non-stream completion — sent by the in-app connection probe
+            # ("Verbindung testen"), never by the chat path (which always
+            # streams), so the scripted SSE behavior below stays untouched.
+            self._send_json({
+                "id": "chatcmpl-stub", "object": "chat.completion",
+                "model": request.get("model", "stub"),
+                "choices": [{
+                    "index": 0, "finish_reason": "stop",
+                    "message": {"role": "assistant", "content": "ok"},
+                }],
+            })
+            return
+
         messages = request.get("messages", [])
         system = next((m.get("content", "") for m in messages if m.get("role") == "system"), "")
         tool_texts = [m.get("content", "") for m in messages if m.get("role") == "tool"]

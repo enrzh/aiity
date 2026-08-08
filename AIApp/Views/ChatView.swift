@@ -16,6 +16,20 @@ struct ChatView: View {
     /// Measured height of the floating input bubble — drives the scroll
     /// clearance so a multi-line input never overlaps the last message.
     @State private var inputBarHeight: CGFloat = 64
+    /// Explicit keyboard height (screen space). The composer used to ride
+    /// SwiftUI's implicit keyboard safe-area inset, which sheet dismissals
+    /// with a keyboard up (worst: the MiniAppSheet WKWebView) could leave
+    /// stale — parking the bar mid-screen with no keyboard visible. The view
+    /// now opts out of that inset and lifts the bar itself.
+    @StateObject private var keyboard = KeyboardObserver()
+    /// Gap between this screen's bottom edge and the screen's bottom edge
+    /// (tab bar + home indicator), measured live. Converts the keyboard's
+    /// screen-space height into a lift in this view's own space.
+    @State private var containerBottomInset: CGFloat = 0
+    /// Composer focus, owned here so the keyboard can be dropped BEFORE any
+    /// sheet presents — a keyboard alive through a sheet transition is what
+    /// used to leave the stale inset behind.
+    @FocusState private var composerFocused: Bool
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -70,6 +84,12 @@ struct ChatView: View {
 
     private var isEditingApp: Bool { session.editingContext != nil }
 
+    /// How far the composer must rise above its resting position so its
+    /// bottom edge sits exactly on the keyboard's top edge. 0 when hidden.
+    private var composerLift: CGFloat {
+        max(0, keyboard.height - containerBottomInset)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             if let ctx = session.editingContext {
@@ -107,6 +127,7 @@ struct ChatView: View {
                                 // has to be a way to report it.
                                 if message.role == .assistant, !message.text.isEmpty {
                                     Button(role: .destructive) {
+                                        composerFocused = false
                                         reportTarget = message
                                     } label: {
                                         Label("Inhalt melden", systemImage: "flag")
@@ -164,7 +185,10 @@ struct ChatView: View {
                     // Clearance so the last message can scroll clear of the
                     // floating input bubble (which overlays the content). Tracks
                     // the measured bubble height so a 6-line input never overlaps.
-                    .padding(.bottom, inputBarHeight + 16)
+                    // composerLift keeps the clearance correct while the keyboard
+                    // is up: the view no longer shrinks with the implicit keyboard
+                    // inset, so the raised bar's travel must be padded explicitly.
+                    .padding(.bottom, inputBarHeight + composerLift + 16)
                     .animation(
                         Theme.Motion.preferSpring(Theme.Motion.soft, reduceMotion: reduceMotion),
                         value: visibleMessages.count
@@ -181,7 +205,13 @@ struct ChatView: View {
                         MiniAppCard(
                             draft: draft,
                             isStreaming: session.busy,
-                            onPreview: { previewDraft = draft },
+                            // Drop the keyboard before the sheet slides up — a
+                            // keyboard alive through the transition is the race
+                            // that left the composer's inset stale.
+                            onPreview: {
+                                composerFocused = false
+                                previewDraft = draft
+                            },
                             onKeep: { keep(draft) },
                             onEditAI: {
                                 session.startEditingDraft(
@@ -243,8 +273,30 @@ struct ChatView: View {
                         Color.clear.preference(key: InputBarHeightKey.self, value: geo.size.height)
                     }
                 )
+                // AFTER the height measurement: InputBarHeightKey keeps meaning
+                // "bar height only" — the lift is added separately where needed.
+                .padding(.bottom, composerLift)
         }
+        .background(
+            // The keyboard reports its frame in screen space; the composer
+            // lives in this view's space, whose bottom edge sits above the tab
+            // bar. Measure the gap so the lift lands the bar exactly on the
+            // keyboard's top edge.
+            GeometryReader { geo in
+                Color.clear.preference(
+                    key: ContainerBottomInsetKey.self,
+                    value: max(0, UIScreen.main.bounds.maxY - geo.frame(in: .global).maxY)
+                )
+            }
+        )
+        // Opt out of the implicit keyboard safe-area inset: it is what went
+        // stale (sheet dismissed with keyboard up, AI-edit tab-switch race,
+        // scene backgrounding) and parked the bar mid-screen. Position now
+        // comes only from KeyboardObserver, whose didHide path always resets.
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .onPreferenceChange(InputBarHeightKey.self) { inputBarHeight = $0 }
+        .onPreferenceChange(ContainerBottomInsetKey.self) { containerBottomInset = $0 }
+        .onDisappear { composerFocused = false }
         .navigationTitle(session.activeThreadTitle.isEmpty ? "Chat" : session.activeThreadTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -263,6 +315,7 @@ struct ChatView: View {
                 // toolbar drops the chip's text when the title is long — which
                 // left a bare icon on a grey square.
                 Button {
+                    composerFocused = false
                     showQuickProvider = true
                 } label: {
                     Image(systemName: "cpu")
@@ -274,6 +327,7 @@ struct ChatView: View {
                 // Skills used to hide behind an overflow menu whose only other
                 // entry was the provider — which already has its own button.
                 Button {
+                    composerFocused = false
                     showSkills = true
                 } label: {
                     Image(systemName: "puzzlepiece.extension")
@@ -382,6 +436,7 @@ struct ChatView: View {
     private var inputBar: some View {
         ChatComposer(
             text: $input,
+            focus: $composerFocused,
             placeholder: isEditingApp ? String(localized: "Änderung beschreiben…") : String(localized: "Nachricht"),
             isBusy: session.busy,
             canSend: !sanitizedInput.isEmpty,
@@ -459,6 +514,74 @@ extension MiniAppDraft: Identifiable {
 private struct InputBarHeightKey: PreferenceKey {
     static var defaultValue: CGFloat = 64
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
+/// Distance from the chat screen's bottom edge to the screen's bottom edge
+/// (tab bar + home indicator) — see the measuring GeometryReader in ChatView.
+private struct ContainerBottomInsetKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
+/// Tracks the keyboard's on-screen height explicitly so the composer's
+/// position never depends on SwiftUI's implicit keyboard safe-area inset.
+///
+/// That implicit inset could be left stale when a sheet was dismissed while
+/// its keyboard was up (worst: MiniAppSheet's WKWebView inputs), when AI-edit
+/// dismissed + switched tabs 0.35 s later, or when the scene backgrounded mid-
+/// keyboard — parking the bar at former-keyboard-top height with no keyboard
+/// on screen. Listening to `keyboardDidHideNotification` makes that state
+/// impossible by construction: didHide fires even when a dismissal transition
+/// swallows the willHide geometry, so the offset always self-heals to 0.
+private final class KeyboardObserver: ObservableObject {
+    /// Keyboard height measured from the bottom of the screen; 0 when hidden.
+    @Published private(set) var height: CGFloat = 0
+
+    private var tokens: [NSObjectProtocol] = []
+
+    init() {
+        let center = NotificationCenter.default
+        // willChangeFrame (not willShow/willHide): it also covers height
+        // changes while visible — emoji keyboard, QuickType bar, dictation —
+        // and repeated frames during interactive dismissal are just re-applied.
+        tokens.append(center.addObserver(
+            forName: UIResponder.keyboardWillChangeFrameNotification,
+            object: nil, queue: .main
+        ) { [weak self] note in
+            self?.apply(note)
+        })
+        // The self-heal path — must also work with no preceding willChange.
+        tokens.append(center.addObserver(
+            forName: UIResponder.keyboardDidHideNotification,
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.set(0, duration: 0.2)
+        })
+    }
+
+    deinit { tokens.forEach(NotificationCenter.default.removeObserver) }
+
+    private func apply(_ note: Notification) {
+        guard let end = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
+        let duration = note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double ?? 0.25
+        // Since iOS 16.1 the notification's object is the keyboard's UIScreen.
+        let bounds = (note.object as? UIScreen)?.bounds ?? UIScreen.main.bounds
+        // A hidden keyboard's end frame sits at/below the screen edge → 0.
+        set(max(0, bounds.maxY - end.minY), duration: duration)
+    }
+
+    private func set(_ newHeight: CGFloat, duration: Double) {
+        guard newHeight != height else { return }
+        if duration > 0 {
+            // UIKit's keyboard animation is (privately) this exact spring —
+            // matching it keeps the hand-driven bar glued to the keyboard edge.
+            withAnimation(.interpolatingSpring(mass: 3, stiffness: 1000, damping: 500, initialVelocity: 0)) {
+                height = newHeight
+            }
+        } else {
+            height = newHeight
+        }
+    }
 }
 
 
