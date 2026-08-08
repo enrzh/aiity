@@ -28,6 +28,12 @@ struct ReportContentSheet: View {
     }
 
     var body: some View {
+        AppSheet(detents: [.large]) {
+            reportContent
+        }
+    }
+
+    private var reportContent: some View {
         ModalChrome(title: String(localized: "Inhalt melden"), onCancel: onDismiss) {
             Form {
                 Section {
@@ -79,7 +85,6 @@ struct ReportContentSheet: View {
                 }
             }
         }
-        .presentationDetents([.large])
     }
 
     private func send() {

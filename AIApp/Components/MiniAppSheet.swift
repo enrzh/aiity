@@ -23,12 +23,22 @@ struct MiniAppSheet: View {
     @State private var showConsent = false
 
     var body: some View {
+        AppSheet(detents: [.large]) {
+            runnerContent
+        }
+    }
+
+    private var runnerContent: some View {
         NavigationStack {
             MiniAppRunnerView(
                 appId: appId,
                 html: html,
                 capability: effectiveCapability
             )
+            // The web view is non-opaque; keep a solid surface behind user
+            // content so the sheet's glass background never bleeds into an
+            // app that sets no background of its own.
+            .background(Color(.systemBackground).ignoresSafeArea())
             .ignoresSafeArea(edges: .bottom)
             .onAppear { resolveCapability() }
             .alert("Internetzugriff erlauben?", isPresented: $showConsent) {
@@ -74,8 +84,6 @@ struct MiniAppSheet: View {
                 }
             }
         }
-        .presentationDetents([.large])
-        .presentationDragIndicator(.visible)
     }
 
     /// Offline apps run immediately; a network/browser app runs offline until
@@ -118,13 +126,14 @@ struct MiniAppIconView: View {
     var emoji: String
     var iconSymbol: String?
     var size: CGFloat = 40
+    @Environment(\.colorScheme) private var colorScheme
 
     private var isSymbol: Bool { !(iconSymbol ?? "").isEmpty }
     private var seed: String { (iconSymbol ?? "") + emoji }
 
     var body: some View {
         RoundedRectangle(cornerRadius: size * 0.3, style: .continuous)
-            .fill(Theme.tileGradient(for: seed, deep: isSymbol))
+            .fill(Theme.tileGradient(for: seed, deep: isSymbol, dark: colorScheme == .dark))
             .frame(width: size, height: size)
             .overlay {
                 if isSymbol {

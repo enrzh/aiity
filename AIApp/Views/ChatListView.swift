@@ -8,6 +8,7 @@ struct ChatListView: View {
     @ObservedObject private var agentStore = AgentStore.shared
     @State private var showNewChat = false
     @State private var deleteCandidate: ChatThread?
+    @Environment(\.colorScheme) private var colorScheme
 
     private var threads: [ChatThread] {
         session.threads
@@ -96,6 +97,7 @@ struct ChatListView: View {
                         Spacer(minLength: 8)
                         Text(thread.updatedAt.formatted(.relative(presentation: .named)))
                             .font(.caption2)
+                            .monospacedDigit()
                             .foregroundStyle(.tertiary)
                     }
                     Text(thread.preview)
@@ -133,28 +135,39 @@ struct ChatListView: View {
         }
     }
 
-    /// Group chats show their members' emoji; a solo chat shows the app mark.
+    /// Group chats show their members' emoji on a subtle gradient ring; a solo
+    /// chat shows the app mark on the thread's own tile gradient — the same
+    /// stable-hue system the mini-app icons use, seeded by the thread id.
     @ViewBuilder
     private func avatar(for thread: ChatThread) -> some View {
         let emojis = agentStore.agents
             .filter { thread.participantAgentIds.contains($0.id) }
             .prefix(2)
             .map(\.emoji)
+        let gradient = Theme.tileGradient(
+            for: thread.id.uuidString, deep: true, dark: colorScheme == .dark
+        )
 
         ZStack {
-            Circle()
-                .fill(Color(.secondarySystemBackground))
             if emojis.isEmpty {
+                Circle()
+                    .fill(gradient)
                 Image(systemName: "sparkles")
                     .font(.body.weight(.semibold))
-                    .foregroundStyle(Theme.accent)
+                    .foregroundStyle(.white)
             } else {
+                Circle()
+                    .fill(Color(.secondarySystemBackground))
+                Circle()
+                    .strokeBorder(gradient, lineWidth: 1.5)
+                    .opacity(0.7)
                 Text(emojis.joined())
                     .font(emojis.count > 1 ? .caption : .title3)
                     .minimumScaleFactor(0.5)
             }
         }
         .frame(width: 44, height: 44)
+        .accessibilityHidden(true)
     }
 
     private func participantNames(_ thread: ChatThread) -> String {
@@ -184,6 +197,12 @@ struct NewChatSheet: View {
     @State private var selected: Set<UUID> = []
 
     var body: some View {
+        AppSheet {
+            newChatContent
+        }
+    }
+
+    private var newChatContent: some View {
         NavigationStack {
             List {
                 Section {
@@ -251,6 +270,5 @@ struct NewChatSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium, .large])
     }
 }

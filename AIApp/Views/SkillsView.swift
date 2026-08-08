@@ -33,29 +33,15 @@ struct SkillsView: View {
                 }
             }
 
-            Section("Empfohlen") {
-                ForEach(SkillRecommendations.all) { rec in
-                    Button {
-                        installRecommendation(rec)
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: rec.systemImage)
-                                .foregroundStyle(Color.accentColor)
-                                .frame(width: 28)
-                            Text(rec.title)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.primary)
-                            Spacer(minLength: 0)
-                            if upgrading {
-                                ProgressView().controlSize(.small)
-                            } else {
-                                Image(systemName: "plus.circle.fill")
-                                    .foregroundStyle(Color.accentColor)
-                            }
-                        }
-                    }
-                    .disabled(upgrading)
-                    .accessibilityIdentifier("skill-rec-\(rec.id)")
+            Section("Empfohlen: Für Mini-Apps") {
+                ForEach(SkillRecommendations.miniApps) { rec in
+                    recommendationRow(rec)
+                }
+            }
+
+            Section("Empfohlen: Anthropic") {
+                ForEach(SkillRecommendations.anthropic) { rec in
+                    recommendationRow(rec)
                 }
             }
 
@@ -95,6 +81,32 @@ struct SkillsView: View {
         .sheet(isPresented: $showingImport) {
             ImportSkillModal(store: store)
         }
+    }
+
+    /// One tappable install row. Identifier stays `skill-rec-<installKey>` —
+    /// the grouping above is purely presentational.
+    private func recommendationRow(_ rec: SkillRecommendation) -> some View {
+        Button {
+            installRecommendation(rec)
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: rec.systemImage)
+                    .foregroundStyle(Color.accentColor)
+                    .frame(width: 28)
+                Text(rec.title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                Spacer(minLength: 0)
+                if upgrading {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Image(systemName: "plus.circle.fill")
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
+        }
+        .disabled(upgrading)
+        .accessibilityIdentifier("skill-rec-\(rec.id)")
     }
 
     private func skillRow(_ skill: AgentSkill) -> some View {

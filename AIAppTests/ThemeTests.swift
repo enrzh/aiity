@@ -16,4 +16,34 @@ final class ThemeTests: XCTestCase {
         XCTAssertLessThan(Theme.chipRadius, Theme.cardRadius)
         XCTAssertLessThan(Theme.cardRadius, Theme.bubbleRadius)
     }
+
+    func testPressedScaleIsASubtleDip() {
+        // A pressed card should dip, not shrink into a toy.
+        XCTAssertGreaterThanOrEqual(Theme.pressedScale, 0.9)
+        XCTAssertLessThan(Theme.pressedScale, 1.0)
+    }
+
+    func testStableHueIsDeterministicAndInRange() {
+        XCTAssertEqual(Theme.stableHue("aiity"), Theme.stableHue("aiity"))
+        for seed in ["", "aiity", "✨", "timer", "🧭compass", "checklist🌐"] {
+            let hue = Theme.stableHue(seed)
+            XCTAssertGreaterThanOrEqual(hue, 0)
+            XCTAssertLessThan(hue, 1)
+        }
+    }
+
+    func testDarkTileToneIsDimmerButKeepsIdentity() {
+        for deep in [false, true] {
+            let light = Theme.tileTone(deep: deep, dark: false)
+            let dark = Theme.tileTone(deep: deep, dark: true)
+            // Dimmer on dark grids (the light pair glares there)…
+            XCTAssertLessThan(dark.top, light.top)
+            XCTAssertLessThan(dark.bottom, light.bottom)
+            // …but never desaturated, so a tile keeps its color identity.
+            XCTAssertGreaterThanOrEqual(dark.saturation, light.saturation)
+            // Within the band that still reads as a colored tile, not a void.
+            XCTAssertLessThanOrEqual(dark.top, 0.75)
+            XCTAssertGreaterThanOrEqual(dark.bottom, 0.4)
+        }
+    }
 }

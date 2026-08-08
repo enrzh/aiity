@@ -2,6 +2,8 @@ import SwiftUI
 
 struct ChatComposer: View {
     @ObservedObject private var prefs = AppPreferences.shared
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @Binding var text: String
     /// Owned by ChatView so it can drop the keyboard before sheets present
@@ -55,12 +57,25 @@ struct ChatComposer: View {
 
             Button(action: isBusy ? onStop : onSend) {
                 Image(systemName: isBusy ? "stop.fill" : "arrow.up")
-                    .font(.system(size: 16, weight: .bold))
+                    // Text style, not a fixed size, so the glyph tracks Dynamic Type.
+                    .font(.body.weight(.bold))
+                    // Morph arrow ↔ stop in place instead of a hard swap.
+                    .contentTransition(.symbolEffect(.replace))
                     .foregroundStyle(buttonForeground)
                     .frame(width: Theme.controlHeight, height: Theme.controlHeight)
                     .background(buttonBackground, in: Circle())
             }
             .disabled(!isBusy && !canSend)
+            // One animation context for the symbol morph and the
+            // gradient ↔ gray background change; fades under Reduce Motion.
+            .animation(
+                Theme.Motion.preferSpring(Theme.Motion.snappy, reduceMotion: reduceMotion),
+                value: isBusy
+            )
+            .animation(
+                Theme.Motion.preferSpring(Theme.Motion.snappy, reduceMotion: reduceMotion),
+                value: canSend
+            )
             .accessibilityIdentifier(isBusy ? "chat-stop" : "chat-send")
             .accessibilityLabel(isBusy ? "Stopp" : "Senden")
         }
@@ -77,7 +92,7 @@ struct ChatComposer: View {
             return AnyShapeStyle(Color.red)
         }
         if canSend {
-            return AnyShapeStyle(Theme.accentGradient)
+            return AnyShapeStyle(Theme.accentGradient(for: colorScheme))
         }
         return AnyShapeStyle(Color(.tertiarySystemFill))
     }

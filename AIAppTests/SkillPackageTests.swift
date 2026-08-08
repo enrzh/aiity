@@ -199,4 +199,89 @@ final class SkillPackageTests: XCTestCase {
         }
         XCTAssertNil(store.skills.first(where: { $0.name == "Test Pack" }))
     }
+
+    // MARK: - Bundled mini-app presets
+
+    /// The 8 bundled mini-app preset packages (Resources/BundledSkills/<name>.md).
+    private static let miniAppSkillNames = [
+        "formulare-tracker", "geld-prozent", "termine-erinnerungen", "daten-export",
+        "api-apps", "web-wrapper", "lern-apps", "barrierefreiheit",
+    ]
+
+    func testBundledMiniAppSkillsParseWithGermanDescriptions() throws {
+        for name in Self.miniAppSkillNames {
+            let md = try XCTUnwrap(
+                BundledSkills.markdown(named: "bundled:\(name)"),
+                "\(name).md missing from app bundle (BundledSkills)"
+            )
+            let doc = try XCTUnwrap(SkillPackage.parse(markdown: md), "\(name) must parse")
+            XCTAssertEqual(doc.name, name, "frontmatter name must match the file name")
+            // Version present proves the frontmatter block was actually parsed
+            // (not swallowed into the body).
+            XCTAssertNotNil(doc.version, "\(name): frontmatter did not parse")
+            XCTAssertFalse(doc.summary.isEmpty, "\(name): empty description")
+            XCTAssertFalse(doc.summary.hasPrefix("#"), "\(name): summary fell back to body")
+            XCTAssertFalse(doc.instructions.isEmpty, "\(name): empty body")
+        }
+    }
+
+    func testBundledMiniAppSkillBodiesFitInjectionBudget() throws {
+        // Each preset must fit even the compact skill budget on its own, so a
+        // single enabled preset is never truncated mid-skill.
+        for name in Self.miniAppSkillNames {
+            let md = try XCTUnwrap(BundledSkills.markdown(named: "bundled:\(name)"))
+            let doc = try XCTUnwrap(SkillPackage.parse(markdown: md))
+            XCTAssertLessThanOrEqual(
+                doc.instructions.count, ChatSession.skillCharBudgetCompact,
+                "\(name): body exceeds the compact skill budget"
+            )
+            XCTAssertLessThanOrEqual(
+                doc.instructions.count, ChatSession.skillCharBudgetCloud,
+                "\(name): body exceeds the cloud skill budget"
+            )
+        }
+    }
+
+    func testBundledMiniAppSkillNamesUnique() throws {
+        var names: [String] = []
+        for name in Self.miniAppSkillNames {
+            let md = try XCTUnwrap(BundledSkills.markdown(named: "bundled:\(name)"))
+            let doc = try XCTUnwrap(SkillPackage.parse(markdown: md))
+            names.append(doc.name)
+        }
+        XCTAssertEqual(Set(names).count, names.count, "duplicate parsed skill names")
+        let builtinNames = Set(SkillStore.builtins.map(\.name))
+        XCTAssertTrue(builtinNames.isDisjoint(with: names),
+                      "preset names must not collide with builtins (add() would fork)")
+    }
+
+    func testEveryBundledRecommendationResolvesToBundledResource() {
+        // Guards against a recommendation pointing at a missing .md — the
+        // exact failure behind "Gebündelter Skill … nicht im App-Bundle".
+        let bundled = SkillRecommendations.all.filter { $0.installKey.hasPrefix("bundled:") }
+        XCTAssertGreaterThanOrEqual(bundled.count, 16, "8 anthropic + 8 mini-app presets expected")
+        for rec in bundled {
+            XCTAssertNotNil(
+                BundledSkills.markdown(named: rec.installKey),
+                "\(rec.installKey) does not resolve to a bundled resource"
+            )
+        }
+        // The mini-app group is bundled-only by design (no upstream repo).
+        for rec in SkillRecommendations.miniApps {
+            XCTAssertNil(rec.remoteSource, "\(rec.installKey): mini-app presets have no remote source")
+        }
+    }
+
+    func testInstallBundledMiniAppSkillEnablesInjection() async {
+        let store = SkillStore()
+        await store.install(from: "bundled:geld-prozent")
+        XCTAssertNil(store.errorMessage)
+        let installed = store.skills.first { $0.name == "geld-prozent" }
+        XCTAssertNotNil(installed, "install(from: bundled:) must add the skill")
+        XCTAssertEqual(installed?.enabled, true)
+        XCTAssertEqual(installed?.source, "bundled:geld-prozent")
+        let injected = SkillStore.enabledInstructions()
+        XCTAssertTrue(injected.contains("geld-prozent"), injected.prefix(300).description)
+        XCTAssertTrue(injected.contains("integer cents"), "body must reach the prompt")
+    }
 }

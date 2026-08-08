@@ -110,7 +110,8 @@ struct LibraryView: View {
             systemImage: "square.grid.2x2",
             message: String(localized: "Im Chat bauen und behalten."),
             actionTitle: String(localized: "Zum Chat"),
-            action: openChatTab
+            action: openChatTab,
+            showsTileMotif: true
         )
     }
 
@@ -124,6 +125,7 @@ struct LibraryView: View {
 
     private func appCard(_ app: MiniApp) -> some View {
         Button {
+            Theme.Haptics.tap()
             openApp = app
         } label: {
             MiniAppTile(
@@ -133,7 +135,7 @@ struct LibraryView: View {
                 capabilityLabel: app.capability == .offline ? nil : app.capability.label
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .accessibilityIdentifier("library-app")
         .contextMenu {
             Button {
@@ -169,6 +171,12 @@ struct AddWebAppSheet: View {
     }
 
     var body: some View {
+        AppSheet(detents: [.medium]) {
+            addWebAppContent
+        }
+    }
+
+    private var addWebAppContent: some View {
         NavigationStack {
             Form {
                 Section {
@@ -202,7 +210,6 @@ struct AddWebAppSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium])
     }
 }
 
@@ -221,6 +228,12 @@ struct IconPickerSheet: View {
     private let emojis = ["✨", "✅", "⏱", "🛒", "❤️", "📚", "💰", "📍", "🎵", "📷", "🎮", "🌱"]
 
     var body: some View {
+        AppSheet {
+            iconPickerContent
+        }
+    }
+
+    private var iconPickerContent: some View {
         NavigationStack {
             Form {
                 Section("Emoji") {
@@ -232,7 +245,7 @@ struct IconPickerSheet: View {
                             } label: {
                                 Text(e).font(.title)
                                     .frame(width: 44, height: 44)
-                                    .background(emojiDraft == e ? Color.accentColor.opacity(0.2) : Color.clear, in: RoundedRectangle(cornerRadius: 8))
+                                    .background(emojiDraft == e ? Color.accentColor.opacity(0.2) : Color.clear, in: RoundedRectangle(cornerRadius: Theme.chipRadius, style: .continuous))
                             }
                             .buttonStyle(.plain)
                         }
@@ -247,7 +260,7 @@ struct IconPickerSheet: View {
                             } label: {
                                 Image(systemName: s)
                                     .frame(width: 44, height: 44)
-                                    .background(symbolDraft == s ? Color.accentColor.opacity(0.2) : Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 8))
+                                    .background(symbolDraft == s ? Color.accentColor.opacity(0.2) : Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.chipRadius, style: .continuous))
                             }
                             .buttonStyle(.plain)
                         }
@@ -289,6 +302,5 @@ struct IconPickerSheet: View {
                 symbolDraft = app.iconSymbol ?? ""
             }
         }
-        .presentationDetents([.medium, .large])
     }
 }

@@ -112,6 +112,7 @@ struct SuggestionList: View {
             HStack(spacing: 8) {
                 ForEach(suggestions, id: \.self) { text in
                     Button {
+                        Theme.Haptics.tap()
                         onTap(text)
                     } label: {
                         Text(text)
@@ -121,7 +122,7 @@ struct SuggestionList: View {
                             .padding(.vertical, 9)
                             .background(Color(.secondarySystemBackground), in: Capsule())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.pressable)
                     .accessibilityIdentifier("suggestion-chip")
                 }
             }

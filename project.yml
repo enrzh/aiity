@@ -25,8 +25,15 @@ targets:
       - path: AIApp
         excludes:
           - Resources/**
-    resources:
-      - path: AIApp/Resources
+      # Bundled SKILL.md packages, copied as a folder reference so the app
+      # bundle contains BundledSkills/<name>.md — the exact layout
+      # BundledSkills.markdown(named:) reads. NOTE: xcodegen has no target
+      #-level `resources:` key; the previous one was silently ignored, so no
+      # .md ever reached the bundle and every `bundled:` install quietly fell
+      # back to its GitHub remoteSource.
+      - path: AIApp/Resources/BundledSkills
+        type: folder
+        buildPhase: resources
     dependencies:
       - package: MLXSwiftLM
         products: [MLXLLM, MLXLMCommon]

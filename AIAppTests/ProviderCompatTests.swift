@@ -274,11 +274,11 @@ final class ProviderCompatTests: XCTestCase {
     func testSkillReplaceVsForkPredicate() {
         let existing = AgentSkill(name: "PDF", summary: "s", instructions: "orig",
                                   enabled: true, packageVersion: nil, source: "github:a/pdf")
-        // Same origin = upgrade (replaces, exempt from the free-tier gate).
+        // Same origin = upgrade (replaces in place).
         XCTAssertTrue(SkillStore.replacesExisting(existing, instructions: "v2", source: "github:a/pdf"))
         // Identical content = no-op replace.
         XCTAssertTrue(SkillStore.replacesExisting(existing, instructions: "orig", source: "github:b/pdf"))
-        // Different origin + different content = fork, so it must be gated.
+        // Different origin + different content = fork (a genuinely new skill).
         XCTAssertFalse(SkillStore.replacesExisting(existing, instructions: "other", source: "github:b/pdf"))
     }
 

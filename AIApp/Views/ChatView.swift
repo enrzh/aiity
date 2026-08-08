@@ -137,12 +137,22 @@ struct ChatView: View {
                             .id(message.id)
                             .transition(.opacity.combined(with: .move(edge: .bottom)))
                         }
-                        if session.busy, session.statusLine != nil {
+                        if session.busy, let status = session.statusLine {
+                            // Visible, not a11y-only: what the agent is doing
+                            // right now is exactly what a waiting user wants
+                            // to know. Crossfades as the phase changes.
                             HStack(spacing: 8) {
                                 ProgressView().controlSize(.small)
+                                Text(status)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                                    .contentTransition(.opacity)
                             }
+                            .animation(Theme.Motion.fade, value: session.statusLine)
                             .padding(.horizontal, 4)
                             .padding(.vertical, 4)
+                            .accessibilityElement(children: .combine)
                             .accessibilityLabel(session.statusLine ?? "Arbeitet")
                             .id("status-line")
                         }
@@ -347,20 +357,22 @@ struct ChatView: View {
             .environmentObject(session)
         }
         .sheet(isPresented: $showQuickProvider) {
-            NavigationStack {
-                ConnectionsView()
+            // AppSheet: every sheet shares the lifted-material chrome. The
+            // focus-resign happens at the presenting button, not here.
+            AppSheet(detents: [.large]) {
+                NavigationStack {
+                    ConnectionsView()
+                }
+                .environmentObject(settingsStore)
+                .environmentObject(accountStore)
             }
-            .environmentObject(settingsStore)
-            .environmentObject(accountStore)
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showSkills) {
-            NavigationStack {
-                SkillsView()
+            AppSheet(detents: [.large, .medium]) {
+                NavigationStack {
+                    SkillsView()
+                }
             }
-            .presentationDetents([.large, .medium])
-            .presentationDragIndicator(.visible)
         }
         .sheet(item: $reportTarget) { message in
             ReportContentSheet(
@@ -409,7 +421,8 @@ struct ChatView: View {
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: Theme.space3) {
             Image(systemName: isEditingApp ? "wand.and.stars" : "sparkles")
-                .font(.system(size: 28, weight: .semibold))
+                // Text style instead of a fixed size — tracks Dynamic Type.
+                .font(.title.weight(.semibold))
                 .foregroundStyle(Theme.accent)
             Text(isEditingApp ? "Was ändern?" : "Was soll ich bauen?")
                 .font(.title2.bold())
@@ -441,7 +454,10 @@ struct ChatView: View {
             isBusy: session.busy,
             canSend: !sanitizedInput.isEmpty,
             onSend: send,
-            onStop: session.stop
+            onStop: {
+                Theme.Haptics.send()
+                session.stop()
+            }
         ) { newValue in
             if PlainPasteboard.looksLikePasteboardArtifact(newValue) {
                 input = PlainPasteboard.plainText() ?? ""
@@ -462,6 +478,7 @@ struct ChatView: View {
             }
             return
         }
+        Theme.Haptics.send()
         session.send(text, settings: settingsStore.settings)
         input = ""
         Analytics.track("chat_send")
@@ -590,6 +607,7 @@ private final class KeyboardObserver: ObservableObject {
 private struct MessageBubble: View {
     let message: ChatMessage
     var showTyping: Bool = false
+    @Environment(\.colorScheme) private var colorScheme
 
     private var bubbleText: String {
         message.role == .assistant ? ChatView.strippingHTMLFence(from: message.text) : message.text
@@ -617,13 +635,11 @@ private struct MessageBubble: View {
                         }
                     }
                     if showTyping {
-                        HStack(spacing: 6) {
-                            ProgressView().controlSize(.small)
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 12)
-                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.bubbleRadius, style: .continuous))
-                        .accessibilityLabel("Schreibt")
+                        TypingDots()
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 14)
+                            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.bubbleRadius, style: .continuous))
+                            .accessibilityLabel("Schreibt")
                     } else if !bubbleText.isEmpty {
                         markdownText(bubbleText)
                             .textSelection(.enabled)
@@ -631,7 +647,7 @@ private struct MessageBubble: View {
                             .padding(.vertical, 10)
                             .background(
                                 message.role == .user
-                                    ? AnyShapeStyle(Theme.accentGradient)
+                                    ? AnyShapeStyle(Theme.accentGradient(for: colorScheme))
                                     : AnyShapeStyle(Color(.secondarySystemBackground)),
                                 in: RoundedRectangle(cornerRadius: Theme.bubbleRadius, style: .continuous)
                             )
@@ -667,6 +683,40 @@ private struct MessageBubble: View {
         } else {
             Text(text)
         }
+    }
+}
+
+/// Three quiet dots with a staggered rise — the platform's "someone is
+/// typing" vocabulary instead of a bare spinner. Under Reduce Motion the
+/// dots hold still at a readable opacity.
+private struct TypingDots: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var animating = false
+
+    var body: some View {
+        HStack(spacing: 5) {
+            ForEach(0..<3, id: \.self) { index in
+                Circle()
+                    .fill(Color.secondary)
+                    .frame(width: 7, height: 7)
+                    .opacity(animating ? 1 : (reduceMotion ? 0.6 : 0.4))
+                    .offset(y: animating && !reduceMotion ? -3 : 1.5)
+                    .animation(
+                        reduceMotion ? nil : .easeInOut(duration: 0.45)
+                            .repeatForever(autoreverses: true)
+                            .delay(Double(index) * 0.15),
+                        value: animating
+                    )
+            }
+        }
+        .onAppear {
+            if reduceMotion {
+                animating = false
+            } else {
+                animating = true
+            }
+        }
+        .accessibilityHidden(true)
     }
 }
 
@@ -727,7 +777,7 @@ private struct GeneratedMediaView: View {
                     .resizable()
                     .scaledToFit()
                     .frame(maxWidth: 280)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
                     .accessibilityIdentifier("generated-image")
             }
         case .videoURL:
@@ -736,7 +786,7 @@ private struct GeneratedMediaView: View {
                     Label("Video ansehen", systemImage: "play.rectangle.fill")
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
-                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
                 }
             }
         }
@@ -749,6 +799,11 @@ private struct MiniAppCard: View {
     let onPreview: () -> Void
     let onKeep: () -> Void
     var onEditAI: (() -> Void)? = nil
+
+    /// Brief saved-state on the keep button, so the card acknowledges the tap
+    /// before its dismissal transition removes it (it used to just vanish).
+    @State private var justKept = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.space2) {
@@ -775,10 +830,22 @@ private struct MiniAppCard: View {
                     .disabled(isStreaming)
                     .accessibilityLabel("Im Chat bearbeiten")
                 }
-                Button("Behalten", action: onKeep)
-                    .buttonStyle(.borderedProminent)
-                    .disabled(isStreaming)
-                    .accessibilityIdentifier("keep-app")
+                Button(action: keepTapped) {
+                    HStack(spacing: 5) {
+                        if justKept {
+                            Image(systemName: "checkmark")
+                                .transition(.scale.combined(with: .opacity))
+                        }
+                        Text(justKept ? "Gespeichert" : "Behalten")
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(justKept ? Color.green : Color.accentColor)
+                .disabled(isStreaming)
+                // Not .disabled while confirming — that would gray the green
+                // saved-state out. Just stop accepting a second tap.
+                .allowsHitTesting(!justKept)
+                .accessibilityIdentifier("keep-app")
             }
         }
         .padding(Theme.space2)
@@ -786,5 +853,16 @@ private struct MiniAppCard: View {
         // Glass: the card now floats over the scrolling conversation, so it
         // should read as a layer above it rather than another opaque block.
         .glassSurface(in: RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
+    }
+
+    private func keepTapped() {
+        Theme.Haptics.success()
+        // Reduce Motion: skip the checkmark beat, keep immediately.
+        guard !reduceMotion else {
+            onKeep()
+            return
+        }
+        withAnimation(Theme.Motion.snappy) { justKept = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { onKeep() }
     }
 }

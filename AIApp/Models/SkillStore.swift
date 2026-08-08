@@ -142,9 +142,9 @@ final class SkillStore: ObservableObject {
     }
 
     /// Whether an incoming skill replaces `existing` in place (same origin = a
-    /// genuine upgrade, or identical content) rather than forking it. Shared with
-    /// the free-tier gate so "replace" doesn't count against the limit but a fork
-    /// (which really does add a skill) does.
+    /// genuine upgrade, or identical content) rather than forking it.
+    /// (A former free-tier skill-count gate consumed this too; freemium was cut,
+    /// so installs are ungated and this only decides replace-vs-fork.)
     static func replacesExisting(_ existing: AgentSkill, instructions: String, source: String?) -> Bool {
         (existing.source ?? "") == (source ?? "") || existing.instructions == instructions
     }

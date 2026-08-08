@@ -14,8 +14,72 @@ struct SkillRecommendation: Identifiable, Equatable {
 }
 
 enum SkillRecommendations {
+    /// Bundled presets for the mini-app pipeline (offline-only, no upstream repo).
+    /// Blurbs mirror each package's frontmatter `description`.
+    static let miniApps: [SkillRecommendation] = [
+        SkillRecommendation(
+            title: "Formulare & Tracker Pro",
+            blurb: "Formular- und Tracker-Mini-Apps: Inline-Validierung, deutsche Zahlen- und Datumsformate, Speichern bei jeder Eingabe, Rückgängig nach dem Löschen.",
+            installKey: "bundled:formulare-tracker",
+            systemImage: "list.bullet.clipboard",
+            remoteSource: nil
+        ),
+        SkillRecommendation(
+            title: "Geld & Prozent",
+            blurb: "Cent-genaue Geldrechnung mit deutschen Formaten – MwSt. 19 %/7 %, Prozente, Rabatt, Trinkgeld und Rechnungen fair teilen.",
+            installKey: "bundled:geld-prozent",
+            systemImage: "eurosign.circle",
+            remoteSource: nil
+        ),
+        SkillRecommendation(
+            title: "Termine & Erinnerungen",
+            blurb: "Zeitumstellungssichere Datumslogik ohne Bibliotheken, Serien, Streaks und lokale Benachrichtigungen für Mini-Apps.",
+            installKey: "bundled:termine-erinnerungen",
+            systemImage: "calendar.badge.clock",
+            remoteSource: nil
+        ),
+        SkillRecommendation(
+            title: "Daten-Export & Backup",
+            blurb: "CSV/JSON-Export, Kopieren in die Zwischenablage, Import per Einfügen, versionierte Backups mit Wiederherstellung.",
+            installKey: "bundled:daten-export",
+            systemImage: "square.and.arrow.up",
+            remoteSource: nil
+        ),
+        SkillRecommendation(
+            title: "API-Apps sicher bauen",
+            blurb: "Baut robuste Netzwerk-Mini-Apps: Lade-, Leer- und Fehlerzustände, Timeouts, Offline-Cache und sichere API-Key-Abfrage — ohne hartkodierte Schlüssel.",
+            installKey: "bundled:api-apps",
+            systemImage: "antenna.radiowaves.left.and.right",
+            remoteSource: nil
+        ),
+        SkillRecommendation(
+            title: "Web-Wrapper Pro",
+            blurb: "Webseiten und interne Tools als Mini-Apps einbinden – Login-Seiten per Vollnavigation, Quick-Link-Startseiten und Embeds mit dauerhafter Anmeldung.",
+            installKey: "bundled:web-wrapper",
+            systemImage: "safari",
+            remoteSource: nil
+        ),
+        SkillRecommendation(
+            title: "Lern-Apps & Karteikarten",
+            blurb: "Karteikarten- und Quiz-Apps mit echter Spaced-Repetition-Logik, Tages-Stapel, Statistik und Import per Einfügen.",
+            installKey: "bundled:lern-apps",
+            systemImage: "rectangle.stack",
+            remoteSource: nil
+        ),
+        SkillRecommendation(
+            title: "Barrierefreiheit (A11y)",
+            blurb: "Macht jede generierte Mini-App standardmäßig barrierefrei — semantische Bedienelemente, VoiceOver-Labels, Kontrast, sichtbarer Fokus und reduzierte Bewegung.",
+            installKey: "bundled:barrierefreiheit",
+            systemImage: "accessibility",
+            remoteSource: nil
+        ),
+    ]
+
+    /// Every recommendation (used by tests and any flat consumer).
+    static var all: [SkillRecommendation] { miniApps + anthropic }
+
     /// Real paths in anthropics/skills are under `skills/<name>/SKILL.md`.
-    static let all: [SkillRecommendation] = [
+    static let anthropic: [SkillRecommendation] = [
         SkillRecommendation(
             title: "Frontend Design",
             blurb: "Anthropic — distinctive UI, typography, not generic AI look.",

@@ -26,6 +26,8 @@ struct OnboardingModal: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     @EnvironmentObject private var accountStore: AccountStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Scales the hero mark with the type size instead of pinning it at 44pt.
+    @ScaledMetric(relativeTo: .largeTitle) private var heroIconSize: CGFloat = 44
 
     var body: some View {
         NavigationStack {
@@ -35,7 +37,7 @@ struct OnboardingModal: View {
                 if page == 0 {
                     VStack(spacing: Theme.space3) {
                         Image(systemName: "sparkles")
-                            .font(.system(size: 44, weight: .semibold))
+                            .font(.system(size: heroIconSize, weight: .semibold))
                             .foregroundStyle(Theme.accent)
                         Text("Dein KI-Chat.\nDeine Mini-Apps.")
                             .font(.title.bold())
@@ -202,7 +204,7 @@ struct OnboardingModal: View {
             .padding(Theme.space2)
             .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
     }
 
     private func finish() {
