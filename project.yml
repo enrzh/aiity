@@ -48,6 +48,12 @@ targets:
         # German, so declare the dev region as such (was $(DEVELOPMENT_LANGUAGE)=en).
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # App Store Connect reads the TOP-LEVEL CFBundleIconName to show the
+        # build icon in TestFlight/ASC. actool only injected the nested
+        # CFBundleIcons variant into our xcodegen-owned Info.plist, so every
+        # build up to 7 showed a blank icon in ASC (device home screen was
+        # fine — that uses the nested key).
+        CFBundleIconName: AppIcon
         CFBundleDevelopmentRegion: de
         # Declared explicitly so iOS offers the app in these languages and the
         # App Store lists them. The actual strings live in
@@ -106,7 +112,7 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
-        CURRENT_PROJECT_VERSION: 7
+        CURRENT_PROJECT_VERSION: 8
         MARKETING_VERSION: 1.0.0
         CODE_SIGN_ENTITLEMENTS: AIApp/AIApp.entitlements
         # Device install: Xcode auto-creates the profile once a team is picked.
@@ -138,7 +144,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.aiity.app.AgentActivity
         SWIFT_VERSION: "5.9"
         TARGETED_DEVICE_FAMILY: "1"
-        CURRENT_PROJECT_VERSION: 7
+        CURRENT_PROJECT_VERSION: 8
         MARKETING_VERSION: 1.0.0
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: H8FW6W6K2D
