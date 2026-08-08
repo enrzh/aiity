@@ -78,6 +78,47 @@ enum SkillRecommendations {
     /// Every recommendation (used by tests and any flat consumer).
     static var all: [SkillRecommendation] { miniApps + anthropic }
 
+    /// The recommendations not yet installed — the skills-view counterpart of
+    /// `AgentSuggestion.remaining(existing:)`, so an installed recommendation
+    /// disappears from "Empfohlen" and reappears when the skill is deleted.
+    ///
+    /// What `installRecommendation` actually creates: `SkillStore.install(from:)`
+    /// parses the bundled SKILL.md, so the installed skill's `name` is the
+    /// frontmatter name — which is the bundled file's basename, i.e. the
+    /// installKey without its `bundled:` prefix, NOT the display title — and
+    /// its `source` is the installKey (or the `remoteSource` spec when the
+    /// network fallback won, which then re-becomes `bundled:<basename>` when
+    /// the offline fallback catches a failed remote). Match all of those;
+    /// builtins never count, they are not installable recommendations.
+    static func remaining(
+        _ recommendations: [SkillRecommendation],
+        installed skills: [AgentSkill]
+    ) -> [SkillRecommendation] {
+        let imported = skills.filter { !$0.builtin }
+        let sources = Set(imported.compactMap { $0.source.map(normalized) })
+        let names = Set(imported.map { normalized($0.name) })
+        return recommendations.filter { rec in
+            if sources.contains(normalized(rec.installKey)) { return false }
+            if let remote = rec.remoteSource, sources.contains(normalized(remote)) { return false }
+            if names.contains(normalized(bundledBasename(of: rec.installKey))) { return false }
+            return true
+        }
+    }
+
+    /// Case-insensitive and whitespace-trimmed — the same normalisation
+    /// `AgentSuggestion.remaining` applies to agent names.
+    private static func normalized(_ value: String) -> String {
+        value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    /// `bundled:pdf` → `pdf` — the frontmatter name every bundled package
+    /// carries (asserted against the shipped resources by unit tests).
+    private static func bundledBasename(of installKey: String) -> String {
+        installKey.hasPrefix("bundled:")
+            ? String(installKey.dropFirst("bundled:".count))
+            : installKey
+    }
+
     /// Real paths in anthropics/skills are under `skills/<name>/SKILL.md`.
     static let anthropic: [SkillRecommendation] = [
         SkillRecommendation(

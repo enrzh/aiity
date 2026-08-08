@@ -60,6 +60,22 @@ final class ChatBarKeyboardUITests: XCTestCase {
                 waitUntil { input.frame.maxY < restingMaxY - 60 },
                 "composer should rise with the keyboard"
             )
+            // The assertion whose absence let build 7 ship: rising is not
+            // enough — the bar must land ON the keyboard. The regression was a
+            // lift computed from keyboard HEIGHT minus an assumed bottom
+            // inset, which overshot and parked the bar a chrome-height above
+            // the keyboard while every rise/return check still passed.
+            let bar = app.descendants(matching: .any)["chat-composer-bar"].firstMatch
+            XCTAssertTrue(bar.waitForExistence(timeout: 3), "composer bar container should exist")
+            let flush = waitUntil(timeout: 6) {
+                abs(bar.frame.maxY - keyboard.frame.minY) <= 3
+            }
+            XCTAssertTrue(
+                flush,
+                "composer bottom should sit flush on the keyboard top "
+                    + "(bar.maxY=\(bar.frame.maxY) keyboard.minY=\(keyboard.frame.minY) "
+                    + "gap=\(keyboard.frame.minY - bar.frame.maxY)pt)"
+            )
             // .scrollDismissesKeyboard(.immediately) — a deliberate drag on the
             // transcript region drops it. (Element-based swipeDown proved
             // unreliable: firstMatch can resolve inside the keyboard itself.)

@@ -16,16 +16,17 @@ struct ChatView: View {
     /// Measured height of the floating input bubble — drives the scroll
     /// clearance so a multi-line input never overlaps the last message.
     @State private var inputBarHeight: CGFloat = 64
-    /// Explicit keyboard height (screen space). The composer used to ride
+    /// Explicit keyboard top edge (screen space). The composer used to ride
     /// SwiftUI's implicit keyboard safe-area inset, which sheet dismissals
     /// with a keyboard up (worst: the MiniAppSheet WKWebView) could leave
     /// stale — parking the bar mid-screen with no keyboard visible. The view
     /// now opts out of that inset and lifts the bar itself.
     @StateObject private var keyboard = KeyboardObserver()
-    /// Gap between this screen's bottom edge and the screen's bottom edge
-    /// (tab bar + home indicator), measured live. Converts the keyboard's
-    /// screen-space height into a lift in this view's own space.
-    @State private var containerBottomInset: CGFloat = 0
+    /// The composer's RESTING bottom edge in global (= screen) coordinates,
+    /// measured by a zero-height marker in the same bottom overlay as the bar
+    /// — the lift padding never displaces the marker, so this stays the
+    /// resting edge even while the bar is raised.
+    @State private var composerRestingBottom: CGFloat = 0
     /// Composer focus, owned here so the keyboard can be dropped BEFORE any
     /// sheet presents — a keyboard alive through a sheet transition is what
     /// used to leave the stale inset behind.
@@ -86,8 +87,19 @@ struct ChatView: View {
 
     /// How far the composer must rise above its resting position so its
     /// bottom edge sits exactly on the keyboard's top edge. 0 when hidden.
+    ///
+    /// Both operands live in ONE coordinate space (screen/global): the
+    /// keyboard's top edge from the frame notification, the resting bottom
+    /// edge from the marker overlay. Build 7 instead did height arithmetic —
+    /// `keyboard.height − containerBottomInset` — which assumed the composer
+    /// rests exactly at the measured container edge; on device the ancestor
+    /// chrome (tab bar/home-indicator handling) broke that assumption and the
+    /// bar overshot the keyboard by the difference. Subtracting positions
+    /// self-corrects no matter what any ancestor already avoided, and the
+    /// live marker keeps it correct even if the container itself moves.
     private var composerLift: CGFloat {
-        max(0, keyboard.height - containerBottomInset)
+        guard let keyboardTop = keyboard.topEdge, composerRestingBottom > 0 else { return 0 }
+        return max(0, composerRestingBottom - keyboardTop)
     }
 
     var body: some View {
@@ -266,6 +278,11 @@ struct ChatView: View {
         // Input floats over the scroll content so messages pass behind it.
         .overlay(alignment: .bottom) {
             inputBar
+                // One queryable element for the whole bar so UI tests can
+                // assert the BAR's frame against the keyboard top (chat-input
+                // is the inner text pill, which sits above the bar's edge).
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("chat-composer-bar")
                 // Soft fade so scrolled message text dissolves under the bubble
                 // instead of colliding with it edge-to-edge.
                 .background(alignment: .bottom) {
@@ -287,25 +304,28 @@ struct ChatView: View {
                 // "bar height only" — the lift is added separately where needed.
                 .padding(.bottom, composerLift)
         }
-        .background(
-            // The keyboard reports its frame in screen space; the composer
-            // lives in this view's space, whose bottom edge sits above the tab
-            // bar. Measure the gap so the lift lands the bar exactly on the
-            // keyboard's top edge.
+        // Zero-height marker pinned where the composer RESTS: same overlay
+        // alignment as the bar but WITHOUT the lift padding, so its global
+        // maxY is the bar's resting bottom edge at all times — shared
+        // coordinate space with the keyboard notification's frame, and live
+        // even when an ancestor moves this container under the keyboard.
+        .overlay(alignment: .bottom) {
             GeometryReader { geo in
                 Color.clear.preference(
-                    key: ContainerBottomInsetKey.self,
-                    value: max(0, UIScreen.main.bounds.maxY - geo.frame(in: .global).maxY)
+                    key: ComposerRestingBottomKey.self,
+                    value: geo.frame(in: .global).maxY
                 )
             }
-        )
+            .frame(height: 0)
+            .allowsHitTesting(false)
+        }
         // Opt out of the implicit keyboard safe-area inset: it is what went
         // stale (sheet dismissed with keyboard up, AI-edit tab-switch race,
         // scene backgrounding) and parked the bar mid-screen. Position now
         // comes only from KeyboardObserver, whose didHide path always resets.
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .onPreferenceChange(InputBarHeightKey.self) { inputBarHeight = $0 }
-        .onPreferenceChange(ContainerBottomInsetKey.self) { containerBottomInset = $0 }
+        .onPreferenceChange(ComposerRestingBottomKey.self) { composerRestingBottom = $0 }
         .onDisappear { composerFocused = false }
         .navigationTitle(session.activeThreadTitle.isEmpty ? "Chat" : session.activeThreadTitle)
         .navigationBarTitleDisplayMode(.inline)
@@ -533,14 +553,14 @@ private struct InputBarHeightKey: PreferenceKey {
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
-/// Distance from the chat screen's bottom edge to the screen's bottom edge
-/// (tab bar + home indicator) — see the measuring GeometryReader in ChatView.
-private struct ContainerBottomInsetKey: PreferenceKey {
+/// The composer's resting bottom edge in global coordinates — reported by the
+/// zero-height bottom-overlay marker in ChatView (never displaced by the lift).
+private struct ComposerRestingBottomKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
-/// Tracks the keyboard's on-screen height explicitly so the composer's
+/// Tracks the keyboard's on-screen top edge explicitly so the composer's
 /// position never depends on SwiftUI's implicit keyboard safe-area inset.
 ///
 /// That implicit inset could be left stale when a sheet was dismissed while
@@ -551,8 +571,12 @@ private struct ContainerBottomInsetKey: PreferenceKey {
 /// impossible by construction: didHide fires even when a dismissal transition
 /// swallows the willHide geometry, so the offset always self-heals to 0.
 private final class KeyboardObserver: ObservableObject {
-    /// Keyboard height measured from the bottom of the screen; 0 when hidden.
-    @Published private(set) var height: CGFloat = 0
+    /// The keyboard's top edge (endFrame.minY) in screen coordinates while it
+    /// occupies screen space; nil when hidden. A POSITION, not a height: the
+    /// lift is derived by subtracting this from the composer's measured
+    /// resting edge in the same coordinate space, never by height arithmetic
+    /// against assumed insets (the build-7 overshoot).
+    @Published private(set) var topEdge: CGFloat?
 
     private var tokens: [NSObjectProtocol] = []
 
@@ -572,7 +596,7 @@ private final class KeyboardObserver: ObservableObject {
             forName: UIResponder.keyboardDidHideNotification,
             object: nil, queue: .main
         ) { [weak self] _ in
-            self?.set(0, duration: 0.2)
+            self?.set(nil, duration: 0.2)
         })
     }
 
@@ -583,20 +607,20 @@ private final class KeyboardObserver: ObservableObject {
         let duration = note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double ?? 0.25
         // Since iOS 16.1 the notification's object is the keyboard's UIScreen.
         let bounds = (note.object as? UIScreen)?.bounds ?? UIScreen.main.bounds
-        // A hidden keyboard's end frame sits at/below the screen edge → 0.
-        set(max(0, bounds.maxY - end.minY), duration: duration)
+        // A hidden keyboard's end frame sits at/below the screen edge → nil.
+        set(end.minY < bounds.maxY - 1 ? end.minY : nil, duration: duration)
     }
 
-    private func set(_ newHeight: CGFloat, duration: Double) {
-        guard newHeight != height else { return }
+    private func set(_ newEdge: CGFloat?, duration: Double) {
+        guard newEdge != topEdge else { return }
         if duration > 0 {
             // UIKit's keyboard animation is (privately) this exact spring —
             // matching it keeps the hand-driven bar glued to the keyboard edge.
             withAnimation(.interpolatingSpring(mass: 3, stiffness: 1000, damping: 500, initialVelocity: 0)) {
-                height = newHeight
+                topEdge = newEdge
             }
         } else {
-            height = newHeight
+            topEdge = newEdge
         }
     }
 }

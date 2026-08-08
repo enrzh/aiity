@@ -33,15 +33,29 @@ struct SkillsView: View {
                 }
             }
 
-            Section("Empfohlen: Für Mini-Apps") {
-                ForEach(SkillRecommendations.miniApps) { rec in
-                    recommendationRow(rec)
+            // Already-installed recommendations vanish from the lists (and
+            // come back when the skill is deleted); a fully installed group
+            // drops its whole section instead of showing an empty header.
+            let openMiniApps = SkillRecommendations.remaining(
+                SkillRecommendations.miniApps, installed: store.skills
+            )
+            let openAnthropic = SkillRecommendations.remaining(
+                SkillRecommendations.anthropic, installed: store.skills
+            )
+
+            if !openMiniApps.isEmpty {
+                Section("Empfohlen: Für Mini-Apps") {
+                    ForEach(openMiniApps) { rec in
+                        recommendationRow(rec)
+                    }
                 }
             }
 
-            Section("Empfohlen: Anthropic") {
-                ForEach(SkillRecommendations.anthropic) { rec in
-                    recommendationRow(rec)
+            if !openAnthropic.isEmpty {
+                Section("Empfohlen: Anthropic") {
+                    ForEach(openAnthropic) { rec in
+                        recommendationRow(rec)
+                    }
                 }
             }
 
