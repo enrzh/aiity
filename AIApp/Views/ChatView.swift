@@ -184,6 +184,32 @@ struct ChatView: View {
                             .accessibilityIdentifier("continue-group")
                             .padding(.top, 4)
                         }
+                        // A turn iOS cut short while the app was in the
+                        // background. Deliberately an offer and not a silent
+                        // replay: re-running costs the user's own tokens on a
+                        // request that may already have completed server-side.
+                        if !session.busy, session.interruptedTurn != nil {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Antwort pausiert — die App war zu lange im Hintergrund.")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                HStack(spacing: 8) {
+                                    Button {
+                                        session.resumeInterruptedTurn(settings: settingsStore.settings)
+                                    } label: {
+                                        Label("Fortsetzen", systemImage: "play.fill")
+                                            .font(.subheadline.weight(.semibold))
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .accessibilityIdentifier("resume-interrupted-turn")
+                                    Button("Verwerfen") {
+                                        session.dismissInterruptedTurn()
+                                    }
+                                    .buttonStyle(.bordered)
+                                }
+                            }
+                            .id("interrupted-turn")
+                        }
                         if let error = session.errorMessage {
                             VStack(alignment: .leading, spacing: 8) {
                                 BannerView(message: error, kind: .error) {
@@ -451,18 +477,32 @@ struct ChatView: View {
                 String(localized: "Bearbeiten & Löschen"),
                 "Anderes Icon",
                 "Netzwerk erlauben",
-            ] : [
-                "Trinkgeld-Rechner",
-                "Todo-Liste",
-                "Pomodoro-Timer",
-                "Tech-News heute",
-            ]) { suggestion in
+            ] : buildSuggestions) { suggestion in
                 input = suggestion
                 send()
             }
         }
         .padding(.top, Theme.space4)
         .frame(maxWidth: .infinity, alignment: .leading)
+        // Only the empty state asks for model-generated ideas, so no request
+        // can ever fire from a conversation that already has messages. The id
+        // re-runs it when the user picks a different provider or model.
+        .task(id: settingsStore.settings.presetId + "|" + settingsStore.settings.model) {
+            guard !isEditingApp else { return }
+            await session.refreshSmartSuggestions(
+                settings: settingsStore.settings,
+                savedAppCount: savedApps.count
+            )
+        }
+    }
+
+    /// Build-mode chips. The session owns the composition; the fallback only
+    /// covers a cold path where no thread was ever activated.
+    private var buildSuggestions: [String] {
+        let composed = session.emptyStateSuggestions
+        return composed.isEmpty
+            ? Array(ChatSuggestions.buildPool.prefix(ChatSuggestions.slotCount))
+            : composed
     }
 
     // Floating input: a text-field bubble and a round send/stop bubble — no bar.
@@ -550,14 +590,23 @@ extension MiniAppDraft: Identifiable {
 /// scroll clearance and fade scrim can track a growing multi-line field.
 private struct InputBarHeightKey: PreferenceKey {
     static var defaultValue: CGFloat = 64
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+    // max, not last-wins: ChatView has TWO bottom overlays (the bar and the
+    // resting marker), and every view contributes its DEFAULT for keys it does
+    // not set. With `value = nextValue()` the marker overlay, applied second,
+    // overwrote the bar's measured height with the 64 pt default — the scroll
+    // clearance stopped tracking a grown multi-line composer. max() is
+    // order-independent, and 64 is the bar's minimum height anyway.
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
 }
 
 /// The composer's resting bottom edge in global coordinates — reported by the
 /// zero-height bottom-overlay marker in ChatView (never displaced by the lift).
 private struct ComposerRestingBottomKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+    // max for the same reason as InputBarHeightKey: a sibling overlay's
+    // default (0) must not be able to overwrite the measured edge — a 0 here
+    // disables the lift entirely (composerLift guards on > 0).
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
 }
 
 /// Tracks the keyboard's on-screen top edge explicitly so the composer's

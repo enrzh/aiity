@@ -30,6 +30,8 @@ final class ChatBarKeyboardUITests: XCTestCase {
         let input = app.descendants(matching: .any)["chat-input"].firstMatch
         XCTAssertTrue(input.waitForExistence(timeout: 15), "chat input should exist")
         let window = app.windows.firstMatch
+        let bar = app.descendants(matching: .any)["chat-composer-bar"].firstMatch
+        XCTAssertTrue(bar.waitForExistence(timeout: 5), "composer bar container should exist")
 
         // Resting position: within the bottom chrome band (composer padding +
         // tab bar + home indicator) — device-independent: bottom 20% of window.
@@ -38,6 +40,17 @@ final class ChatBarKeyboardUITests: XCTestCase {
             window.frame.maxY - restingMaxY, window.frame.height * 0.2,
             "composer should rest near the bottom, not mid-screen"
         )
+
+        // What "flush" has to mean, measured instead of guessed: at rest the
+        // bar's bottom edge sits this far above the bottom chrome (the tab bar
+        // top is the composer container's bottom edge). The gap is the
+        // composer's own inner padding — landing ON the keyboard means
+        // reproducing exactly this gap against the keyboard's top edge, so the
+        // check stays a relative one with no pixel constants.
+        let tabBar = app.tabBars.firstMatch
+        XCTAssertTrue(tabBar.waitForExistence(timeout: 5), "tab bar should be the bottom chrome")
+        let restingGap = tabBar.frame.minY - bar.frame.maxY
+        XCTAssertGreaterThanOrEqual(restingGap, 0, "composer must rest ON the tab bar, not under it")
 
         // --- Phase 1: keyboard round-trip on the composer itself.
         input.tap()
@@ -65,16 +78,16 @@ final class ChatBarKeyboardUITests: XCTestCase {
             // lift computed from keyboard HEIGHT minus an assumed bottom
             // inset, which overshot and parked the bar a chrome-height above
             // the keyboard while every rise/return check still passed.
-            let bar = app.descendants(matching: .any)["chat-composer-bar"].firstMatch
-            XCTAssertTrue(bar.waitForExistence(timeout: 3), "composer bar container should exist")
             let flush = waitUntil(timeout: 6) {
-                abs(bar.frame.maxY - keyboard.frame.minY) <= 3
+                guard let top = self.keyboardTopEdge() else { return false }
+                return abs((top - bar.frame.maxY) - restingGap) <= 3
             }
             XCTAssertTrue(
                 flush,
                 "composer bottom should sit flush on the keyboard top "
-                    + "(bar.maxY=\(bar.frame.maxY) keyboard.minY=\(keyboard.frame.minY) "
-                    + "gap=\(keyboard.frame.minY - bar.frame.maxY)pt)"
+                    + "(bar.maxY=\(bar.frame.maxY) keyboardTop=\(keyboardTopEdge().map(String.init(describing:)) ?? "nil") "
+                    + "gap=\((keyboardTopEdge() ?? 0) - bar.frame.maxY)pt, "
+                    + "expected the resting gap \(restingGap)pt)"
             )
             // .scrollDismissesKeyboard(.immediately) — a deliberate drag on the
             // transcript region drops it. (Element-based swipeDown proved
@@ -116,16 +129,65 @@ final class ChatBarKeyboardUITests: XCTestCase {
         assertComposerAtRest(input, restingMaxY: restingMaxY, "after connections sheet dismissed with its keyboard up")
     }
 
-    // MARK: - Helpers
+    /// The keyboard's REAL top edge, in window coordinates.
+    ///
+    /// `app.keyboards.firstMatch.frame` is NOT it: that element covers the KEY
+    /// PLANE only. Above the keys sits the input-assistant (QuickType) strip —
+    /// 44 pt on iOS 26 — which is part of the keyboard, is included in the
+    /// frame UIKit publishes in its keyboard notifications, and is therefore
+    /// part of what the composer has to sit on. Measuring against the key
+    /// plane made a correctly positioned composer read as 44 pt short (a
+    /// phantom "gap" on the 6.9" class, where that strip is vended as a
+    /// separate element). The host view wrapping the whole keyboard is exposed
+    /// as `inputView`; take the TOPMOST on-screen candidate so a runtime that
+    /// vends only some of these still yields the true edge.
+    private func keyboardTopEdge() -> CGFloat? {
+        let window = app.windows.firstMatch.frame
+        // A keyboard's top edge is always in the lower half of a portrait
+        // window; anything higher is a stale or offscreen host view.
+        func plausible(_ frame: CGRect) -> Bool {
+            frame.height > 1 && frame.minY > window.midY && frame.minY < window.maxY - 1
+        }
+        var candidates: [CGFloat] = []
+        for identifier in ["inputView", "SystemInputAssistantView"] {
+            let matches = app.descendants(matching: .any).matching(identifier: identifier)
+            for element in matches.allElementsBoundByIndex where plausible(element.frame) {
+                candidates.append(element.frame.minY)
+            }
+        }
+        let keys = app.keyboards.firstMatch
+        if keys.exists, plausible(keys.frame) { candidates.append(keys.frame.minY) }
+        return candidates.min()
+    }
 
     /// The Chat tab opens the conversation LIST; create and enter a chat.
     private func openFreshChat() {
         let compose = app.buttons["new-chat"]
-        XCTAssertTrue(compose.waitForExistence(timeout: 15), "compose button should exist on the chat list")
-        compose.tap()
+        XCTAssertTrue(compose.waitForExistence(timeout: 20), "compose button should exist on the chat list")
         let solo = app.buttons["new-solo-chat"]
-        XCTAssertTrue(solo.waitForExistence(timeout: 10), "new-chat sheet should offer a solo chat")
-        solo.tap()
+        XCTAssertTrue(tap(compose, until: solo), "new-chat sheet should offer a solo chat")
+        let input = app.descendants(matching: .any)["chat-input"].firstMatch
+        XCTAssertTrue(tap(solo, until: input), "solo chat should open the composer")
+    }
+
+    /// Tap `control` until `target` appears — bounded, never blind.
+    ///
+    /// `tap()` does not wait for hittability: it takes a hit point from the
+    /// current snapshot and, when the element is covered, drops the event
+    /// silently. The cold-start splash covers a tab bar and toolbar that
+    /// already EXIST in the tree, so the very first tap after launch is the
+    /// one that goes missing.
+    @discardableResult
+    private func tap(_ control: XCUIElement, until target: XCUIElement, attempts: Int = 4) -> Bool {
+        for attempt in 0..<attempts {
+            if target.exists { return true }
+            let hittable = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "isHittable == true"), object: control)
+            guard XCTWaiter.wait(for: [hittable], timeout: 10) == .completed else { continue }
+            control.tap()
+            if target.waitForExistence(timeout: attempt == 0 ? 8 : 4) { return true }
+        }
+        return target.exists
     }
 
     /// A slow, deliberate downward drag across the transcript (upper third of

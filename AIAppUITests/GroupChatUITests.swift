@@ -26,6 +26,7 @@ final class GroupChatUITests: XCTestCase {
         app = XCUIApplication()
         app.launchEnvironment["PROVIDER_SETTINGS_JSON"] = Self.stubSettings
         app.launchEnvironment["AIITY_TEST_API_KEY"] = "stub-key"
+        app.launchEnvironment["AIITY_DISABLE_SUGGESTIONS"] = "1"
         app.launchArguments += ["-onboarding.completed.v1", "1"]
         // Fresh agent roster per run, so the test selects from exactly the two
         // agents it creates rather than everything earlier runs left behind.

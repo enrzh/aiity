@@ -125,6 +125,11 @@ targets:
     sources:
       - path: AIAppLiveActivity
       - path: AIApp/Services/AgentActivityAttributes.swift
+      # The Stop button's App Intent. Must be a member of BOTH targets: the
+      # widget needs the type to build `Button(intent:)`, the app needs it in
+      # its binary because LiveActivityIntent.perform() executes in the APP
+      # process. Dropping it from either side breaks one half silently.
+      - path: AIApp/Services/StopAgentRunIntent.swift
     info:
       path: AIAppLiveActivity/Info.plist
       properties:

@@ -10,10 +10,31 @@ import UIKit
 /// document. The moment the page navigates to remote or `data:` content (browser
 /// tier), the bridge is disabled so a remote/injected page cannot reach native
 /// capabilities by posting to `webkit.messageHandlers.bridge` directly.
+///
+/// The browser tier additionally has to behave like a browser, not just like a
+/// sandbox: popups, JS dialogs, downloads, `tel:`/`mailto:`/OAuth-callback
+/// schemes, load errors and back navigation all have explicit handling below.
+/// Every one of those paths still runs the same `NetworkTargetValidator` gate,
+/// and none of them grants the bridge.
+/// Back navigation for the browser tier, published to the hosting sheet.
+///
+/// The edge-swipe alone is not enough: inside a presented sheet the system's own
+/// edge handling competes with WebKit's, so a user who follows a link can end up
+/// with no way back at all. The sheet renders a real button from this.
+@MainActor
+final class MiniAppBrowserState: ObservableObject {
+    @Published var canGoBack = false
+    fileprivate weak var webView: WKWebView?
+
+    func goBack() { webView?.goBack() }
+}
+
 struct MiniAppRunnerView: UIViewRepresentable {
     let appId: String
     let html: String
     var capability: MiniAppCapability = .offline
+    /// Set by the hosting sheet when it wants a back button.
+    var browserState: MiniAppBrowserState? = nil
 
     /// A browser app that only exists to open a site loads that site as its
     /// document. Rendering the shell first cannot work: it has a null origin and
@@ -60,12 +81,24 @@ struct MiniAppRunnerView: UIViewRepresentable {
         let configuration = WKWebViewConfiguration()
         configuration.userContentController.add(context.coordinator, name: "bridge")
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
+        // WebKit's popup blocker is on by default, and it drops any
+        // `window.open` that is not still inside a user gesture. OAuth SDKs
+        // routinely open their window after an await, so the sign-in window
+        // simply never appeared. The popup lands in its own sheet with the
+        // host shown, with no bridge and the same validator on every hop —
+        // and only for a tier the user explicitly consented to.
+        configuration.preferences.javaScriptCanOpenWindowsAutomatically = capability.allowsTopLevelNavigation
         // A browser-tier app keeps a persistent, per-app session so the user
         // stays logged in to the site it opens; other tiers stay ephemeral.
         // Based on ALREADY-GRANTED consent (readable synchronously) rather than
         // the live `capability`, which is still .offline while the consent alert
         // is up — using that made browser sessions never persist at all. A
         // never-approved app still gets no persistent store.
+        //
+        // MiniAppSheet gives this view `.id(effectiveCapability)`, so the first
+        // grant tears the web view down and re-enters here with the grant
+        // already written — otherwise the very first login's cookies landed in
+        // the ephemeral store and were gone on close.
         if MiniAppConsent.granted(appId: appId) == .browser {
             configuration.websiteDataStore = WKWebsiteDataStore(forIdentifier: Self.sessionStoreID(for: appId))
         } else {
@@ -76,13 +109,19 @@ struct MiniAppRunnerView: UIViewRepresentable {
         webView.scrollView.contentInsetAdjustmentBehavior = .never
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
+        // Deep navigation used to be a one-way trip: the sheet has no chrome of
+        // its own, so the edge-swipe is the only way back.
+        webView.allowsBackForwardNavigationGestures = capability.allowsTopLevelNavigation
         context.coordinator.webView = webView
         context.coordinator.capability = capability
+        context.coordinator.schemeWasAssumed = WebAppBuilder.schemeWasAssumed(in: html)
+        context.coordinator.bind(browserState, to: webView)
         context.coordinator.beginTrustedLoad()
         load(into: webView)
         if capability == .browser,
            let target = WebAppBuilder.openTarget(in: html),
            NetworkTargetValidator.isAllowed(target, allowPrivate: false) {
+            context.coordinator.initialTarget = target
             context.coordinator.disableBridgeForRemoteDocument()
         }
         return webView
@@ -93,11 +132,14 @@ struct MiniAppRunnerView: UIViewRepresentable {
         context.coordinator.capability = capability
         if context.coordinator.loadedHTML != html || capabilityChanged {
             context.coordinator.loadedHTML = html
+            context.coordinator.schemeWasAssumed = WebAppBuilder.schemeWasAssumed(in: html)
+            webView.allowsBackForwardNavigationGestures = capability.allowsTopLevelNavigation
             context.coordinator.beginTrustedLoad()
             load(into: webView)
             if capability == .browser,
                let target = WebAppBuilder.openTarget(in: html),
                NetworkTargetValidator.isAllowed(target, allowPrivate: false) {
+                context.coordinator.initialTarget = target
                 context.coordinator.disableBridgeForRemoteDocument()
             }
         }
@@ -108,6 +150,7 @@ struct MiniAppRunnerView: UIViewRepresentable {
         // teardown: WKWebView's keyboard-dismissal geometry racing the sheet
         // transition is what left the chat composer's keyboard inset stale.
         webView.endEditing(true)
+        coordinator.dismissAllPopups()
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "bridge")
     }
 
@@ -126,20 +169,53 @@ struct MiniAppRunnerView: UIViewRepresentable {
         WKWebsiteDataStore.remove(forIdentifier: sessionStoreID(for: appId)) { _ in }
     }
 
-    final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
+    final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate {
         let appId: String
         var capability: MiniAppCapability
         weak var webView: WKWebView?
         var loadedHTML: String?
+        /// The site this browser app exists to open, for the error page's retry.
+        var initialTarget: URL?
+        /// True when https was OUR assumption (bare host typed) — the only case
+        /// in which the one-shot cleartext retry is defensible.
+        var schemeWasAssumed = false
 
         /// The bridge only serves the trusted, CSP-hardened initial document.
         private var bridgeActive = true
         /// True for exactly one navigation: our own `loadHTMLString`.
         private var pendingTrustedLoad = false
+        /// True while our own error page is the document — the only time the
+        /// `aiity-runner://` action links are honoured.
+        private(set) var isShowingErrorPage = false
+        /// The URL the error page's buttons act on.
+        private var failedURL: URL?
+        /// One http fallback per runner, ever. A loop of downgrades is worse
+        /// than a page that does not load.
+        private var didRetryOverHTTP = false
+
+        /// Popup web views this runner opened, keyed by identity so
+        /// `webViewDidClose` can find the right sheet.
+        private var popupControllers: [ObjectIdentifier: BrowserPopupViewController] = [:]
+        /// How many popups this runner has handed out. A refused `window.open`
+        /// must not increment it.
+        private(set) var popupsCreated = 0
+        private var downloadDestinations: [ObjectIdentifier: URL] = [:]
+        private var canGoBackObservation: NSKeyValueObservation?
 
         init(appId: String, capability: MiniAppCapability) {
             self.appId = appId
             self.capability = capability
+        }
+
+        /// Keep the sheet's back button in step with the web view's history.
+        @MainActor
+        func bind(_ state: MiniAppBrowserState?, to webView: WKWebView) {
+            guard let state else { return }
+            state.webView = webView
+            state.canGoBack = webView.canGoBack
+            canGoBackObservation = webView.observe(\.canGoBack, options: [.initial, .new]) { webView, _ in
+                Task { @MainActor in state.canGoBack = webView.canGoBack }
+            }
         }
 
         /// Mark the next navigation as a trusted (app-initiated) document load.
@@ -154,92 +230,278 @@ struct MiniAppRunnerView: UIViewRepresentable {
             bridgeActive = false
         }
 
+        /// Our own generated page (error/refusal): allowed to load, never
+        /// granted the bridge — it needs nothing but links.
+        private func beginInternalLoad() {
+            pendingTrustedLoad = true
+            bridgeActive = false
+        }
+
         private var storageKeyPrefix: String { "miniapp-storage-\(appId)-" }
+
+        // MARK: Navigation policy
 
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                      decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-            // Our own hardened (re)load — the only navigation that keeps the bridge.
-            if pendingTrustedLoad {
+            // Our own hardened (re)load — the only navigation that keeps the
+            // bridge, and only in the PARENT view. A popup must never consume
+            // this flag and inherit an unvalidated first hop.
+            if pendingTrustedLoad, webView === self.webView {
                 pendingTrustedLoad = false
                 decisionHandler(.allow)
                 return
             }
+            let isParent = webView === self.webView
             let url = navigationAction.request.url
-            let scheme = url?.scheme?.lowercased()
-
-            // Same-document / in-memory (fragment links, about:) — harmless, keep bridge.
-            if scheme == nil || scheme == "about" {
-                decisionHandler(.allow)
-                return
-            }
-
-            let isRemote = scheme == "http" || scheme == "https"
             let isMainFrame = navigationAction.targetFrame?.isMainFrame ?? true
 
-            // Browser tier may load remote content, but only to a target that
-            // passes the same validator `load()` applies to the initial URL.
-            //
-            // It used to allow the tier unconditionally, which made the
-            // up-front check decorative: when load() REFUSED a private target
-            // it fell through to rendering WebAppBuilder's shell, and that
-            // shell contains `location.replace(url)` for the very URL just
-            // refused. So `<!-- capability: browser --><!-- open:
-            // http://192.168.178.1/ -->` loaded the router admin page inside
-            // the mini-app — cleartext is allowed app-wide, and the Local
-            // Network permission was already granted for the user's own
-            // gateway. Same for 127.0.0.1:11434 and for any later hop.
-            if capability.allowsTopLevelNavigation, isRemote {
-                guard let url, NetworkTargetValidator.isAllowed(url, allowPrivate: false) else {
-                    decisionHandler(.cancel)
-                    return
+            let decision = BrowserNavigationPolicy.decide(
+                url: url,
+                capability: capability,
+                isMainFrame: isMainFrame,
+                isLinkActivated: navigationAction.navigationType == .linkActivated,
+                shouldPerformDownload: navigationAction.shouldPerformDownload,
+                isShowingErrorPage: isParent && isShowingErrorPage
+            )
+
+            switch decision {
+            case .allow:
+                // A remote main-frame document is never our trusted shell.
+                if isParent, isMainFrame, let scheme = url?.scheme?.lowercased(),
+                   scheme == "http" || scheme == "https" {
+                    bridgeActive = false
+                    isShowingErrorPage = false
                 }
-                if isMainFrame { bridgeActive = false }
                 decisionHandler(.allow)
+            case .download:
+                decisionHandler(.download)
+            case .cancel:
+                decisionHandler(.cancel)
+            case .openExternally(let target):
+                confirmOpenExternal(target)
+                decisionHandler(.cancel)
+            case .internalAction(let action):
+                decisionHandler(.cancel)
+                perform(action)
+            }
+        }
+
+        /// Attachments and any response WebKit cannot render become downloads
+        /// instead of a silently cancelled navigation.
+        func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse,
+                     decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
+            let response = navigationResponse.response
+            let status = (response as? HTTPURLResponse)?.statusCode
+            if webView === self.webView, navigationResponse.isForMainFrame, let url = response.url,
+               EmbeddedBrowserRefusal.isRefusal(url: url, statusCode: status) {
+                decisionHandler(.cancel)
+                showEmbeddedBrowserRefusal(for: url)
+                return
+            }
+            decisionHandler(navigationResponse.canShowMIMEType ? .allow : .download)
+        }
+
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            handleLoadFailure(webView, error: error)
+        }
+
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            handleLoadFailure(webView, error: error)
+        }
+
+        /// A failed load used to render nothing at all — an empty white sheet
+        /// with no explanation and no way forward.
+        private func handleLoadFailure(_ webView: WKWebView, error: Error) {
+            let nsError = error as NSError
+            // Our own `.cancel`/`.download` decisions surface as these; they are
+            // not failures the user should see.
+            if nsError.domain == NSURLErrorDomain, nsError.code == NSURLErrorCancelled { return }
+            if nsError.domain == "WebKitErrorDomain", nsError.code == 102 || nsError.code == 101 { return }
+
+            let target = (nsError.userInfo[NSURLErrorFailingURLErrorKey] as? URL) ?? webView.url ?? initialTarget
+            guard webView === self.webView else {
+                // A popup that cannot load: show the same page inside it, but
+                // without retry/fallback state, which belongs to the runner.
+                if let target {
+                    webView.loadHTMLString(
+                        Sandbox.harden(Self.errorHTML(url: target, message: nsError.localizedDescription,
+                                                      note: nil, actions: []), capability: .offline),
+                        baseURL: nil
+                    )
+                }
                 return
             }
 
-            // Everything else — offline/network remote nav, any `data:` top-level
-            // load, other schemes — never navigates the sandbox. A user-tapped
-            // link opens in Safari instead; scripts cannot navigate away.
-            // A link opens Safari only after the SAME confirmation the
-            // `open.external` bridge action requires.
-            //
-            // Before, this path opened Safari directly. WebKit reports a
-            // scripted `a.click()` as `.linkActivated`, so an offline mini-app
-            // — CSP `default-src 'none'`, never prompted about anything —
-            // could read its own stored data, build
-            // `https://collect.example/?d=<data>` and launch it with no user
-            // action at all: exactly the silent exfiltration the bridge's own
-            // confirmation exists to prevent, reached by going around it.
-            //
-            // WebKit exposes no public way to tell a real tap from a scripted
-            // click (`_hasUserGesture` is private and not shippable), so the
-            // guarantee here is narrower than "only real taps": a scripted
-            // click still reaches the prompt. It cannot leave silently, which
-            // is the property that mattered.
-            if isMainFrame, isRemote, navigationAction.navigationType == .linkActivated, let url {
+            if let target,
+               let http = BrowserRetryPolicy.httpFallbackURL(
+                    for: target,
+                    errorCode: nsError.domain == NSURLErrorDomain ? nsError.code : 0,
+                    schemeWasAssumed: schemeWasAssumed,
+                    alreadyRetried: didRetryOverHTTP
+               ) {
+                didRetryOverHTTP = true
+                bridgeActive = false
+                isShowingErrorPage = false
+                failedURL = http
+                webView.load(URLRequest(url: http))
+                return
+            }
+
+            failedURL = target
+            let note = didRetryOverHTTP
+                ? String(localized: "https war nicht erreichbar, http ebenfalls nicht.")
+                : nil
+            showErrorPage(message: nsError.localizedDescription, note: note,
+                          actions: [.retry, .safari])
+        }
+
+        // MARK: The runner's own error page
+
+        private func showErrorPage(message: String, note: String?, actions: [BrowserRunnerAction]) {
+            guard let webView else { return }
+            let html = Self.errorHTML(url: failedURL, message: message, note: note, actions: actions)
+            isShowingErrorPage = true
+            beginInternalLoad()
+            webView.loadHTMLString(Sandbox.harden(html, capability: .offline), baseURL: nil)
+        }
+
+        /// Google (and others) deliberately refuse OAuth inside an embedded web
+        /// view. aiity does not imitate Safari's user agent to get around that —
+        /// that would be circumventing their policy. It says what happened and
+        /// offers the one thing that actually works: finish the sign-in in the
+        /// real browser.
+        private func showEmbeddedBrowserRefusal(for url: URL) {
+            failedURL = url
+            showErrorPage(
+                message: String(localized: "Dieser Anbieter erlaubt die Anmeldung nicht in einer eingebetteten Ansicht."),
+                note: String(localized: "Melde dich in Safari an und öffne die Seite danach wieder hier — die Sitzung bleibt in dieser Mini-App gespeichert."),
+                actions: [.safari, .retry]
+            )
+        }
+
+        private func perform(_ action: BrowserRunnerAction) {
+            switch action {
+            case .retry:
+                guard let webView, let url = failedURL ?? initialTarget,
+                      NetworkTargetValidator.isAllowed(url, allowPrivate: false) else { return }
+                isShowingErrorPage = false
+                bridgeActive = false
+                webView.load(URLRequest(url: url))
+            case .safari:
+                guard let url = failedURL ?? initialTarget else { return }
                 confirmOpenExternal(url)
             }
-            decisionHandler(.cancel)
         }
+
+        static func errorHTML(url: URL?, message: String, note: String?, actions: [BrowserRunnerAction]) -> String {
+            func esc(_ s: String) -> String {
+                s.replacingOccurrences(of: "&", with: "&amp;")
+                    .replacingOccurrences(of: "<", with: "&lt;")
+                    .replacingOccurrences(of: ">", with: "&gt;")
+            }
+            let host = url?.host ?? url?.absoluteString ?? ""
+            let scheme = BrowserNavigationPolicy.internalScheme
+            let buttons = actions.map { action -> String in
+                let title: String
+                switch action {
+                case .retry: title = String(localized: "Erneut versuchen")
+                case .safari: title = String(localized: "In Safari öffnen")
+                }
+                return "<a class=\"b\" href=\"\(scheme)://\(action.rawValue)\">\(esc(title))</a>"
+            }.joined()
+            let noteHTML = note.map { "<p class=\"n\">\(esc($0))</p>" } ?? ""
+            return """
+            <style>
+            :root{color-scheme:light dark}
+            body{margin:0;font:16px/1.5 -apple-system,system-ui,sans-serif;padding:40px 24px;text-align:center;color:#8a8a8e}
+            h1{font-size:17px;color:#48484a;margin:0 0 6px}
+            .h{font-weight:600;color:#636366}
+            .n{font-size:14px}
+            .b{display:inline-block;margin:8px 6px 0;padding:11px 18px;border-radius:11px;background:#0a84ff;color:#fff;text-decoration:none;font-size:15px;font-weight:600}
+            .b+.b{background:rgba(120,120,128,.18);color:#0a84ff}
+            @media (prefers-color-scheme:dark){h1{color:#d1d1d6}.h{color:#aeaeb2}}
+            </style>
+            <h1>\(esc(String(localized: "Seite konnte nicht geladen werden")))</h1>
+            <p class="h">\(esc(host))</p>
+            <p>\(esc(message))</p>
+            \(noteHTML)
+            <p>\(buttons)</p>
+            """
+        }
+
+        // MARK: Popups (window.open, target=_blank, OAuth sign-in windows)
 
         func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                      for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-            guard let url = navigationAction.request.url,
-                  let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else {
+            let url = navigationAction.request.url
+            let scheme = url?.scheme?.lowercased()
+            let isWeb = scheme == "http" || scheme == "https"
+
+            guard capability.allowsTopLevelNavigation else {
+                // Same rule for `target="_blank"` on the sandboxed tiers:
+                // confirm before leaving.
+                if isWeb, let url, navigationAction.navigationType == .linkActivated {
+                    confirmOpenExternal(url)
+                }
                 return nil
             }
-            if capability.allowsTopLevelNavigation {
-                // Same validator as the main policy handler — a window.open to
-                // a LAN address must not slip past it.
-                guard NetworkTargetValidator.isAllowed(url, allowPrivate: false) else { return nil }
-                bridgeActive = false
-                webView.load(URLRequest(url: url))
-            } else if navigationAction.navigationType == .linkActivated {
-                // Same rule for `target="_blank"`: confirm before leaving.
-                confirmOpenExternal(url)
+            if isWeb, let url, !NetworkTargetValidator.isAllowed(url, allowPrivate: false) {
+                // A window.open to a LAN address is refused up front, as well as
+                // by the child's own policy handler.
+                return nil
             }
-            return nil
+            if let url, !isWeb, scheme != nil, scheme != "about" {
+                // A popup straight into a custom scheme is a handoff, not a page.
+                confirmOpenExternal(url)
+                return nil
+            }
+            // Everything else — including `window.open('')` / about:blank, which
+            // is what OAuth SDKs actually do — gets a real child web view. It
+            // MUST be built from the passed configuration (WebKit requirement,
+            // and what keeps window.opener/postMessage and the cookie jar).
+            let child = makeChildWebView(configuration: configuration)
+            presentPopup(child)
+            return child
+        }
+
+        /// The child of a browser-tier app. Two invariants, both load-bearing:
+        ///
+        /// 1. It shares the parent's `userContentController`, so the bridge
+        ///    message handler is physically reachable from it. `acceptsBridgeMessage`
+        ///    therefore checks web-view IDENTITY, not just the `bridgeActive`
+        ///    flag — otherwise a browser app showing its own trusted home screen
+        ///    could `window.open` a remote page that posts to the bridge.
+        /// 2. It gets this same Coordinator as `uiDelegate`, so the
+        ///    capture/motion deny policy applies to it exactly as to the parent.
+        func makeChildWebView(configuration: WKWebViewConfiguration) -> WKWebView {
+            popupsCreated += 1
+            let child = WKWebView(frame: .zero, configuration: configuration)
+            child.navigationDelegate = self
+            child.uiDelegate = self
+            child.allowsBackForwardNavigationGestures = true
+            child.isOpaque = false
+            return child
+        }
+
+        private func presentPopup(_ child: WKWebView) {
+            guard let presenter = webView?.window?.rootViewController?.topmostPresented else { return }
+            let controller = BrowserPopupViewController(webView: child)
+            controller.onClose = { [weak self] in
+                self?.popupControllers.removeValue(forKey: ObjectIdentifier(child))
+            }
+            popupControllers[ObjectIdentifier(child)] = controller
+            presenter.present(controller, animated: true)
+        }
+
+        /// OAuth popups finish by calling `window.close()`.
+        func webViewDidClose(_ webView: WKWebView) {
+            guard let controller = popupControllers.removeValue(forKey: ObjectIdentifier(webView)) else { return }
+            controller.dismiss(animated: true)
+        }
+
+        func dismissAllPopups() {
+            for (_, controller) in popupControllers { controller.dismiss(animated: false) }
+            popupControllers.removeAll()
         }
 
         // MARK: WKUIDelegate permission policy
@@ -251,6 +513,8 @@ struct MiniAppRunnerView: UIViewRepresentable {
         // best and trip a TCC crash on grant at worst. Denying here makes
         // "no capture from web content" an explicit policy instead of an
         // undefined default; sites see an ordinary NotAllowedError.
+        //
+        // Popups are covered because they are handed this same Coordinator.
 
         func webView(_ webView: WKWebView,
                      requestMediaCapturePermissionFor origin: WKSecurityOrigin,
@@ -267,6 +531,123 @@ struct MiniAppRunnerView: UIViewRepresentable {
             decisionHandler(.deny)
         }
 
+        // MARK: JS dialogs
+        //
+        // Without these, WebKit's default is "no dialog": alert() is a no-op,
+        // confirm() returns false and prompt() returns nil, so ordinary pages
+        // silently take their cancel branch. Every handler MUST call its
+        // completion — including the no-presenter case, or the WebContent
+        // process hangs waiting for an answer that never comes.
+
+        func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String,
+                     initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping () -> Void) {
+            guard let presenter = presenter(for: webView) else { completionHandler(); return }
+            let alert = UIAlertController(title: dialogTitle(frame), message: message, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default) { _ in completionHandler() })
+            presenter.present(alert, animated: true)
+        }
+
+        func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String,
+                     initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping (Bool) -> Void) {
+            guard let presenter = presenter(for: webView) else { completionHandler(false); return }
+            var answered = false
+            func finish(_ value: Bool) { if !answered { answered = true; completionHandler(value) } }
+            let alert = UIAlertController(title: dialogTitle(frame), message: message, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: String(localized: "Abbrechen"), style: .cancel) { _ in finish(false) })
+            alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default) { _ in finish(true) })
+            presenter.present(alert, animated: true)
+        }
+
+        func webView(_ webView: WKWebView, runJavaScriptTextInputPanelWithPrompt prompt: String,
+                     defaultText: String?, initiatedByFrame frame: WKFrameInfo,
+                     completionHandler: @escaping (String?) -> Void) {
+            guard let presenter = presenter(for: webView) else { completionHandler(nil); return }
+            var answered = false
+            func finish(_ value: String?) { if !answered { answered = true; completionHandler(value) } }
+            let alert = UIAlertController(title: dialogTitle(frame), message: prompt, preferredStyle: .alert)
+            alert.addTextField { $0.text = defaultText }
+            alert.addAction(UIAlertAction(title: String(localized: "Abbrechen"), style: .cancel) { _ in finish(nil) })
+            alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default) { [weak alert] _ in
+                finish(alert?.textFields?.first?.text ?? "")
+            })
+            presenter.present(alert, animated: true)
+        }
+
+        /// Name the origin that is talking, so a framed third party cannot pass
+        /// its dialog off as the app's own.
+        private func dialogTitle(_ frame: WKFrameInfo) -> String {
+            frame.request.url?.host ?? String(localized: "Mini-App")
+        }
+
+        private func presenter(for webView: WKWebView) -> UIViewController? {
+            (webView.window ?? self.webView?.window)?.rootViewController?.topmostPresented
+        }
+
+        // MARK: Downloads
+
+        func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
+            download.delegate = self
+        }
+
+        func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
+            download.delegate = self
+        }
+
+        func download(_ download: WKDownload, decideDestinationUsing response: URLResponse,
+                      suggestedFilename: String, completionHandler: @escaping (URL?) -> Void) {
+            // A server-supplied filename is untrusted text: take the last path
+            // component only, so "../../Library/Preferences/x" cannot escape.
+            var name = (suggestedFilename as NSString).lastPathComponent
+            if name.isEmpty || name == "." || name == ".." { name = "Download" }
+            let directory = FileManager.default.temporaryDirectory
+                .appendingPathComponent("miniapp-downloads/\(UUID().uuidString)", isDirectory: true)
+            do {
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            } catch {
+                completionHandler(nil)
+                return
+            }
+            let destination = directory.appendingPathComponent(name)
+            downloadDestinations[ObjectIdentifier(download)] = destination
+            completionHandler(destination)
+        }
+
+        func downloadDidFinish(_ download: WKDownload) {
+            guard let file = downloadDestinations.removeValue(forKey: ObjectIdentifier(download)),
+                  let presenter = webView?.window?.rootViewController?.topmostPresented else { return }
+            let share = UIActivityViewController(activityItems: [file], applicationActivities: nil)
+            share.popoverPresentationController?.sourceView = presenter.view
+            share.popoverPresentationController?.sourceRect = CGRect(
+                x: presenter.view.bounds.midX, y: presenter.view.bounds.maxY - 40, width: 1, height: 1
+            )
+            presenter.present(share, animated: true)
+        }
+
+        func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
+            downloadDestinations.removeValue(forKey: ObjectIdentifier(download))
+            guard let presenter = webView?.window?.rootViewController?.topmostPresented else { return }
+            let alert = UIAlertController(
+                title: String(localized: "Download fehlgeschlagen"),
+                message: error.localizedDescription,
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default))
+            presenter.present(alert, animated: true)
+        }
+
+        // MARK: Bridge
+
+        /// Whether a bridge message may be served.
+        ///
+        /// Identity matters as much as the flag: a popup shares the parent's
+        /// `userContentController`, so `bridgeActive` alone would let a remote
+        /// popup opened from a trusted home screen reach storage, notifications
+        /// and openExternal.
+        func acceptsBridgeMessage(from source: WKWebView?, isMainFrame: Bool) -> Bool {
+            guard bridgeActive, isMainFrame, let source, let webView else { return false }
+            return source === webView
+        }
+
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
             // Remote/untrusted page (browser tier navigated away): no native bridge.
             //
@@ -276,8 +657,7 @@ struct MiniAppRunnerView: UIViewRepresentable {
             // cross-origin frame could post to the bridge and reach storage,
             // notifications and openExternal — a full sandbox escape via an
             // ordinary embed.
-            guard bridgeActive,
-                  message.frameInfo.isMainFrame,
+            guard acceptsBridgeMessage(from: message.webView, isMainFrame: message.frameInfo.isMainFrame),
                   message.name == "bridge",
                   let body = message.body as? [String: Any],
                   let callId = body["id"] as? Int,

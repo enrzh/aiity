@@ -87,6 +87,22 @@ final class ChatSession: ObservableObject {
     @Published var openThreadId: UUID?
     private var activeThreadId = UUID()
 
+    /// Chips offered in the chat empty state. THE composition point: whatever
+    /// wants to influence those four slots — the curated pool, the optional
+    /// model-generated ideas — goes through `refreshEmptyStateSuggestions()`,
+    /// never through the view. Computed once per thread activation so a body
+    /// recompute (keyboard focus, busy toggle) can never re-deal the row.
+    @Published private(set) var emptyStateSuggestions: [String] = []
+    /// The set the PREVIOUS conversation showed — a soft exclusion so a new
+    /// chat does not open with the same four ideas. In memory only: this is
+    /// deliberately not in the persisted Snapshot (the format is hand-rolled
+    /// and fragile), and repeating across launches is harmless.
+    private var previousSuggestionSet: Set<String> = []
+    private var lastSuggestionThreadId: UUID?
+    /// Ideas the user's own cloud provider proposed (see ChatSuggestionService).
+    /// Empty whenever the feature is off, ungated or unavailable.
+    private var modelSuggestions: [String] = []
+
     /// Set when the chat continues work on a saved mini-app.
     var editingContext: EditingContext?
 
@@ -135,8 +151,46 @@ final class ChatSession: ObservableObject {
     /// In-flight send task — cancelled by `stop()`.
     private var activeTask: Task<Void, Never>?
 
+    // MARK: - Interrupted turns (background hardening)
+
+    /// A turn iOS cut short (background grant expired, or the process was
+    /// killed) that the user may replay. Nil unless there is something to
+    /// offer — see `evaluateInterruptedTurn()` for when it is set.
+    @Published private(set) var interruptedTurn: PendingTurn?
+
+    /// When the running turn began. Part of the checkpoint, and what the
+    /// stop-beats-resume contract compares a persisted stop request against.
+    private var turnStartedAt: Date?
+    /// Throttle for the streaming checkpoint.
+    private var lastCheckpointAt: Date?
+    private static let checkpointInterval: TimeInterval = 2
+    /// Set when the turn ended because the app was suspended, not because
+    /// anything failed. Keeps the turn's `defer` from deleting the checkpoint
+    /// the resume offer depends on, and keeps the Live Activity on "Pausiert"
+    /// instead of flipping it to an error.
+    private var turnInterruptedBySuspension = false
+    /// Block-based NotificationCenter observers are not auto-removed.
+    private var stopRequestObserver: NSObjectProtocol?
+
+    #if DEBUG
+    /// Ordered record of what `handleBackgroundTimeExpiring()` did, so the
+    /// sequence itself (not just its side effects) is testable.
+    private(set) var expirationSteps: [String] = []
+    #endif
+
     init() {
         restore()
+        observeLiveActivityStopRequests()
+        // Cold launch is one of the two moments the stop-vs-resume contract is
+        // evaluated (the other is foreground). Runs AFTER restore() so the
+        // conversations a decision may repair are actually loaded.
+        evaluateInterruptedTurn()
+    }
+
+    deinit {
+        if let stopRequestObserver {
+            NotificationCenter.default.removeObserver(stopRequestObserver)
+        }
     }
 
     /// Full quality bar for strong cloud models (API key path).
@@ -356,12 +410,34 @@ final class ChatSession: ObservableObject {
         busy = true
         AgentLiveActivityController.shared.start(prompt: text)
 
+        // A new turn supersedes anything the previous one left behind: a stale
+        // stop request (which the contract would otherwise weigh against this
+        // turn's checkpoint) and the previous resume offer.
+        AgentRunStopRequest.clear()
+        interruptedTurn = nil
+        turnInterruptedBySuspension = false
+        turnStartedAt = Date()
+        lastCheckpointAt = nil
+        checkpointPendingTurn(force: true)
+        // Protect the work NOW, not once the user happens to leave the app.
+        BackgroundTurnGuard.shared.begin { [weak self] in
+            self?.handleBackgroundTimeExpiring()
+        }
+
         activeTask?.cancel()
         activeTask = Task { @MainActor in
             defer {
+                BackgroundTurnGuard.shared.end()
                 if !Task.isCancelled {
                     busy = false
                     statusLine = nil
+                    // A turn that finished — well or badly — has nothing to
+                    // resume. A turn iOS suspended does, and says so.
+                    if !turnInterruptedBySuspension {
+                        PendingTurnStore.clear()
+                        interruptedTurn = nil
+                    }
+                    lastCheckpointAt = nil
                     persist()
                 }
             }
@@ -391,6 +467,9 @@ final class ChatSession: ObservableObject {
                 : []
             await runTurn(provider: provider, tools: tools)
             if Task.isCancelled { return }
+            // The activity already shows "Pausiert — App öffnen"; completing or
+            // failing it here would overwrite the one truthful state there is.
+            if turnInterruptedBySuspension { return }
             finishLiveActivityAfterTurn()
         }
     }
@@ -517,11 +596,24 @@ final class ChatSession: ObservableObject {
     }
 
     /// Cancel the current generation (network stream / tool loop).
+    ///
+    /// STOP BEATS RESUME (see `TurnRestorePolicy`): stopping deletes the
+    /// checkpoint, so nothing survives to be replayed — whether the stop came
+    /// from the composer button or from the Live Activity.
     func stop() {
         activeTask?.cancel()
         activeTask = nil
+        BackgroundTurnGuard.shared.end()
         busy = false
         statusLine = nil
+        turnInterruptedBySuspension = false
+        turnStartedAt = nil
+        lastCheckpointAt = nil
+        PendingTurnStore.clear()
+        interruptedTurn = nil
+        // The request has been served; leaving it set would cancel the NEXT
+        // turn's checkpoint on the following foreground.
+        AgentRunStopRequest.clear()
         // Cleared on EVERY exit, not only on a clean finish. It was previously
         // set in runGroupRound and cleared in one success path, so a stopped or
         // failed round left the conversation list showing "läuft…" forever —
@@ -562,9 +654,220 @@ final class ChatSession: ObservableObject {
     /// App became active again.
     func handleAppForeground() {
         AgentLiveActivityController.shared.enterForeground()
+        // ORDER OF CHECKS IS THE CONTRACT: the persisted stop request is read
+        // BEFORE any resume decision, so a turn the user cancelled from the
+        // Lock Screen is discarded rather than replayed. See TurnRestorePolicy.
+        evaluateInterruptedTurn()
         if busy {
             AgentLiveActivityController.shared.update(phase: statusLine ?? "Arbeitet weiter…")
         }
+    }
+
+    // MARK: - Stop from the Live Activity
+
+    private func observeLiveActivityStopRequests() {
+        stopRequestObserver = NotificationCenter.default.addObserver(
+            forName: .aiityAgentStopRequested,
+            object: nil,
+            queue: nil
+        ) { [weak self] _ in
+            // `StopAgentRunIntent.perform()` runs in the app process but on an
+            // arbitrary executor; `stop()` is @MainActor and touches
+            // persistence, so the hop is mandatory.
+            Task { @MainActor in self?.stopFromLiveActivity() }
+        }
+    }
+
+    /// The Lock Screen / Dynamic Island Stop button reached a live process.
+    func stopFromLiveActivity() {
+        if busy {
+            stop()   // clears the checkpoint and the flag itself
+            return
+        }
+        // Nothing is running here — the turn was already killed by suspension
+        // or the app was background-launched purely to run the intent. Honour
+        // the request the same way: no replay, and a thread Anthropic will
+        // still accept.
+        AgentRunStopRequest.clear()
+        PendingTurnStore.clear()
+        interruptedTurn = nil
+        dropDanglingToolCalls()
+        persist()
+    }
+
+    // MARK: - Checkpoint / resume
+
+    /// Write the small resume record for the running turn.
+    ///
+    /// Group rounds are deliberately excluded: each participant turn is already
+    /// filed by thread id and persisted as it lands, and a `turnStartIndex`
+    /// means nothing there — replaying one would re-run a whole round into a
+    /// conversation the user may not even have open.
+    private func checkpointPendingTurn(force: Bool = false) {
+        guard !activeThreadIsGroup, let text = lastUserTextForRepair else { return }
+        let now = Date()
+        if !force, let last = lastCheckpointAt, now.timeIntervalSince(last) < Self.checkpointInterval {
+            return
+        }
+        lastCheckpointAt = now
+        let partial = messages.last(where: { $0.role == .assistant })?.text ?? ""
+        PendingTurnStore.save(
+            PendingTurn(
+                threadId: activeThreadId,
+                userText: text,
+                turnStartIndex: turnStartIndex,
+                repairPasses: repairPassesThisTurn,
+                startedAt: turnStartedAt ?? now,
+                updatedAt: now,
+                partialAssistantText: partial
+            )
+        )
+    }
+
+    /// iOS is about to take the background grant back.
+    ///
+    /// Order matters and is pinned by test: **checkpoint → notify → cancel →
+    /// repair the thread → truthful Live Activity**, and only then does
+    /// `BackgroundTurnGuard` hand the grant back. Checkpointing first is the
+    /// point — everything after it may be cut short, and the checkpoint is
+    /// what makes that survivable. The notification goes out before the cancel
+    /// because cancelling can take the main actor away for a moment.
+    func handleBackgroundTimeExpiring() {
+        #if DEBUG
+        expirationSteps = []
+        #endif
+        guard busy else { return }
+        step("checkpoint")
+        checkpointPendingTurn(force: true)
+
+        step("notify")
+        // Gated: posts only when authorization already exists. NEVER requests
+        // it — this is a background path (see AgentBackgroundNotifier).
+        AgentBackgroundNotifier.notifyTurnPaused()
+
+        step("cancel")
+        turnInterruptedBySuspension = true
+        activeTask?.cancel()
+        activeTask = nil
+
+        step("repair")
+        busy = false
+        runningThreadId = nil
+        statusLine = nil
+        // A turn cut mid-loop can leave an assistant `tool_use` whose result
+        // never arrived; Anthropic rejects that thread forever.
+        dropDanglingToolCalls()
+        persist()
+        interruptedTurn = PendingTurnStore.load()
+
+        step("liveActivityPaused")
+        AgentLiveActivityController.shared.markPausedForExpiredBackgroundTime()
+    }
+
+    private func step(_ name: String) {
+        #if DEBUG
+        expirationSteps.append(name)
+        #endif
+    }
+
+    /// Shared tail of the "the stream died because we were suspended" branch.
+    private func noteSuspensionInterrupted(partialIndex: Int) {
+        turnInterruptedBySuspension = true
+        // Checkpoint BEFORE dropping an empty assistant message, so whatever
+        // did stream in is captured.
+        checkpointPendingTurn(force: true)
+        if partialIndex < messages.count,
+           messages[partialIndex].text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           messages[partialIndex].mediaIds.isEmpty,
+           messages[partialIndex].toolCalls.isEmpty {
+            messages.remove(at: partialIndex)
+        }
+        dropDanglingToolCalls()
+        // No NetworkErrorFriendly banner: nothing is broken, the app was asleep.
+        errorMessage = nil
+        statusLine = nil
+        persist()
+        interruptedTurn = PendingTurnStore.load()
+        AgentLiveActivityController.shared.markPausedForExpiredBackgroundTime()
+    }
+
+    /// Apply the stop-vs-resume contract. Called on cold launch and on every
+    /// foreground.
+    func evaluateInterruptedTurn(now: Date = Date()) {
+        let decision = TurnRestorePolicy.decide(
+            stopRequestedAt: AgentRunStopRequest.pendingDate(),
+            pending: PendingTurnStore.load(),
+            now: now
+        )
+        switch decision {
+        case .none:
+            AgentRunStopRequest.clear()
+            guard !busy else { return }
+            PendingTurnStore.clear()
+            interruptedTurn = nil
+
+        case .discardCancelledTurn:
+            // The user pressed Stop somewhere this process could not hear it.
+            AgentRunStopRequest.clear()
+            PendingTurnStore.clear()
+            interruptedTurn = nil
+            if busy {
+                stop()
+            } else {
+                dropDanglingToolCalls()
+                persist()
+            }
+
+        case .offerResume(let pending):
+            AgentRunStopRequest.clear()
+            // A turn still running in THIS process needs no offer — its own
+            // checkpoint is simply the live one.
+            guard !busy else { return }
+            interruptedTurn = pending
+        }
+    }
+
+    /// The user declined the resume offer.
+    func dismissInterruptedTurn() {
+        interruptedTurn = nil
+        PendingTurnStore.clear()
+    }
+
+    /// Rewind the conversation to the start of an interrupted turn.
+    ///
+    /// Split out of `resumeInterruptedTurn` so the rewind is testable without a
+    /// provider, a key or a network. Returns the user text to re-send, or nil
+    /// when the checkpoint no longer fits the stored conversation.
+    ///
+    /// Replay, not resume: no provider can continue a half-finished stream, so
+    /// the honest primitive is to delete everything from `turnStartIndex` on
+    /// and send the same message again. The checkpointed partial answer is
+    /// therefore discarded here by design.
+    @discardableResult
+    func rewindToInterruptedTurnStart(_ pending: PendingTurn) -> String? {
+        if activeThreadId != pending.threadId {
+            switchTo(threadId: pending.threadId)
+            guard activeThreadId == pending.threadId else { return nil }
+        }
+        guard pending.turnStartIndex >= 0, pending.turnStartIndex <= messages.count else { return nil }
+        if pending.turnStartIndex < messages.count {
+            messages.removeSubrange(pending.turnStartIndex...)
+        }
+        dropDanglingToolCalls()
+        persist()
+        return pending.userText
+    }
+
+    /// Replay the interrupted turn. A tap, never automatic: an unattended
+    /// replay re-spends the user's own tokens on a request that may well have
+    /// completed server-side.
+    func resumeInterruptedTurn(settings: ProviderSettings) {
+        guard !busy, let pending = interruptedTurn else { return }
+        interruptedTurn = nil
+        PendingTurnStore.clear()
+        guard let text = rewindToInterruptedTurnStart(pending) else { return }
+        errorMessage = nil
+        send(text, settings: settings)
     }
 
     private func runTurn(provider: LLMProvider, tools: [AgentTool]) async {
@@ -616,6 +919,11 @@ final class ChatSession: ObservableObject {
                             )
                             // Live mini-app draft while HTML streams (don’t wait for fence close).
                             maybePublishStreamingDraft(from: messages[assistantIndex].text)
+                            // Piggy-backs on the existing 200-char budget and
+                            // is itself time-throttled, so a long HTML stream
+                            // writes a few KB every couple of seconds rather
+                            // than on every delta.
+                            checkpointPendingTurn()
                         }
                     case .toolCall(let call):
                         if allowTools {
@@ -636,6 +944,17 @@ final class ChatSession: ObservableObject {
             } catch {
                 if Task.isCancelled { return }
                 if let urlError = error as? URLError, urlError.code == .cancelled { return }
+                // A socket that froze because iOS suspended the process throws
+                // the same URLError a broken network does. It is not a fault,
+                // and the scary banner is the wrong answer: checkpoint what
+                // arrived, offer a replay, and keep the card honest.
+                if TurnInterruptionPolicy.isBackgroundInterruption(
+                    error: error,
+                    wasBackgrounded: AgentLiveActivityController.shared.backgroundedDuringTurn
+                ) {
+                    noteSuspensionInterrupted(partialIndex: assistantIndex)
+                    return
+                }
                 // Keep partial text if any — often contains half a mini-app.
                 if messages[assistantIndex].text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     messages.remove(at: assistantIndex)
@@ -682,6 +1001,9 @@ final class ChatSession: ObservableObject {
                 // for, and the tool_result must exist to pair with its tool_use.
                 pendingMediaIds.append(contentsOf: result.mediaIds)
                 messages.append(ChatMessage(role: .tool, text: result.text, toolCallId: call.id, toolName: call.name))
+                // Tool boundary: the cheapest, most valuable checkpoint there
+                // is — the round's expensive work is now paired and safe.
+                checkpointPendingTurn(force: true)
                 if Task.isCancelled {
                     if let last = messages.indices.last, !result.mediaIds.isEmpty {
                         messages[last].mediaIds = result.mediaIds   // keep generated media visible
@@ -958,6 +1280,15 @@ final class ChatSession: ObservableObject {
         runningThreadId = roundThreadId
         statusLine = nil
         ScreenWake.shared.setAgentBusy(true)
+        // Same protection a solo turn gets. No checkpoint is written for a
+        // group round (see `checkpointPendingTurn`) — each participant's turn
+        // is already filed by thread id and persisted as it lands — but the
+        // round still deserves the full grant, the pause notification and a
+        // truthful "Pausiert" card instead of a frozen one. Released by
+        // complete() / fail() / stop() on every exit from the round.
+        BackgroundTurnGuard.shared.begin { [weak self] in
+            self?.handleBackgroundTimeExpiring()
+        }
         DiagnosticsRecorder.shared.record(
             "gruppe",
             "Runde \(groupRoundsThisTurn + 1) · \(participants.count) Teilnehmer"
@@ -1202,6 +1533,55 @@ final class ChatSession: ObservableObject {
         errorMessage = nil
         statusLine = nil
         draftMiniApp = messages.last(where: { $0.role == .assistant }).flatMap { MiniAppDraft.extract(from: $0.text) }
+        refreshEmptyStateSuggestions()
+    }
+
+    // MARK: - Empty-state suggestions
+
+    /// Recomposes the empty-state chips for the ACTIVE thread.
+    ///
+    /// Called from `loadActiveThread()` — which every entry point funnels
+    /// through (new chat, switch, delete, restore) — and from
+    /// `refreshSmartSuggestions` with `force` when model ideas arrive or
+    /// disappear. Never from a view body: it publishes.
+    private func refreshEmptyStateSuggestions(force: Bool = false) {
+        let threadId = activeThreadId
+        let threadChanged = lastSuggestionThreadId != threadId
+        guard threadChanged || force || emptyStateSuggestions.isEmpty else { return }
+        // Only a real thread change advances the no-repeat memory; a forced
+        // recompose within the same conversation keeps the same exclusion set,
+        // so arriving model ideas prepend instead of re-dealing the whole row.
+        if threadChanged, !emptyStateSuggestions.isEmpty {
+            previousSuggestionSet = Set(emptyStateSuggestions)
+        }
+        emptyStateSuggestions = ChatSuggestions.compose(
+            modelSuggestions: modelSuggestions,
+            seed: suggestionSeed,
+            excluding: previousSuggestionSet
+        )
+        lastSuggestionThreadId = threadId
+    }
+
+    private var suggestionSeed: UInt64 {
+        #if DEBUG
+        if let override = suggestionSeedOverride { return override }
+        #endif
+        return ChatSuggestions.seed(for: activeThreadId)
+    }
+
+    /// Optional model-generated ideas for the empty state. Silent by design:
+    /// ineligible, offline, throttled or unparsable all end up here as "no
+    /// model ideas", which simply leaves the curated chips in place.
+    ///
+    /// `savedAppCount` is bucketed inside the service — no name, no chat
+    /// content and no title ever leaves the device.
+    func refreshSmartSuggestions(settings: ProviderSettings, savedAppCount: Int) async {
+        let generated = await ChatSuggestionService.suggestions(
+            for: settings, savedAppCount: savedAppCount
+        ) ?? []
+        guard generated != modelSuggestions else { return }
+        modelSuggestions = generated
+        refreshEmptyStateSuggestions(force: true)
     }
 
     private func syncActiveIntoThreads() {
@@ -1268,10 +1648,35 @@ final class ChatSession: ObservableObject {
     /// standing up a provider, a network and an agent roster.
     var activeThreadIdForTesting: UUID { activeThreadId }
 
+    /// Pins the empty-state sample so tests (and the screenshot runs, via
+    /// AIITY_SUGGESTION_SEED) see a known set instead of a per-thread one.
+    var suggestionSeedOverride: UInt64? = ProcessInfo.processInfo
+        .environment["AIITY_SUGGESTION_SEED"].flatMap { UInt64($0) }
+
+    /// Injects what the provider would have proposed, without a provider.
+    func setModelSuggestionsForTesting(_ items: [String]) {
+        modelSuggestions = items
+        refreshEmptyStateSuggestions(force: true)
+    }
+
     func beginGroupRoundForTesting(threadId: UUID) {
         busy = true
         runningThreadId = threadId
     }
+
+    /// Puts the session into the state `send()` leaves it in, without a
+    /// provider, a key or a network — so the checkpoint / expiration /
+    /// stop-vs-resume paths can be driven directly.
+    func beginTurnForTesting(userText: String, turnStartIndex: Int, startedAt: Date = Date()) {
+        lastUserTextForRepair = userText
+        self.turnStartIndex = turnStartIndex
+        turnStartedAt = startedAt
+        lastCheckpointAt = nil
+        turnInterruptedBySuspension = false
+        busy = true
+    }
+
+    func checkpointPendingTurnForTesting() { checkpointPendingTurn(force: true) }
     #endif
 
     /// Re-read the archive from disk, discarding in-memory state.

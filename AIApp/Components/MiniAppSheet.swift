@@ -18,6 +18,7 @@ struct MiniAppSheet: View {
     @EnvironmentObject private var session: ChatSession
     @Environment(\.openChatTab) private var openChatTab
 
+    @StateObject private var browserState = MiniAppBrowserState()
     @State private var effectiveCapability: MiniAppCapability = .offline
     @State private var pendingDeclared: MiniAppCapability = .offline
     @State private var showConsent = false
@@ -33,8 +34,22 @@ struct MiniAppSheet: View {
             MiniAppRunnerView(
                 appId: appId,
                 html: html,
-                capability: effectiveCapability
+                capability: effectiveCapability,
+                browserState: browserState
             )
+            // Rebuild the web view when consent flips the tier.
+            //
+            // A WKWebViewConfiguration's websiteDataStore is immutable after
+            // creation, and the runner picks the persistent per-app store from
+            // the ALREADY-granted consent. On a first open that grant does not
+            // exist yet (the alert below runs after makeUIView), so the web view
+            // was ephemeral and the very first login's cookies were thrown away
+            // on close. Changing identity here tears that web view down and
+            // re-enters makeUIView with the grant written.
+            //
+            // The identity change is scoped to the runner: `onAppear` below sits
+            // outside it, so the consent alert still resolves exactly once.
+            .id(effectiveCapability)
             // The web view is non-opaque; keep a solid surface behind user
             // content so the sheet's glass background never bleeds into an
             // app that sets no background of its own.
@@ -58,6 +73,22 @@ struct MiniAppSheet: View {
             .navigationTitle(name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                // A browser app that followed a link needs a way out of it.
+                // The WebKit edge-swipe exists too, but inside a presented
+                // sheet the system's own edge handling can swallow it — an
+                // explicit control is the one that always works.
+                ToolbarItem(placement: .topBarLeading) {
+                    if browserState.canGoBack {
+                        Button {
+                            browserState.goBack()
+                        } label: {
+                            Image(systemName: "chevron.backward")
+                                .font(.body.weight(.semibold))
+                        }
+                        .accessibilityLabel("Zurück")
+                        .accessibilityIdentifier("miniapp-back")
+                    }
+                }
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
                         openAIEdit()

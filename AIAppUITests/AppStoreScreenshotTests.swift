@@ -94,6 +94,8 @@ final class AppStoreScreenshotTests: XCTestCase {
         app.launchEnvironment["AIITY_AGENTS_FILE"] = rosterFile.path
         app.launchEnvironment["PROVIDER_SETTINGS_JSON"] = Self.provider
         app.launchEnvironment["AIITY_TEST_API_KEY"] = "screenshot-key"
+        app.launchEnvironment["AIITY_DISABLE_SUGGESTIONS"] = "1"
+        app.launchEnvironment["AIITY_SUGGESTION_SEED"] = "7"
         app.launch()
 
         XCTAssertTrue(app.navigationBars.firstMatch.waitForExistence(timeout: 30))

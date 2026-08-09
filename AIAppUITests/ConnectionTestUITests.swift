@@ -39,14 +39,75 @@ final class ConnectionTestUITests: XCTestCase {
         // firstMatch: the tab bar can momentarily expose duplicate tab buttons
         // (floating + inline variants) — tapping the ambiguous query errors.
         let mehr = app.tabBars.buttons["Mehr"].firstMatch
-        XCTAssertTrue(mehr.waitForExistence(timeout: 10), "tab bar should offer Mehr")
-        mehr.tap()
+        XCTAssertTrue(mehr.waitForExistence(timeout: 15), "tab bar should offer Mehr")
         let connections = app.buttons["open-connections"]
-        XCTAssertTrue(connections.waitForExistence(timeout: 10), "Mehr should offer KI-Anbieter")
-        connections.tap()
+        XCTAssertTrue(tap(mehr, until: connections), "Mehr should offer KI-Anbieter")
         let row = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Ollama'")).firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 10), "Schnellstart should list Ollama")
-        row.tap()
+        XCTAssertTrue(tap(connections, until: row), "Schnellstart should list Ollama")
+        // The form's navigation title is the preset label ("Ollama (eigener
+        // Rechner)") — a target that is on screen whatever the list scroll
+        // position or the commit state is. Matched by prefix so a relabelled
+        // preset does not turn into a mystery timeout.
+        XCTAssertTrue(tap(row, until: providerForm), "Ollama row should open the provider form")
+    }
+
+    /// The provider form, identified by its navigation title (the preset label).
+    private var providerForm: XCUIElement {
+        app.navigationBars.matching(NSPredicate(format: "identifier BEGINSWITH 'Ollama'")).firstMatch
+    }
+
+    /// Tap `control` until `target` shows up — bounded, never blind.
+    ///
+    /// `XCUIElement.tap()` does NOT wait for hittability: it computes a hit
+    /// point from the current snapshot and, when the element is covered, gets
+    /// {-1, -1} and drops the event silently — the test then waits out its
+    /// whole timeout on a screen that never changed. Two things cover these
+    /// controls here: the cold-start splash (LaunchSplashView is up for ~1 s
+    /// over a tab bar that already EXISTS in the tree), and any other app the
+    /// simulator brings to the front mid-run. So: wait for hittability, tap,
+    /// verify the screen actually moved on, and otherwise tap again.
+    @discardableResult
+    private func tap(_ control: XCUIElement, until target: XCUIElement, attempts: Int = 4) -> Bool {
+        for attempt in 0..<attempts {
+            if target.exists { return true }
+            let hittable = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "isHittable == true"), object: control)
+            guard XCTWaiter.wait(for: [hittable], timeout: 10) == .completed else { continue }
+            control.tap()
+            if target.waitForExistence(timeout: attempt == 0 ? 6 : 4) { return true }
+        }
+        return target.exists
+    }
+
+    /// The provider form is a lazy List that is taller than smaller screens
+    /// (e.g. iPhone 17 Pro): rows below the fold — the Diagnose section in
+    /// particular — are never materialized, so a plain waitForExistence can
+    /// never see them. Swipe up (bounded) until the element is materialized
+    /// and actually hittable; on tall screens the first wait returns at once.
+    @discardableResult
+    private func revealByScrolling(_ element: XCUIElement, maxSwipes: Int = 6) -> Bool {
+        if element.waitForExistence(timeout: 5), element.isHittable { return true }
+        for _ in 0..<maxSwipes {
+            app.swipeUp()
+            if element.waitForExistence(timeout: 1), element.isHittable { return true }
+        }
+        return element.exists
+    }
+
+    /// Confirmation dialogs animate in; a tap synthesized while the sheet is
+    /// still settling snapshots a stale hit point and can land beside the
+    /// button, leaving the dialog open. Wait for hittability first, and if
+    /// the button is still on screen shortly after the tap, tap once more.
+    private func tapDialogButton(_ button: XCUIElement) {
+        let hittable = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "isHittable == true"), object: button)
+        _ = XCTWaiter.wait(for: [hittable], timeout: 5)
+        button.tap()
+        let gone = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"), object: button)
+        if XCTWaiter.wait(for: [gone], timeout: 3) != .completed, button.exists {
+            button.tap() // first tap missed the still-animating dialog
+        }
     }
 
     /// Probe succeeds against the stub — and commits NOTHING: the exit-prompt
@@ -56,7 +117,7 @@ final class ConnectionTestUITests: XCTestCase {
         openOllamaProvider()
 
         let testButton = app.buttons["test-connection"]
-        XCTAssertTrue(testButton.waitForExistence(timeout: 10), "Diagnose section should offer the probe")
+        XCTAssertTrue(revealByScrolling(testButton), "Diagnose section should offer the probe")
         testButton.tap()
 
         let success = app.staticTexts
@@ -69,7 +130,7 @@ final class ConnectionTestUITests: XCTestCase {
         back.tap()
         XCTAssertTrue(app.staticTexts["Kein Modell gewählt"].waitForExistence(timeout: 5),
                       "leaving without a model should ask first")
-        app.buttons["Ohne Modell verlassen"].tap()
+        tapDialogButton(app.buttons["Ohne Modell verlassen"])
         XCTAssertTrue(app.navigationBars["Anbieter"].waitForExistence(timeout: 10),
                       "leaving without a model stays allowed")
     }
@@ -82,7 +143,7 @@ final class ConnectionTestUITests: XCTestCase {
         openOllamaProvider()
 
         let fetch = app.buttons["fetch-models"]
-        XCTAssertTrue(fetch.waitForExistence(timeout: 10))
+        XCTAssertTrue(revealByScrolling(fetch), "provider form should offer Modelle laden")
         fetch.tap()
         // List arrived: the button relabels with the count. Still uncommitted.
         let refreshed = app.buttons.matching(
@@ -99,14 +160,16 @@ final class ConnectionTestUITests: XCTestCase {
             .firstMatch
         XCTAssertTrue(useSuggestion.waitForExistence(timeout: 5),
                       "dialog should offer the suggested model")
-        useSuggestion.tap()
+        tapDialogButton(useSuggestion)
         XCTAssertTrue(app.navigationBars["Anbieter"].waitForExistence(timeout: 10))
 
         // Re-enter: with a committed model the system back button is back.
         let row = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Ollama'")).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 10))
-        row.tap()
-        XCTAssertTrue(app.buttons["test-connection"].waitForExistence(timeout: 10))
+        XCTAssertTrue(tap(row, until: providerForm), "Ollama row should re-open the provider form")
+        // Same below-the-fold reality on re-entry: scroll the Diagnose
+        // section into existence before asserting on it.
+        XCTAssertTrue(revealByScrolling(app.buttons["test-connection"]))
         XCTAssertFalse(app.buttons["provider-back"].exists,
                        "committed model → no exit interception any more")
     }

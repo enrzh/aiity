@@ -1,6 +1,28 @@
 import ActivityKit
+import AppIntents
 import WidgetKit
 import SwiftUI
+
+/// The one interactive control the activity offers. `LiveActivityIntent` runs
+/// in the APP process, so tapping this reaches `ChatSession.stop()` even from
+/// the Lock Screen — see StopAgentRunIntent.swift for the three process states.
+///
+/// German literals here on purpose: the widget extension has no string
+/// catalog (`AIApp/Localizable.xcstrings` belongs to the app target), so a
+/// `String(localized:)` would resolve against the extension's empty bundle.
+/// This adds one more entry to the known localization backlog.
+private struct StopRunButton: View {
+    var body: some View {
+        Button(intent: StopAgentRunIntent()) {
+            Image(systemName: "stop.fill")
+                .font(.footnote.weight(.bold))
+                .frame(minWidth: 30, minHeight: 30)
+        }
+        .buttonStyle(.bordered)
+        .tint(.red)
+        .accessibilityLabel("Lauf stoppen")
+    }
+}
 
 struct AgentLiveActivityWidget: Widget {
     var body: some WidgetConfiguration {
@@ -32,8 +54,13 @@ struct AgentLiveActivityWidget: Widget {
                 }
                 Spacer(minLength: 0)
                 if !context.state.isComplete {
+                    // Shown for every not-yet-finished state, including the
+                    // "Pausiert — App öffnen" card the expired background
+                    // grant produces: stopping a paused turn is exactly what
+                    // discards its resume checkpoint (see ChatSession.stop).
                     ProgressView(value: context.state.progress)
-                        .frame(width: 48)
+                        .frame(width: 40)
+                    StopRunButton()
                 }
             }
             .padding(.horizontal, 16)
@@ -60,7 +87,13 @@ struct AgentLiveActivityWidget: Widget {
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     if !context.state.isComplete {
-                        ProgressView(value: context.state.progress)
+                        // Only the EXPANDED island can host a button; iOS does
+                        // not support interactive compact/minimal regions, so
+                        // those keep the existing tap-to-open behaviour.
+                        HStack(spacing: 12) {
+                            ProgressView(value: context.state.progress)
+                            StopRunButton()
+                        }
                     } else {
                         Text(context.state.isError ? "Fehler" : "Fertig")
                             .font(.caption.weight(.semibold))

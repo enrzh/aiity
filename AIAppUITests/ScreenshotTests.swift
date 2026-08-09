@@ -58,6 +58,10 @@ final class ScreenshotTests: XCTestCase {
         app.launchEnvironment["AIITY_AGENTS_FILE"] = rosterFile.path
         app.launchEnvironment["PROVIDER_SETTINGS_JSON"] = Self.stubProvider
         app.launchEnvironment["AIITY_TEST_API_KEY"] = "stub-key"
+        // Frames must not depend on a network answer, and the empty-state
+        // chips are sampled per thread — pin the seed so shots repeat.
+        app.launchEnvironment["AIITY_DISABLE_SUGGESTIONS"] = "1"
+        app.launchEnvironment["AIITY_SUGGESTION_SEED"] = "7"
         app.launch()
         return app
     }

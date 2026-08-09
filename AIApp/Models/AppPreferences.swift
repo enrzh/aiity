@@ -10,6 +10,7 @@ final class AppPreferences: ObservableObject {
     private static let keepScreenKey = "prefs.keepScreenAwakeWhileBuilding.v1"
     static let allowLocalToolsKey = "prefs.allowLocalTools.v1"
     static let iCloudSyncKey = "prefs.iCloudSync.v1"
+    static let smartSuggestionsKey = "prefs.smartSuggestions.v1"
     private static let chatModeKey = "prefs.chatMode.v1"
     private static let appearanceKey = "prefs.appearance.v1"
 
@@ -58,6 +59,21 @@ final class AppPreferences: ObservableObject {
         didSet { UserDefaults.standard.set(allowLocalTools, forKey: Self.allowLocalToolsKey) }
     }
 
+    /// Whether the empty chat may ask the user's own cloud provider for a
+    /// couple of fresh mini-app ideas. On by default, but only ever reachable
+    /// with an explicitly chosen model on an API-key account — see
+    /// `ChatSuggestionService.isEligible`. Costs at most one tiny completion
+    /// per day; turning it off makes the chips fully static again.
+    @Published var smartSuggestions: Bool {
+        didSet { UserDefaults.standard.set(smartSuggestions, forKey: Self.smartSuggestionsKey) }
+    }
+
+    /// Non-isolated read for the service, which resolves the gate off the main
+    /// actor's published state.
+    nonisolated static var smartSuggestionsEnabled: Bool {
+        UserDefaults.standard.object(forKey: smartSuggestionsKey) as? Bool ?? true
+    }
+
     private init() {
         if UserDefaults.standard.object(forKey: Self.keepScreenKey) == nil {
             // Default off — users opt in (saves battery). didSet not called from init.
@@ -66,6 +82,7 @@ final class AppPreferences: ObservableObject {
             keepScreenAwakeWhileBuilding = UserDefaults.standard.bool(forKey: Self.keepScreenKey)
         }
         allowLocalTools = UserDefaults.standard.bool(forKey: Self.allowLocalToolsKey)
+        smartSuggestions = Self.smartSuggestionsEnabled
         iCloudSyncEnabled = Self.iCloudSyncPreference
         chatMode = Self.storedChatMode
         appearance = AppAppearance(

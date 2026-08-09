@@ -13,6 +13,22 @@ enum WebAppBuilder {
         return v
     }
 
+    /// True when the user typed the scheme themselves. `normalize` cannot be
+    /// asked afterwards — its output always has one — so the answer is recorded
+    /// in the generated document (`schemeWasAssumed(in:)`) for the runner's
+    /// one-shot http fallback: retrying over cleartext is only defensible for a
+    /// scheme WE guessed, never for an https the user asked for.
+    static func hasExplicitScheme(_ raw: String) -> Bool {
+        raw.trimmingCharacters(in: .whitespacesAndNewlines).contains("://")
+    }
+
+    /// Marker emitted when https was our assumption rather than the user's choice.
+    static let assumedSchemeMarker = "<!-- scheme: assumed -->"
+
+    static func schemeWasAssumed(in html: String) -> Bool {
+        html.range(of: #"<!--\s*scheme:\s*assumed\s*-->"#, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
     static func host(of raw: String) -> String {
         URL(string: normalize(raw))?.host ?? raw
     }
@@ -23,11 +39,12 @@ enum WebAppBuilder {
         let url = normalize(urlString)
         let h = URL(string: url)?.host ?? url
         let title = name.trimmingCharacters(in: .whitespaces).isEmpty ? h : name
+        let schemeNote = hasExplicitScheme(urlString) ? "" : "\n" + assumedSchemeMarker
         return """
         <!doctype html>
         <!-- emoji: 🌐 -->
         <!-- capability: browser -->
-        <!-- open: \(url) -->
+        <!-- open: \(url) -->\(schemeNote)
         <html lang="de"><head><meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
         <title>\(esc(title))</title>
@@ -49,14 +66,62 @@ enum WebAppBuilder {
     /// document sidesteps that entirely; the shell stays only as a fallback for
     /// older saved apps that have no marker.
     static func openTarget(in html: String) -> URL? {
-        guard let range = html.range(of: #"<!--\s*open:\s*([^\s>]+)\s*-->"#, options: .regularExpression) else {
+        if let range = html.range(of: #"<!--\s*open:\s*([^\s>]+)\s*-->"#, options: .regularExpression) {
+            let raw = String(html[range])
+                .replacingOccurrences(of: "<!--", with: "")
+                .replacingOccurrences(of: "-->", with: "")
+                .replacingOccurrences(of: "open:", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if let url = webURL(raw) { return url }
+            // A marker that names something we refuse to load (file:, data:)
+            // must not fall through to the shell — the shell navigates to that
+            // very URL. Treat the app as having no target at all.
             return nil
         }
-        let raw = String(html[range])
-            .replacingOccurrences(of: "<!--", with: "")
-            .replacingOccurrences(of: "-->", with: "")
-            .replacingOccurrences(of: "open:", with: "")
+        return legacyShellTarget(in: html)
+    }
+
+    /// Apps saved before the `<!-- open: -->` marker existed carry the target
+    /// only inside the shell body. The shell itself can never navigate — null
+    /// origin plus `default-src 'none'` — so without this it shows
+    /// "Öffne host…" forever. Recover the URL and load it as the document, the
+    /// same way a marker app is loaded.
+    ///
+    /// Deliberately keyed on the shell's own fingerprint (`<a id="lnk">`, or a
+    /// tiny `location.replace` document). A rich browser mini-app that happens
+    /// to call `location.replace` on a tap must keep rendering its own UI, not
+    /// be silently replaced by whatever URL appears in its source.
+    static func legacyShellTarget(in html: String) -> URL? {
+        if let href = firstMatch(#"<a[^>]*id=["']lnk["'][^>]*href=["']([^"']+)["']"#, in: html),
+           let url = webURL(href) {
+            return url
+        }
+        guard html.count < 1500 else { return nil }
+        if let raw = firstMatch(#"location\.replace\(\s*["']([^"']+)["']\s*\)"#, in: html),
+           let url = webURL(raw) {
+            return url
+        }
+        if let raw = firstMatch(#"location\.href\s*=\s*["']([^"']+)["']"#, in: html),
+           let url = webURL(raw) {
+            return url
+        }
+        return nil
+    }
+
+    /// First capture group of `pattern`, unescaped from HTML entities.
+    private static func firstMatch(_ pattern: String, in text: String) -> String? {
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
+              let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              match.numberOfRanges > 1,
+              let range = Range(match.range(at: 1), in: text) else { return nil }
+        return String(text[range])
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&quot;", with: "\"")
             .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Only http(s) may ever become a directly-loaded document.
+    private static func webURL(_ raw: String) -> URL? {
         guard let url = URL(string: raw),
               let scheme = url.scheme?.lowercased(),
               scheme == "http" || scheme == "https" else { return nil }

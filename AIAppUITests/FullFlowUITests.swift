@@ -18,6 +18,10 @@ final class FullFlowUITests: XCTestCase {
         app = XCUIApplication()
         app.launchEnvironment["PROVIDER_SETTINGS_JSON"] = Self.stubSettings
         app.launchEnvironment["AIITY_TEST_API_KEY"] = "stub-key"  // satisfy the needs-key gate
+        // The stub preset is a cloud one with an explicit model, so the
+        // empty-state idea fetch would otherwise be eligible and fire a stray
+        // completion into a timing-sensitive flow.
+        app.launchEnvironment["AIITY_DISABLE_SUGGESTIONS"] = "1"
         // Skip the first-run onboarding wizard (writes the completed flag).
         app.launchArguments += ["-onboarding.completed.v1", "1"]
     }

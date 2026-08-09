@@ -3,15 +3,21 @@ import ActivityKit
 import UIKit
 import UserNotifications
 
-/// Starts / updates / ends the agent Live Activity and coordinates a
-/// background task so streaming can finish after the user leaves the app.
+/// Starts / updates / ends the agent Live Activity.
+///
+/// It used to double as the app's background-lifecycle manager (it owned the
+/// `beginBackgroundTask` grant and began it from `scene .background`). That
+/// belongs to `BackgroundTurnGuard` now, which takes the grant at TURN START;
+/// this type is presentation again, and calls `BackgroundTurnGuard.shared.end()`
+/// at the three points where a turn is definitively over.
 @MainActor
 final class AgentLiveActivityController {
     static let shared = AgentLiveActivityController()
 
     private var activity: Activity<AgentActivityAttributes>?
-    private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
-    private var wasBackgrounded = false
+    /// Read by the interruption policy: a stream that died while the app was
+    /// backgrounded is a suspension, not a network fault.
+    private(set) var wasBackgrounded = false
     private var lastPrompt = ""
     /// True while a chat/build turn is in flight (for screen-wake preference).
     private(set) var isAgentBusy = false
@@ -35,6 +41,7 @@ final class AgentLiveActivityController {
     func start(prompt: String) {
         lastPrompt = prompt
         wasBackgrounded = false
+        backgroundedDuringTurn = false
         isAgentBusy = true
         ScreenWake.shared.setAgentBusy(true)
 
@@ -114,7 +121,7 @@ final class AgentLiveActivityController {
 
     func complete(summary: String = String(localized: "Fertig")) {
         finishBusyState()
-        endBackgroundTask()
+        BackgroundTurnGuard.shared.end()
         guard #available(iOS 16.2, *) else {
             if wasBackgrounded { notifyDone(title: "aiity", body: summary) }
             activity = nil
@@ -144,7 +151,7 @@ final class AgentLiveActivityController {
 
     func fail(message: String) {
         finishBusyState()
-        endBackgroundTask()
+        BackgroundTurnGuard.shared.end()
         guard #available(iOS 16.2, *) else {
             if wasBackgrounded { notifyDone(title: String(localized: "Fehler"), body: message) }
             activity = nil
@@ -176,7 +183,7 @@ final class AgentLiveActivityController {
 
     func cancel() {
         finishBusyState()
-        endBackgroundTask()
+        BackgroundTurnGuard.shared.end()
         guard #available(iOS 16.2, *), let activity else {
             self.activity = nil
             return
@@ -205,11 +212,55 @@ final class AgentLiveActivityController {
 
     // MARK: - Background
 
+    /// How long the "Pausiert" card stays fresh. Deliberately SHORT.
+    ///
+    /// The 15-minute `staleWindow` is right for a run that is actually running
+    /// — every update pushes it out again. It is exactly wrong once the
+    /// process has been suspended: nothing pushes it any more, so the Lock
+    /// Screen kept advertising "Läuft im Hintergrund…" for up to a quarter of
+    /// an hour after the work had frozen. That frozen card IS the reported
+    /// "it silently stopped" symptom. A paused activity therefore says so, and
+    /// goes stale in a minute if the user does not open the app.
+    private static let pausedStaleWindow: TimeInterval = 60
+
     /// Call when the app enters background while the agent is busy.
+    ///
+    /// No longer begins a background task — `BackgroundTurnGuard` already took
+    /// the grant when the turn started, which is both earlier and the right
+    /// owner.
     func enterBackgroundWhileBusy() {
         wasBackgrounded = true
-        beginBackgroundTask()
+        backgroundedDuringTurn = true
         update(phase: String(localized: "Läuft im Hintergrund…"), progress: nil)
+    }
+
+    /// Whether THIS turn was ever backgrounded. Unlike `wasBackgrounded` it is
+    /// only reset by `start()`, so it survives the foreground transition — and
+    /// it has to: the frozen socket throws its `URLError` *after* the user has
+    /// come back, and by then `wasBackgrounded` is already false again. Reading
+    /// the wrong one is what made a suspension look like a network outage.
+    private(set) var backgroundedDuringTurn = false
+
+    /// The background grant ran out. Say so instead of freezing on
+    /// "Läuft im Hintergrund…". Keeps `isComplete == false`, so the Stop
+    /// button still renders on the paused card — stopping there is what
+    /// discards the resume checkpoint.
+    func markPausedForExpiredBackgroundTime() {
+        finishBusyState()
+        guard #available(iOS 16.2, *), let activity else { return }
+        let current = activity.content.state
+        let state = AgentActivityAttributes.ContentState(
+            phase: String(localized: "Pausiert — App öffnen"),
+            detail: String(lastPrompt.prefix(60)),
+            progress: current.progress,
+            isComplete: false,
+            isError: false
+        )
+        Task {
+            await activity.update(
+                ActivityContent(state: state, staleDate: Date().addingTimeInterval(Self.pausedStaleWindow))
+            )
+        }
     }
 
     /// Call when returning to foreground.
@@ -219,23 +270,8 @@ final class AgentLiveActivityController {
         if activity != nil {
             wasBackgrounded = false
         }
-        // Don't end background task here if still busy — let complete() end it.
-    }
-
-    private func beginBackgroundTask() {
-        endBackgroundTask()
-        backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "aiity.agent") { [weak self] in
-            Task { @MainActor in
-                self?.update(phase: String(localized: "Hintergrundzeit fast abgelaufen — App öffnen"), progress: 0.9)
-                self?.endBackgroundTask()
-            }
-        }
-    }
-
-    private func endBackgroundTask() {
-        guard backgroundTask != .invalid else { return }
-        UIApplication.shared.endBackgroundTask(backgroundTask)
-        backgroundTask = .invalid
+        // The background grant is owned by BackgroundTurnGuard and released by
+        // the turn's defer / stop() / complete() — never here.
     }
 
     private func bump(_ p: Double) -> Double {

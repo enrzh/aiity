@@ -134,17 +134,26 @@ struct SettingsView: View {
                     .accessibilityIdentifier("keep-screen-awake")
                 }
 
-                Section("Datenschutz") {
+                Section {
                     Toggle(isOn: $prefs.allowLocalTools) {
                         Label("Web-Tools für lokale Modelle", systemImage: "globe")
                     }
                     .accessibilityIdentifier("allow-local-tools")
+
+                    Toggle(isOn: $prefs.smartSuggestions) {
+                        Label("Ideen vom Modell", systemImage: "lightbulb")
+                    }
+                    .accessibilityIdentifier("smart-suggestions")
 
                     NavigationLink {
                         PrivacyDetailView()
                     } label: {
                         Label("Datenschutz", systemImage: "hand.raised")
                     }
+                } header: {
+                    Text("Datenschutz")
+                } footer: {
+                    Text("Ideen vom Modell holt im leeren Chat höchstens einmal am Tag ein paar Vorschläge bei deinem eigenen KI-Anbieter — ohne Chat-Inhalte, ohne Titel, ohne App-Namen. Nur mit API-Key und selbst gewähltem Modell, nie mit Abo-Login oder lokalem Modell.")
                 }
 
                 Section {
