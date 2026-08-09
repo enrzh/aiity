@@ -39,6 +39,17 @@ struct SettingsView: View {
                     .accessibilityIdentifier("open-skills")
 
                     NavigationLink {
+                        AgentToolsSettingsView()
+                    } label: {
+                        AppSettingsRow(
+                            title: String(localized: "Agent-Werkzeuge"),
+                            subtitle: agentToolsLine,
+                            systemImage: "calendar.badge.clock"
+                        )
+                    }
+                    .accessibilityIdentifier("open-agent-tools")
+
+                    NavigationLink {
                         SearchSettingsView()
                     } label: {
                         AppSettingsRow(
@@ -255,6 +266,19 @@ struct SettingsView: View {
         } catch {
             importSummary = error.localizedDescription
         }
+    }
+
+    /// Names what the agent may currently touch — nothing at all is the
+    /// default, and the row says so rather than looking configured.
+    private var agentToolsLine: String {
+        guard prefs.deviceToolsEnabled else { return String(localized: "Aus") }
+        var parts: [String] = []
+        if PersonalData.store.access(.reminders).canWrite { parts.append(String(localized: "Erinnerungen")) }
+        if PersonalData.store.access(.calendar).canWrite { parts.append(String(localized: "Kalender")) }
+        if !UserFileAccess.shared.entries.isEmpty {
+            parts.append(String(localized: "\(UserFileAccess.shared.entries.count) Datei(en)"))
+        }
+        return parts.isEmpty ? String(localized: "Nichts freigegeben") : parts.joined(separator: " · ")
     }
 
     private var activeLine: String {

@@ -16,40 +16,61 @@ final class SettingsTourUITests: XCTestCase {
         let app = makeApp()
         app.launch()
 
+        // A previous run's terminate() makes the crash notice slide in over the
+        // chat list; clear it before touching anything underneath.
+        dismissCrashNoticeIfShown(in: app)
+
         // Providers live behind the "Mehr" tab → "KI-Anbieter & Modelle".
-        app.tabBars.buttons["Mehr"].tap()
+        // The selected tab publishes two elements with the same label, so this
+        // must resolve positionally — every other UI suite already does.
+        //
+        // tap(_:until:) rather than a bare tap(): the tab bar EXISTS while the
+        // launch splash is still cross-fading over it, so the first tap used to
+        // be swallowed ({-1,-1} hit point) and the test then waited 10 s for a
+        // row on a screen that was still Chat. See UITestSupport.
+        XCTAssertTrue(waitForTabBar(app), "tab bar should come up after the splash")
         let connectionsRow = app.buttons["open-connections"]
-        XCTAssertTrue(connectionsRow.waitForExistence(timeout: 10), "Settings should offer the KI-Anbieter row")
-        connectionsRow.tap()
-        XCTAssertTrue(app.navigationBars["Anbieter"].waitForExistence(timeout: 10))
+        XCTAssertTrue(tap(app.tabBars.buttons["Mehr"].firstMatch, until: connectionsRow),
+                      "Settings should offer the KI-Anbieter row")
+        XCTAssertTrue(tap(connectionsRow, until: app.navigationBars["Anbieter"]),
+                      "KI-Anbieter should open the provider list")
         attach(app, name: "connections-list")
 
         // OpenRouter (Schnellstart) detail -> OAuth add-account button must appear.
         let openRouterRow = app.buttons.matching(NSPredicate(format: "label CONTAINS 'OpenRouter'")).firstMatch
         scrollTo(openRouterRow, in: app)
         XCTAssertTrue(openRouterRow.waitForExistence(timeout: 10), "provider list should include OpenRouter")
-        openRouterRow.tap()
         let oauthButton = app.buttons["oauth-add-account"]
-        XCTAssertTrue(oauthButton.waitForExistence(timeout: 10), "OAuth add-account button should appear for OpenRouter")
+        XCTAssertTrue(tap(openRouterRow, until: oauthButton),
+                      "OAuth add-account button should appear for OpenRouter")
         attach(app, name: "connections-openrouter")
 
         // Back to the list, then Anthropic (Claude) exposes the subscription OAuth
         // button (OpenAI/Grok deliberately do not — dead-end without impersonation).
         app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.navigationBars["Anbieter"].waitForExistence(timeout: 10),
+                      "back should return to the provider list")
+        // The pushed form and the list coexist for the length of the pop
+        // animation, so the OpenRouter OAuth button can still be in the tree.
+        // Waiting it out keeps the Anthropic step below from "passing" on the
+        // button that is really OpenRouter's.
+        XCTAssertTrue(waitFor(timeout: 5) { !oauthButton.exists },
+                      "the provider form should be gone after popping back")
         let claudeRow = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Anthropic'")).firstMatch
         scrollTo(claudeRow, in: app)
         XCTAssertTrue(claudeRow.waitForExistence(timeout: 10), "provider list should include Anthropic (Claude)")
-        claudeRow.tap()
-        XCTAssertTrue(app.buttons["oauth-add-account"].waitForExistence(timeout: 10),
+        XCTAssertTrue(tap(claudeRow, until: app.buttons["oauth-add-account"]),
                       "OAuth add-account button should appear for Claude")
         attach(app, name: "connections-claude")
 
         // Skills lives in More so the primary tab bar stays focused.
-        app.tabBars.buttons["Mehr"].tap()
+        // The selected tab publishes two elements with the same label, so this
+        // must resolve positionally — every other UI suite already does.
         let skillsRow = app.buttons["open-skills"]
-        XCTAssertTrue(skillsRow.waitForExistence(timeout: 10))
-        skillsRow.tap()
-        XCTAssertTrue(app.staticTexts["UI-Design Pro"].waitForExistence(timeout: 10), "builtin skills should be listed")
+        XCTAssertTrue(tap(app.tabBars.buttons["Mehr"].firstMatch, until: skillsRow),
+                      "Mehr should offer the Skills row")
+        XCTAssertTrue(tap(skillsRow, until: app.staticTexts["UI-Design Pro"]),
+                      "builtin skills should be listed")
         attach(app, name: "skills")
     }
 
@@ -64,17 +85,23 @@ final class SettingsTourUITests: XCTestCase {
                       "the Chat tab should open the conversation list")
         attach(app, name: "tour-1-chats")
 
-        app.tabBars.buttons["Apps"].tap()
+        XCTAssertTrue(tap(app.tabBars.buttons["Apps"].firstMatch, until: app.buttons["add-webapp"]),
+                      "the Apps tab should come up")
         attach(app, name: "tour-2-apps")
 
-        app.tabBars.buttons["Agenten"].tap()
+        XCTAssertTrue(tap(app.tabBars.buttons["Agenten"].firstMatch, until: app.buttons["add-agent"]),
+                      "the Agenten tab should come up")
         attach(app, name: "tour-3-agenten")
 
-        app.tabBars.buttons["Mehr"].tap()
+        // The selected tab publishes two elements with the same label, so this
+        // must resolve positionally — every other UI suite already does.
+        let connectionsRow = app.buttons["open-connections"]
+        XCTAssertTrue(tap(app.tabBars.buttons["Mehr"].firstMatch, until: connectionsRow),
+                      "the Mehr tab should come up")
         attach(app, name: "tour-4-mehr")
 
-        app.buttons["open-connections"].tap()
-        XCTAssertTrue(app.navigationBars["Anbieter"].waitForExistence(timeout: 10))
+        XCTAssertTrue(tap(connectionsRow, until: app.navigationBars["Anbieter"]),
+                      "KI-Anbieter should open the provider list")
         attach(app, name: "tour-5-anbieter")
     }
 

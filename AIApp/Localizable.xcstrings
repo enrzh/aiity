@@ -3738,103 +3738,103 @@
         }
       }
     },
-    "Adresse (z. B. app.allo.restaurant)": {
+    "Adresse (z. B. youtube.com)": {
       "extractionState": "manual",
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "العنوان (مثلًا: app.allo.restaurant)"
+            "value": "العنوان (مثلًا: youtube.com)"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Address (e.g. app.allo.restaurant)"
+            "value": "Address (e.g. youtube.com)"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dirección (p. ej. app.allo.restaurant)"
+            "value": "Dirección (p. ej. youtube.com)"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Adresse (p. ex. app.allo.restaurant)"
+            "value": "Adresse (p. ex. youtube.com)"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Indirizzo (es. app.allo.restaurant)"
+            "value": "Indirizzo (es. youtube.com)"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "アドレス（例: app.allo.restaurant）"
+            "value": "アドレス（例: youtube.com）"
           }
         },
         "pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "Endereço (p. ex. app.allo.restaurant)"
+            "value": "Endereço (p. ex. youtube.com)"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Адрес (напр. app.allo.restaurant)"
+            "value": "Адрес (напр. youtube.com)"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "网址（例如 app.allo.restaurant）"
+            "value": "网址（例如 youtube.com）"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": "पता (जैसे app.allo.restaurant)"
+            "value": "पता (जैसे youtube.com)"
           }
         },
         "bn": {
           "stringUnit": {
             "state": "translated",
-            "value": "ঠিকানা (যেমন app.allo.restaurant)"
+            "value": "ঠিকানা (যেমন youtube.com)"
           }
         },
         "ur": {
           "stringUnit": {
             "state": "translated",
-            "value": "پتہ (مثلاً app.allo.restaurant)"
+            "value": "پتہ (مثلاً youtube.com)"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Alamat (mis. app.allo.restaurant)"
+            "value": "Alamat (mis. youtube.com)"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Adres (örn. app.allo.restaurant)"
+            "value": "Adres (örn. youtube.com)"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Địa chỉ (vd. app.allo.restaurant)"
+            "value": "Địa chỉ (vd. youtube.com)"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "주소 (예: app.allo.restaurant)"
+            "value": "주소 (예: youtube.com)"
           }
         }
       }

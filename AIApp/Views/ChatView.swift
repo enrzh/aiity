@@ -33,6 +33,9 @@ struct ChatView: View {
     @FocusState private var composerFocused: Bool
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Text a Siri / Shortcuts intent wants in the composer. Staged, never
+    /// sent — see `IntentRouter.stagedComposerText`.
+    @ObservedObject private var intents = IntentRouter.shared
 
     private var visibleMessages: [ChatMessage] {
         session.messages.filter {
@@ -353,6 +356,11 @@ struct ChatView: View {
         .onPreferenceChange(InputBarHeightKey.self) { inputBarHeight = $0 }
         .onPreferenceChange(ComposerRestingBottomKey.self) { composerRestingBottom = $0 }
         .onDisappear { composerFocused = false }
+        // A Shortcut that opened a NEW conversation pushes this view, so the
+        // text is usually already waiting by the time onAppear runs; onChange
+        // covers the case where this view was already on screen.
+        .onAppear { stageIntentTextIfNeeded() }
+        .onChange(of: intents.stagedComposerText) { _, _ in stageIntentTextIfNeeded() }
         .navigationTitle(session.activeThreadTitle.isEmpty ? "Chat" : session.activeThreadTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -527,6 +535,20 @@ struct ChatView: View {
 
     private var sanitizedInput: String {
         PlainPasteboard.sanitize(input) ?? ""
+    }
+
+    /// Put an intent's text in the composer and show it off — keyboard up,
+    /// send button lit. It is NOT sent: a Shortcut must never be able to spend
+    /// provider tokens (or pull a local model into memory) unattended. Same
+    /// decision as dictation, and the reason `IntentRouter` has no "send" route
+    /// at all rather than an unused flag someone could flip later.
+    ///
+    /// An existing draft wins: replacing something the user typed with text
+    /// from an automation would destroy work.
+    private func stageIntentTextIfNeeded() {
+        guard sanitizedInput.isEmpty, let text = intents.takeStagedText() else { return }
+        input = text
+        composerFocused = true
     }
 
     private func send() {

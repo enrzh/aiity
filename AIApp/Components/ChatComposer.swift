@@ -4,6 +4,20 @@ struct ChatComposer: View {
     @ObservedObject private var prefs = AppPreferences.shared
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+
+    /// On-device dictation. Owned here because the transcript's only
+    /// destination is this text field — nothing is auto-sent.
+    @StateObject private var dictation = DictationService()
+    /// The composer's text at the moment dictation started. Every partial
+    /// result is composed from THIS base, so a growing partial replaces the
+    /// previous one instead of stacking copies of it.
+    @State private var dictationBase = ""
+    /// The exact string dictation last wrote, so a user edit made WHILE
+    /// dictating is distinguishable from our own write (and hands control
+    /// back to the keyboard instead of being overwritten by the next partial).
+    @State private var dictationApplied: String?
+    @State private var showDictationNotice = false
 
     @Binding var text: String
     /// Owned by ChatView so it can drop the keyboard before sheets present
@@ -52,8 +66,16 @@ struct ChatComposer: View {
                 .disabled(isBusy)
                 .accessibilityIdentifier("chat-input")
                 .onChange(of: text) { _, newValue in
+                    // Typing during a dictation means the user took over —
+                    // stop listening rather than overwrite them at the next
+                    // partial result.
+                    if dictation.isListening, newValue != dictationApplied {
+                        dictation.stop()
+                    }
                     onTextChange(newValue)
                 }
+
+            dictateButton
 
             Button(action: isBusy ? onStop : onSend) {
                 Image(systemName: isBusy ? "stop.fill" : "arrow.up")
@@ -81,6 +103,119 @@ struct ChatComposer: View {
         }
         .padding(.horizontal, Theme.space2)
         .padding(.vertical, 10)
+        // Live transcript → composer. Nothing is ever sent automatically; the
+        // user reviews, edits and presses send themselves.
+        .onChange(of: dictation.transcript) { _, spoken in
+            guard !spoken.isEmpty else { return }
+            let composed = DictationText.compose(base: dictationBase, transcript: spoken)
+            guard composed != text else { return }
+            dictationApplied = composed
+            text = composed
+        }
+        .onChange(of: dictation.notice) { _, notice in
+            showDictationNotice = notice != nil
+        }
+        .onChange(of: showDictationNotice) { _, shown in
+            if !shown { dictation.notice = nil }
+        }
+        // Never hold the microphone (or the ducked audio session) past this
+        // screen or into the background.
+        .onDisappear { dictation.cancel() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { dictation.cancel() }
+        }
+        .alert(
+            dictation.notice?.title ?? "",
+            isPresented: $showDictationNotice,
+            presenting: dictation.notice
+        ) { reason in
+            if reason.offersSettingsLink {
+                Button(String(localized: "Einstellungen öffnen")) {
+                    DictationService.openSystemSettings()
+                }
+            }
+            Button(String(localized: "OK"), role: .cancel) {}
+        } message: { reason in
+            Text(reason.message)
+        }
+    }
+
+    // MARK: - Dictation
+
+    /// Mic button. On-device only: the first tap is also the ONLY place that
+    /// asks for microphone / speech permission (foreground, user-initiated).
+    private var dictateButton: some View {
+        Button(action: toggleDictation) {
+            ZStack {
+                // Recording fill, opacity-animated rather than swapped in, so
+                // the button keeps one identity (and one layout) in all states.
+                Circle()
+                    .fill(Color.red)
+                    .opacity(dictation.buttonState == .listening ? 1 : 0)
+                Image(systemName: dictationSymbol)
+                    .font(.body.weight(.semibold))
+                    // Iterative waveform while listening — motion the user can
+                    // see at a glance. Static under Reduce Motion; the red fill
+                    // still carries the state on its own.
+                    .symbolEffect(
+                        .variableColor.iterative,
+                        options: .repeating,
+                        isActive: dictation.buttonState == .listening && !reduceMotion
+                    )
+                    .foregroundStyle(dictationForeground)
+            }
+            // Same metric as the mode and send buttons — one baseline for the
+            // whole row (and the bar height the ChatView measurement reads).
+            .frame(width: Theme.controlHeight, height: Theme.controlHeight)
+            .glassSurface(in: Circle(), interactive: true)
+        }
+        // A permanent block (no offline model for this language, or a policy
+        // restriction) leaves nothing to tap; a denial stays tappable so the
+        // Settings link remains reachable.
+        .disabled(isBusy || dictation.buttonState == .unavailable)
+        .animation(
+            Theme.Motion.preferSpring(Theme.Motion.snappy, reduceMotion: reduceMotion),
+            value: dictation.buttonState
+        )
+        .accessibilityIdentifier("chat-dictate")
+        .accessibilityLabel(
+            dictation.buttonState == .listening
+                ? String(localized: "Diktat beenden")
+                : String(localized: "Diktieren")
+        )
+        .accessibilityHint(
+            dictation.buttonState == .unavailable
+                ? String(localized: "Offline-Diktat ist für deine Sprache nicht verfügbar.")
+                : String(localized: "Diktiert Gesprochenes in das Eingabefeld. Die Erkennung läuft nur auf dem Gerät.")
+        )
+    }
+
+    private func toggleDictation() {
+        if dictation.isListening {
+            dictation.stop()
+            return
+        }
+        // Base is captured per start, not per keystroke: the transcript is
+        // appended to whatever is already typed.
+        dictationBase = text
+        dictationApplied = nil
+        dictation.toggle()
+    }
+
+    private var dictationSymbol: String {
+        switch dictation.buttonState {
+        case .idle: return "mic"
+        case .listening: return "waveform"
+        case .unavailable: return "mic.slash"
+        }
+    }
+
+    private var dictationForeground: Color {
+        switch dictation.buttonState {
+        case .idle: return .secondary
+        case .listening: return .white
+        case .unavailable: return Color.secondary.opacity(0.5)
+        }
     }
 
     private var buttonForeground: Color {

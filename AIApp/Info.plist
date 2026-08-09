@@ -2,6 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.aiity.app.refresh</string>
+		<string>com.aiity.app.maintenance</string>
+	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>de</string>
 	<key>CFBundleDisplayName</key>
@@ -61,13 +66,25 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Damit der Agent Termine eintragen und dir Fragen zu deinem Kalender beantworten kann. Gelesen werden Titel, Zeit, Kalendername und Ort der Termine im angefragten Zeitraum; diese Angaben gehen an den KI-Anbieter, den du selbst eingerichtet hast.</string>
+	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
+	<string>Damit der Agent auf deine Bestätigung hin Termine eintragen kann. Bestehende Termine kann er damit nicht sehen.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Verbindung zu deinem lokalen Server (sub2api-Gateway, Ollama, LM Studio) im selben WLAN.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Zum Diktieren im Chat. Die Aufnahme wird ausschließlich auf deinem Gerät in Text umgewandelt und nie an einen Anbieter gesendet.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>Damit der Agent auf deine Bestätigung hin Erinnerungen anlegen und deine offenen Erinnerungen vorlesen kann. Jeder neue Eintrag wird dir vorher im Wortlaut gezeigt.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Zum Diktieren im Chat. Die Spracherkennung läuft ausschließlich offline auf deinem Gerät; es werden keine Audiodaten an Apple oder einen KI-Anbieter übertragen.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
+		<string>fetch</string>
+		<string>processing</string>
 	</array>
 	<key>UILaunchScreen</key>
 	<dict/>

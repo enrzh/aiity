@@ -184,8 +184,21 @@ final class AgentStore: ObservableObject {
 
     private static let fileName = "agents.json"
 
-    private static var fileURL: URL {
+    // `fileURL`, `load()` and `active()` are `nonisolated` so `AgentEntityQuery`
+    // can read the roster WITHOUT hopping to the main actor: an App Intents
+    // entity query can run during a background launch, where the main actor is
+    // busy building the whole UI. None of the three touch instance state — they
+    // are a path plus a JSON decode — so dropping the class's `@MainActor`
+    // isolation on them is safe rather than merely convenient.
+    #if DEBUG
+    /// Unit-test seam. The UI-test path is the environment variable below —
+    /// a launched app cannot have a property set on it from outside.
+    nonisolated(unsafe) static var fileURLOverrideForTesting: URL?
+    #endif
+
+    private nonisolated static var fileURL: URL {
         #if DEBUG
+        if let override = fileURLOverrideForTesting { return override }
         // Hermetic UI tests: agents.json otherwise persists in the simulator
         // container between runs, so each run inherited every agent an earlier
         // one created — eleven of them, several sharing a name. That polluted
@@ -209,7 +222,7 @@ final class AgentStore: ObservableObject {
         agents = Self.load()
     }
 
-    static func load() -> [AgentDefinition] {
+    nonisolated static func load() -> [AgentDefinition] {
         guard let data = try? Data(contentsOf: fileURL),
               let decoded = try? JSONDecoder().decode([AgentDefinition].self, from: data) else {
             return []
@@ -218,7 +231,7 @@ final class AgentStore: ObservableObject {
     }
 
     /// Enabled agents only — what the lead is actually allowed to delegate to.
-    static func active() -> [AgentDefinition] {
+    nonisolated static func active() -> [AgentDefinition] {
         load().filter { $0.enabled && !$0.name.trimmingCharacters(in: .whitespaces).isEmpty }
     }
 

@@ -56,28 +56,9 @@ final class ConnectionTestUITests: XCTestCase {
         app.navigationBars.matching(NSPredicate(format: "identifier BEGINSWITH 'Ollama'")).firstMatch
     }
 
-    /// Tap `control` until `target` shows up — bounded, never blind.
-    ///
-    /// `XCUIElement.tap()` does NOT wait for hittability: it computes a hit
-    /// point from the current snapshot and, when the element is covered, gets
-    /// {-1, -1} and drops the event silently — the test then waits out its
-    /// whole timeout on a screen that never changed. Two things cover these
-    /// controls here: the cold-start splash (LaunchSplashView is up for ~1 s
-    /// over a tab bar that already EXISTS in the tree), and any other app the
-    /// simulator brings to the front mid-run. So: wait for hittability, tap,
-    /// verify the screen actually moved on, and otherwise tap again.
-    @discardableResult
-    private func tap(_ control: XCUIElement, until target: XCUIElement, attempts: Int = 4) -> Bool {
-        for attempt in 0..<attempts {
-            if target.exists { return true }
-            let hittable = XCTNSPredicateExpectation(
-                predicate: NSPredicate(format: "isHittable == true"), object: control)
-            guard XCTWaiter.wait(for: [hittable], timeout: 10) == .completed else { continue }
-            control.tap()
-            if target.waitForExistence(timeout: attempt == 0 ? 6 : 4) { return true }
-        }
-        return target.exists
-    }
+    // `tap(_:until:)` — the bounded tap-and-verify this suite introduced — now
+    // lives in UITestSupport.swift so every suite gets it; the swallowed first
+    // tap it was written for was failing SettingsTour and GroupChat too.
 
     /// The provider form is a lazy List that is taller than smaller screens
     /// (e.g. iPhone 17 Pro): rows below the fold — the Diagnose section in
@@ -94,21 +75,7 @@ final class ConnectionTestUITests: XCTestCase {
         return element.exists
     }
 
-    /// Confirmation dialogs animate in; a tap synthesized while the sheet is
-    /// still settling snapshots a stale hit point and can land beside the
-    /// button, leaving the dialog open. Wait for hittability first, and if
-    /// the button is still on screen shortly after the tap, tap once more.
-    private func tapDialogButton(_ button: XCUIElement) {
-        let hittable = XCTNSPredicateExpectation(
-            predicate: NSPredicate(format: "isHittable == true"), object: button)
-        _ = XCTWaiter.wait(for: [hittable], timeout: 5)
-        button.tap()
-        let gone = XCTNSPredicateExpectation(
-            predicate: NSPredicate(format: "exists == false"), object: button)
-        if XCTWaiter.wait(for: [gone], timeout: 3) != .completed, button.exists {
-            button.tap() // first tap missed the still-animating dialog
-        }
-    }
+    // `tapDialogButton(_:)` also moved to UITestSupport.swift.
 
     /// Probe succeeds against the stub — and commits NOTHING: the exit-prompt
     /// back button still intercepts, and leaving still raises the question.

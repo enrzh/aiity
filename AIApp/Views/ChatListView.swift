@@ -64,7 +64,11 @@ struct ChatListView: View {
                     startChat(participants: participants)
                 }
             }
-            .confirmationDialog(
+            // Centered alert, deliberately NOT a confirmationDialog: the swipe
+            // already happens at the row, so a sheet sliding up from the bottom
+            // reads as a second, unrelated gesture surface. A centered alert
+            // interrupts where the eye already is.
+            .alert(
                 String(localized: "Chat löschen?"),
                 isPresented: Binding(
                     get: { deleteCandidate != nil },

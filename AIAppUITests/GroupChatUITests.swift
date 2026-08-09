@@ -36,6 +36,9 @@ final class GroupChatUITests: XCTestCase {
 
     func testGroupChatLetsEveryAgentSpeak() {
         app.launch()
+        // An earlier suite's terminate() leaves the crash notice to slide in a
+        // beat after the first screen renders, shifting whatever sits under it.
+        dismissCrashNoticeIfShown(in: app)
 
         // Unique per run: agents.json persists in the simulator container, so
         // fixed names accumulated duplicates across runs and the test ended up
@@ -48,14 +51,13 @@ final class GroupChatUITests: XCTestCase {
 
         // Start a group with both of them.
         let compose = openChatList()
-        compose.tap()
 
         // Select BY NAME, not by index: the roster contains agents from earlier
         // runs, so positional taps pick arbitrary ones.
         let firstOption = app.buttons.matching(
             NSPredicate(format: "identifier == 'group-agent-option' AND label CONTAINS %@", first)
         ).firstMatch
-        XCTAssertTrue(firstOption.waitForExistence(timeout: 10), "the first agent should be selectable")
+        XCTAssertTrue(tap(compose, until: firstOption), "the first agent should be selectable")
         firstOption.tap()
 
         let secondOption = app.buttons.matching(
@@ -63,14 +65,19 @@ final class GroupChatUITests: XCTestCase {
         ).firstMatch
         XCTAssertTrue(secondOption.waitForExistence(timeout: 10), "the second agent should be selectable")
         secondOption.tap()
-        app.buttons["start-group-chat"].tap()
-
-        // One message from the user…
         let input = app.descendants(matching: .any)["chat-input"].firstMatch
-        XCTAssertTrue(input.waitForExistence(timeout: 15), "the group chat should open")
-        input.tap()
-        input.typeText("Wie gehen wir das an?")
-        app.buttons["chat-send"].tap()
+        XCTAssertTrue(tap(app.buttons["start-group-chat"], until: input),
+                      "the group chat should open")
+
+        // One message from the user… the send tap is verified against the
+        // user's own bubble: XCUITest snapshots a hit point before it
+        // synthesizes the touch, so anything that intervenes (another app on
+        // the same simulator taking the foreground) can make it land nowhere.
+        let question = "Wie gehen wir das an?"
+        typeText(question, into: "chat-input", in: app)
+        let bubble = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", question)).firstMatch
+        XCTAssertTrue(tap(app.buttons["chat-send"], until: bubble),
+                      "sending should put the message in the transcript")
 
         // …and both agents answer, each labelled with its own name.
         let planner = app.staticTexts.matching(
@@ -111,9 +118,8 @@ final class GroupChatUITests: XCTestCase {
     /// level up and the test would wait for something that is not on screen.
     @discardableResult
     private func openChatList() -> XCUIElement {
-        app.tabBars.buttons["Chat"].firstMatch.tap()
         let compose = app.buttons["new-chat"]
-        if compose.waitForExistence(timeout: 5) { return compose }
+        if tap(app.tabBars.buttons["Chat"].firstMatch, until: compose, attempts: 2) { return compose }
 
         // Pushed into a chat — pop back to the list.
         let back = app.navigationBars.buttons.element(boundBy: 0)
@@ -126,31 +132,30 @@ final class GroupChatUITests: XCTestCase {
     }
 
     private func createAgent(named name: String, role: String) {
-        // The launch splash holds the UI back for a beat, so the tab bar is not
-        // present the instant the app is launched.
+        // The launch splash CROSS-FADES out over the tab bar, so the tab button
+        // exists (and waitForExistence returns) while it is still covered — the
+        // bare tap() that used to be here computed a {-1,-1} hit point and was
+        // dropped, and the test then blamed the app for not offering "add-agent".
+        // tap(_:until:) waits for hittability and verifies the screen moved on.
         let agentsTab = app.tabBars.buttons["Agenten"].firstMatch
         XCTAssertTrue(agentsTab.waitForExistence(timeout: 15), "tab bar should appear after the splash")
-        agentsTab.tap()
 
         let add = app.buttons["add-agent"].firstMatch
-        XCTAssertTrue(add.waitForExistence(timeout: 10), "the Agenten tab should offer a add button")
-        add.tap()
+        XCTAssertTrue(tap(agentsTab, until: add), "the Agenten tab should offer a add button")
 
         let nameField = app.textFields["agent-name"]
-        XCTAssertTrue(nameField.waitForExistence(timeout: 10), "agent editor should open")
-        nameField.tap()
-        nameField.typeText(name)
+        XCTAssertTrue(tap(add, until: nameField), "agent editor should open")
+        typeText(name, into: "agent-name", in: app)
 
         let roleField = app.textViews["agent-role"].exists
             ? app.textViews["agent-role"]
             : app.textFields["agent-role"]
-        roleField.tap()
+        focusTextInput(roleField, identifier: "agent-role", in: app)
         roleField.typeText(role)
 
-        app.buttons["agent-save"].tap()
-        XCTAssertTrue(
-            app.buttons.matching(identifier: "agent-row").firstMatch.waitForExistence(timeout: 10),
-            "the saved agent should be listed"
-        )
+        let row = app.buttons.matching(
+            NSPredicate(format: "identifier == 'agent-row' AND label CONTAINS %@", name)
+        ).firstMatch
+        XCTAssertTrue(tap(app.buttons["agent-save"], until: row), "the saved agent should be listed")
     }
 }

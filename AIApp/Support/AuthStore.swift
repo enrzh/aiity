@@ -48,6 +48,24 @@ enum AuthStore {
         return await effectiveKey(forKeychainKey: account.keychainKey, oauthConfig: settings.preset.oauth)
     }
 
+    /// Non-refreshing read of a provider's stored credential. Same result as
+    /// `effectiveKey` for the "is there a credential at all?" question, without
+    /// the async token refresh — for sync gates (e.g. may the system prompt
+    /// promise image generation?). Never use it to authorise a request: an
+    /// expired OAuth token would be sent unrefreshed.
+    static func storedKeySynchronously(presetId: String) -> String {
+        #if DEBUG
+        if let forced = ProcessInfo.processInfo.environment["AIITY_TEST_API_KEY"], !forced.isEmpty {
+            return forced
+        }
+        #endif
+        guard let account = AccountStore.activeAccount(for: presetId) else { return "" }
+        if let credential = storedOAuthCredential(account: account.keychainKey) {
+            return oauthMarker + credential.accessToken
+        }
+        return Keychain.get(account.keychainKey)
+    }
+
     private static func effectiveKey(forKeychainKey key: String, oauthConfig: OAuthProviderConfig?) async -> String {
         guard let credential = storedOAuthCredential(account: key) else {
             return Keychain.get(key)

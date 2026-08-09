@@ -11,6 +11,7 @@ final class AppPreferences: ObservableObject {
     static let allowLocalToolsKey = "prefs.allowLocalTools.v1"
     static let iCloudSyncKey = "prefs.iCloudSync.v1"
     static let smartSuggestionsKey = "prefs.smartSuggestions.v1"
+    static let deviceToolsKey = "prefs.deviceTools.v1"
     private static let chatModeKey = "prefs.chatMode.v1"
     private static let appearanceKey = "prefs.appearance.v1"
 
@@ -74,6 +75,20 @@ final class AppPreferences: ObservableObject {
         UserDefaults.standard.object(forKey: smartSuggestionsKey) as? Bool ?? true
     }
 
+    /// Master switch for the device-data agent tools (reminders, calendar,
+    /// shared files). Defaults to ON, which grants exactly nothing: the tools
+    /// are additionally gated on an iOS authorization the user has to hand out
+    /// themselves, so "on" only means "don't hide the feature". Turning it off
+    /// withholds the tools even from a model whose permissions are granted —
+    /// without revoking anything in iOS Settings.
+    @Published var deviceToolsEnabled: Bool {
+        didSet { UserDefaults.standard.set(deviceToolsEnabled, forKey: Self.deviceToolsKey) }
+    }
+
+    nonisolated static var deviceToolsPreference: Bool {
+        UserDefaults.standard.object(forKey: deviceToolsKey) as? Bool ?? true
+    }
+
     private init() {
         if UserDefaults.standard.object(forKey: Self.keepScreenKey) == nil {
             // Default off — users opt in (saves battery). didSet not called from init.
@@ -83,6 +98,7 @@ final class AppPreferences: ObservableObject {
         }
         allowLocalTools = UserDefaults.standard.bool(forKey: Self.allowLocalToolsKey)
         smartSuggestions = Self.smartSuggestionsEnabled
+        deviceToolsEnabled = Self.deviceToolsPreference
         iCloudSyncEnabled = Self.iCloudSyncPreference
         chatMode = Self.storedChatMode
         appearance = AppAppearance(

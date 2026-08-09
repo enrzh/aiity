@@ -85,8 +85,22 @@ targets:
         NSSupportsLiveActivities: true
         # CloudKit pushes a silent notification when another device changes a
         # record; without this background mode the store only syncs on launch.
+        # `fetch` + `processing` are what BGTaskScheduler requires for
+        # BGAppRefreshTask and BGProcessingTask respectively — they are ADDED
+        # here, never replacing remote-notification (dropping it would stop
+        # CloudKit from syncing between launches).
         UIBackgroundModes:
           - remote-notification
+          - fetch
+          - processing
+        # Every identifier BGTaskScheduler is allowed to launch. An identifier
+        # missing from this list makes register() return false and submit()
+        # throw — both silently at runtime — so this must stay in lockstep with
+        # BackgroundTaskID in AIApp/Services/BackgroundWork.swift (a unit test
+        # asserts the two agree).
+        BGTaskSchedulerPermittedIdentifiers:
+          - com.aiity.app.refresh
+          - com.aiity.app.maintenance
         # aiity is a bring-your-own-endpoint client: users point it at self-hosted
         # gateways — Ollama/LM Studio on the LAN, a sub2api gateway over Tailscale,
         # etc. — that often speak plain http. Tailscale IPs (100.64/10 CGNAT) aren't
@@ -101,6 +115,26 @@ targets:
         # iOS 14+ gates connections to private-subnet hosts behind Local Network
         # privacy; without this key the first LAN gateway connection fails opaquely.
         NSLocalNetworkUsageDescription: Verbindung zu deinem lokalen Server (sub2api-Gateway, Ollama, LM Studio) im selben WLAN.
+        # Diktat im Chat. Both strings must stay honest about the on-device
+        # promise: the recognition request sets requiresOnDeviceRecognition and
+        # there is deliberately NO server fallback, so no audio ever leaves the
+        # phone — not to Apple, not to a model provider.
+        NSMicrophoneUsageDescription: Zum Diktieren im Chat. Die Aufnahme wird ausschließlich auf deinem Gerät in Text umgewandelt und nie an einen Anbieter gesendet.
+        # Agent-Werkzeuge (Mehr → Agent-Werkzeuge). Requested ONLY from a tap on
+        # that screen — never at launch, never from a tool call, never from a
+        # background task. The strings name the concrete capability, because
+        # vague ones ("Zugriff auf deine Daten") are a review rejection.
+        #
+        # Both write-only and full-access keys are declared because the calendar
+        # screen offers BOTH levels: "nur eintragen" calls
+        # requestWriteOnlyAccessToEvents (the default, least-privilege path) and
+        # only an explicit second tap asks for full access. iOS shows the key
+        # matching the request it is answering, and a missing one crashes the
+        # app at the moment of the request.
+        NSRemindersFullAccessUsageDescription: Damit der Agent auf deine Bestätigung hin Erinnerungen anlegen und deine offenen Erinnerungen vorlesen kann. Jeder neue Eintrag wird dir vorher im Wortlaut gezeigt.
+        NSCalendarsWriteOnlyAccessUsageDescription: Damit der Agent auf deine Bestätigung hin Termine eintragen kann. Bestehende Termine kann er damit nicht sehen.
+        NSCalendarsFullAccessUsageDescription: Damit der Agent Termine eintragen und dir Fragen zu deinem Kalender beantworten kann. Gelesen werden Titel, Zeit, Kalendername und Ort der Termine im angefragten Zeitraum; diese Angaben gehen an den KI-Anbieter, den du selbst eingerichtet hast.
+        NSSpeechRecognitionUsageDescription: Zum Diktieren im Chat. Die Spracherkennung läuft ausschließlich offline auf deinem Gerät; es werden keine Audiodaten an Apple oder einen KI-Anbieter übertragen.
         # OAuth callbacks: aiity:// primary; aiapp:// kept for OpenRouter redirect.
         CFBundleURLTypes:
           - CFBundleURLName: com.aiity.app

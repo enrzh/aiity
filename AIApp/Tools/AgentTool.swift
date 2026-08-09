@@ -5,10 +5,17 @@ import Foundation
 struct ToolRunResult {
     var text: String
     var mediaIds: [String] = []
+    /// Shown to the USER as an error banner, independently of what the model
+    /// decides to say. Tool results are otherwise invisible in the chat (only a
+    /// chip with the prompt), so a failed image generation used to depend
+    /// entirely on the model choosing to relay it — and a model that just
+    /// answers "hier ist dein Bild" leaves the user with no image and no reason.
+    var userNotice: String?
 
-    init(_ text: String, mediaIds: [String] = []) {
+    init(_ text: String, mediaIds: [String] = [], userNotice: String? = nil) {
         self.text = text
         self.mediaIds = mediaIds
+        self.userNotice = userNotice
     }
 }
 
@@ -43,6 +50,9 @@ enum ToolRegistry {
         if let imageRoute = await MediaRoute.resolve(modality: .image, from: settings) {
             tools.append(ImageGenerationTool(route: imageRoute))
         }
+        // Reminders / calendar / shared documents. Offered strictly by current
+        // authorization — see `personalTools`.
+        tools.append(contentsOf: await personalTools())
         if delegating {
             let agents = await MainActor.run { AgentStore.active() }
             if !agents.isEmpty {
@@ -50,6 +60,67 @@ enum ToolRegistry {
             }
         }
         return tools
+    }
+
+    /// Which device-data tools are live right now. Reads authorization status
+    /// only — `EKEventStore.authorizationStatus` never prompts, so this is safe
+    /// to call on every turn, and it is the same function the system prompt
+    /// asks (see `ChatSession.deviceToolNames`) so the advertisement and the
+    /// tool list cannot drift apart.
+    @MainActor
+    static func personalToolNames(store: PersonalDataStore = PersonalData.store) -> Set<String> {
+        PersonalToolPolicy.availableToolNames(
+            enabled: AppPreferences.deviceToolsPreference,
+            reminders: store.access(.reminders),
+            calendar: store.access(.calendar),
+            pickedFileCount: UserFileAccess.shared.entries.count
+        )
+    }
+
+    /// Build exactly the tools `names` allows. The latch is created here, once
+    /// per turn, and shared by all of them: two declined confirmations in one
+    /// turn stop the model from asking a third time.
+    static func personalTools(
+        names: Set<String>,
+        store: PersonalDataStore,
+        files: UserFileProviding,
+        confirmer: ToolConfirming,
+        latch: ToolAttemptLatch = ToolAttemptLatch()
+    ) -> [AgentTool] {
+        var tools: [AgentTool] = []
+        if names.contains(PersonalToolPolicy.createReminder) {
+            tools.append(CreateReminderTool(store: store, confirmer: confirmer, latch: latch))
+        }
+        if names.contains(PersonalToolPolicy.listReminders) {
+            tools.append(ListRemindersTool(store: store, latch: latch))
+        }
+        if names.contains(PersonalToolPolicy.createEvent) {
+            tools.append(CreateCalendarEventTool(store: store, confirmer: confirmer, latch: latch))
+        }
+        if names.contains(PersonalToolPolicy.listEvents) {
+            tools.append(ListCalendarEventsTool(store: store, latch: latch))
+        }
+        if names.contains(PersonalToolPolicy.listFiles) {
+            tools.append(ListUserFilesTool(files: files))
+        }
+        if names.contains(PersonalToolPolicy.readFile) {
+            tools.append(ReadUserFileTool(files: files, latch: latch))
+        }
+        if names.contains(PersonalToolPolicy.writeFile) {
+            tools.append(WriteUserFileTool(files: files, confirmer: confirmer, latch: latch))
+        }
+        return tools
+    }
+
+    private static func personalTools() async -> [AgentTool] {
+        let store = PersonalData.store
+        let names = await MainActor.run { personalToolNames(store: store) }
+        return personalTools(
+            names: names,
+            store: store,
+            files: MainActorUserFiles.shared,
+            confirmer: SystemToolConfirmer.shared
+        )
     }
 }
 

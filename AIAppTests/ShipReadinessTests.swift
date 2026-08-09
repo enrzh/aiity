@@ -252,3 +252,78 @@ final class LocalModelFieldTests: XCTestCase {
         XCTAssertTrue(ProviderPreset.preset(for: "mlx").defaultModel.isEmpty)
     }
 }
+
+/// The German source text is the lookup key in `Localizable.xcstrings`, so
+/// editing a literal in Swift silently renames its catalog entry and orphans
+/// all sixteen translations — the string then falls back to German everywhere.
+/// These read the catalog out of the source tree (it is compiled into `.strings`
+/// by the time it reaches the bundle, so there is nothing to read at runtime).
+final class StringCatalogTests: XCTestCase {
+
+    /// ar, bn, en, es, fr, hi, id, it, ja, ko, pt, ru, tr, ur, vi, zh-Hans.
+    /// `de` is the source language and has no entry of its own.
+    static let shippedLanguages: Set<String> = [
+        "ar", "bn", "en", "es", "fr", "hi", "id", "it",
+        "ja", "ko", "pt", "ru", "tr", "ur", "vi", "zh-Hans",
+    ]
+
+    private func catalog() throws -> [String: [String: Any]] {
+        let url = URL(fileURLWithPath: #filePath)      // AIAppTests/ShipReadinessTests.swift
+            .deletingLastPathComponent()               // AIAppTests/
+            .deletingLastPathComponent()               // repo root
+            .appendingPathComponent("AIApp/Localizable.xcstrings")
+        let json = try JSONSerialization.jsonObject(with: Data(contentsOf: url))
+        guard let root = json as? [String: Any],
+              let strings = root["strings"] as? [String: [String: Any]] else {
+            throw XCTSkip("catalog not readable from \(url.path)")
+        }
+        return strings
+    }
+
+    private func languages(of entry: [String: Any]) -> Set<String> {
+        let locs = (entry["localizations"] as? [String: Any]) ?? [:]
+        return Set(locs.keys)
+    }
+
+    /// The renamed key must exist and must have brought every translation with
+    /// it. A rename that drops a language is exactly the failure this guards.
+    func testTheWebAppAddressPlaceholderKeptAllSixteenTranslations() throws {
+        let strings = try catalog()
+        let key = "Adresse (z. B. youtube.com)"
+        guard let entry = strings[key] else {
+            return XCTFail("the address placeholder key is missing — a rename orphaned it")
+        }
+        XCTAssertEqual(languages(of: entry), Self.shippedLanguages,
+                       "\(key) lost or gained a language")
+        for (lang, loc) in (entry["localizations"] as? [String: [String: Any]]) ?? [:] {
+            let value = ((loc["stringUnit"] as? [String: Any])?["value"] as? String) ?? ""
+            XCTAssertTrue(value.contains("youtube.com"),
+                          "\(lang) still shows a stale example domain: \(value)")
+        }
+    }
+
+    /// The old example was a private domain that meant nothing to users; it must
+    /// not survive anywhere in the catalog, in any language.
+    func testNoLocalizationStillAdvertisesThePrivateExampleDomain() throws {
+        for (key, entry) in try catalog() {
+            XCTAssertFalse(key.contains("allo.restaurant"), "stale key: \(key)")
+            for (lang, loc) in (entry["localizations"] as? [String: [String: Any]]) ?? [:] {
+                let value = ((loc["stringUnit"] as? [String: Any])?["value"] as? String) ?? ""
+                XCTAssertFalse(value.contains("allo.restaurant"),
+                               "stale value in \(lang) for \(key)")
+            }
+        }
+    }
+
+    /// A typo in a locale code (`zh-hans`, `pt-BR`) produces an entry Xcode
+    /// happily stores and the app never reads. No key may introduce one, and no
+    /// key may be left with no translations at all.
+    func testEveryKeyUsesOnlyTheShippedLocaleCodes() throws {
+        for (key, entry) in try catalog() {
+            let langs = languages(of: entry)
+            XCTAssertFalse(langs.isEmpty, "\(key) has no localizations at all")
+            XCTAssertTrue(langs.isSubset(of: Self.shippedLanguages),
+                          "\(key) has unknown locale codes: \(langs.subtracting(Self.shippedLanguages))")
+        }
+    }
+}

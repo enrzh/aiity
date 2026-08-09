@@ -80,7 +80,17 @@ struct LibraryView: View {
                     ))
                 }
             }
-            .confirmationDialog(
+            // A sheet-style confirmation, not an alert: it slides up from the
+            // bottom, does not block the screen behind it, and is dismissed by
+            // tapping anywhere outside. Deleting a mini-app is irreversible and
+            // propagates to every device over iCloud, so it keeps one
+            // confirmation step — the same shape the Home Screen uses for
+            // "Remove App".
+            // Centered alert, deliberately NOT a confirmationDialog: the
+            // bottom sheet reads as a menu continuation of the long-press that
+            // opened it, and the destructive step deserves to interrupt in the
+            // middle of the screen rather than slide up under the thumb.
+            .alert(
                 String(localized: "Mini-App löschen?"),
                 isPresented: Binding(
                     get: { deleteCandidate != nil },
@@ -97,6 +107,7 @@ struct LibraryView: View {
                     modelContext.delete(app)
                     deleteCandidate = nil
                 }
+                .accessibilityIdentifier("library-app-delete-confirm")
                 Button("Abbrechen", role: .cancel) { deleteCandidate = nil }
             } message: { app in
                 Text(String(localized: "„\(app.name)“ wird dauerhaft entfernt."))
@@ -137,6 +148,9 @@ struct LibraryView: View {
         }
         .buttonStyle(.pressable)
         .accessibilityIdentifier("library-app")
+        // The library is a grid, and `.swipeActions` only exists on List rows —
+        // so the delete affordance is the long-press menu, which is what a grid
+        // of app tiles uses everywhere else on iOS.
         .contextMenu {
             Button {
                 session.startEditing(id: app.id, name: app.name, html: app.runnableHTML)
@@ -154,6 +168,7 @@ struct LibraryView: View {
             } label: {
                 Label("Löschen", systemImage: "trash")
             }
+            .accessibilityIdentifier("library-app-delete")
         }
     }
 }
@@ -180,7 +195,7 @@ struct AddWebAppSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Adresse (z. B. app.allo.restaurant)", text: $url)
+                    TextField("Adresse (z. B. youtube.com)", text: $url)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
                         .keyboardType(.URL)

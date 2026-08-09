@@ -197,10 +197,6 @@ final class ChatSession: ObservableObject {
     nonisolated static let systemPrompt = """
     You are aiity ("AI it yourself"). You are first a normal, helpful chat assistant — answer questions, discuss, explain, write. Only build a "mini-app" when the user actually asks for an app/tool; otherwise just reply in plain conversation. Never emit a mini-app for a normal question.
 
-    You can also generate media with tools:
-    - generate_image(prompt, size?) — creates a picture and shows it to the user inline. Use when they ask for an image/illustration/logo/artwork.
-    After a generation tool runs, briefly tell the user what you made; the media is attached to your message automatically — do not paste base64 or URLs.
-
     If an `ask_agent` tool is offered, the user has configured specialist agents. You are the lead: when a task matches one of their roles better than your own — deep research, review, translation, a second opinion from a different model — delegate it with ask_agent, then use the answer in your reply. Give the agent everything it needs in the task text; it cannot see this conversation. Do not delegate trivial work you can just do, and never announce a delegation you did not make.
 
     When the user has enabled agent skills (listed under "Installed skills"), treat them as hard requirements for matching work — especially design systems, games, and charts. Do not invent a conflicting style.
@@ -250,18 +246,57 @@ final class ChatSession: ObservableObject {
     static let skillCharBudgetCloud = 8_000
     static let skillCharBudgetCompact = 3_500
 
+    /// Only added when the `generate_image` tool is actually offered this turn.
+    /// It used to be unconditional in `systemPrompt`, so a user with no image
+    /// provider (or a chat provider that cannot do images) had a model that
+    /// believed it could draw: it either announced a picture that never
+    /// appeared, or apologised for a feature the app does have.
+    nonisolated static let imageToolPromptSection = """
+    You can also generate media with tools:
+    - generate_image(prompt, size?) — creates a picture and shows it to the user inline. Use when they ask for an image/illustration/logo/artwork.
+    After a generation tool runs, briefly tell the user what you made; the media is attached to your message automatically — do not paste base64 or URLs.
+    """
+
+    /// Whether this turn may promise image generation: the image slot resolves,
+    /// tools are being sent at all, and the chat mode allows them.
+    nonisolated static func imageToolAvailable(for settings: ProviderSettings) -> Bool {
+        LocalRuntimePolicy.shouldSendTools(settings)
+            && AppPreferences.storedChatMode.allowsTools
+            && MediaRoute.canResolve(modality: .image, from: settings)
+    }
+
     /// Builds the system message. Enabled skills are always injected for cloud;
     /// local models get a roster always and full skill text when building apps.
+    ///
+    /// - Parameter imageToolAvailable: pass the value of `imageToolAvailable(for:)`.
+    ///   Defaults to false so a prompt is never allowed to advertise a tool the
+    ///   caller has not confirmed.
+    /// The device-data tools that are actually live this turn (reminders,
+    /// calendar, shared files). Resolved from current authorization by the same
+    /// function the registry uses, so the prompt can never advertise a tool the
+    /// request does not carry.
+    @MainActor
+    static func deviceToolNames() -> Set<String> {
+        guard AppPreferences.storedChatMode.allowsTools else { return [] }
+        return ToolRegistry.personalToolNames()
+    }
+
     nonisolated static func buildSystemPrompt(
         settings: ProviderSettings,
         editing: EditingContext?,
-        userText: String = ""
+        userText: String = "",
+        imageToolAvailable: Bool = false,
+        deviceToolNames: Set<String> = []
     ) -> String {
         // Local LAN / MLX: keep it dumb-simple so 1–8B models stay coherent.
         if LocalRuntimePolicy.isLocal(settings) {
             var system = LocalRuntimePolicy.shouldSendTools(settings)
                 ? LocalRuntimePolicy.systemPromptWithTools
                 : LocalRuntimePolicy.systemPrompt
+            if LocalRuntimePolicy.shouldSendTools(settings),
+               let deviceSection = PersonalToolPolicy.promptSection(names: deviceToolNames) {
+                system += "\n\n" + deviceSection
+            }
             let roster = SkillStore.enabledRoster()
             if !roster.isEmpty {
                 system += "\n\n" + roster
@@ -293,6 +328,13 @@ final class ChatSession: ObservableObject {
         let caps = ConnectionProbe.capabilities(for: settings)
         let useCompact = !caps.miniAppPro
         var system = useCompact ? systemPromptCompact : systemPrompt
+        if imageToolAvailable {
+            system += "\n\n" + imageToolPromptSection
+        }
+        // Only the tools whose permission actually exists right now.
+        if let deviceSection = PersonalToolPolicy.promptSection(names: deviceToolNames) {
+            system += "\n\n" + deviceSection
+        }
         if useCompact {
             system += "\n\n" + MiniAppValidator.templateOnlyModePrompt
             let shortTemplates = MiniAppValidator.templates
@@ -385,7 +427,9 @@ final class ChatSession: ObservableObject {
         let system = Self.buildSystemPrompt(
             settings: settings,
             editing: editingContext,
-            userText: text
+            userText: text,
+            imageToolAvailable: Self.imageToolAvailable(for: settings),
+            deviceToolNames: Self.deviceToolNames()
         )
         // The mode is part of the system prompt, refreshed every turn so a
         // change applies to the next message rather than the next thread.
@@ -1000,6 +1044,10 @@ final class ChatSession: ObservableObject {
                 // Record the result even when cancelled: the work is already paid
                 // for, and the tool_result must exist to pair with its tool_use.
                 pendingMediaIds.append(contentsOf: result.mediaIds)
+                // A tool that failed in a way the user must act on (no image
+                // provider, refused motif, expired key) says so directly rather
+                // than hoping the model passes the message along.
+                if let notice = result.userNotice { errorMessage = notice }
                 messages.append(ChatMessage(role: .tool, text: result.text, toolCallId: call.id, toolName: call.name))
                 // Tool boundary: the cheapest, most valuable checkpoint there
                 // is — the round's expensive work is now paired and safe.
@@ -1170,6 +1218,12 @@ final class ChatSession: ObservableObject {
         case "web_search": return "Sucht im Web…"
         case "fetch_url": return "Liest Seite…"
         case "generate_image": return "Erstellt Bild…"
+        case PersonalToolPolicy.createReminder: return String(localized: "Erinnerung…")
+        case PersonalToolPolicy.listReminders: return String(localized: "Liest Erinnerungen…")
+        case PersonalToolPolicy.createEvent: return String(localized: "Termin…")
+        case PersonalToolPolicy.listEvents: return String(localized: "Liest Kalender…")
+        case PersonalToolPolicy.listFiles, PersonalToolPolicy.readFile: return String(localized: "Liest Datei…")
+        case PersonalToolPolicy.writeFile: return String(localized: "Schreibt Datei…")
         case AskAgentTool.toolName: return "Fragt Agent…"
         default: return "Tool: \(call.name)"
         }
@@ -1182,6 +1236,10 @@ final class ChatSession: ObservableObject {
         case "fetch_url": return arguments["url"] as? String ?? ""
         case "generate_image":
             return String((arguments["prompt"] as? String ?? "").prefix(60))
+        case PersonalToolPolicy.createReminder, PersonalToolPolicy.createEvent:
+            return String((arguments["title"] as? String ?? "").prefix(60))
+        case PersonalToolPolicy.readFile, PersonalToolPolicy.writeFile:
+            return String((arguments["name"] as? String ?? "").prefix(60))
         case AskAgentTool.toolName:
             return arguments["agent"] as? String ?? ""
         default: return call.name
@@ -1640,6 +1698,37 @@ final class ChatSession: ObservableObject {
 
     /// Public hook so UI can flush after clearing edit mode etc.
     func persistPublic() { persist() }
+
+    /// Every media id the persisted archive references, read straight off disk
+    /// WITHOUT constructing a session.
+    ///
+    /// For `BackgroundWorkCoordinator.sweepMedia()`: a background wake-up must
+    /// not instantiate a second `ChatSession`, because that session would hold
+    /// its own (freshly restored) copy of the threads and the next `persist()`
+    /// from either instance would write one over the other.
+    ///
+    /// `nil` — not an empty set — for a missing or undecodable archive. The
+    /// caller sweeps nothing in that case: "no ids are referenced" would mean
+    /// "delete every image the user owns", which is exactly the wrong answer
+    /// for a file that simply failed to parse.
+    nonisolated static func persistedMediaIds() -> Set<String>? {
+        guard let data = try? Data(contentsOf: storeURL) else { return nil }
+        return mediaIds(inArchive: data)
+    }
+
+    /// The decoding half of `persistedMediaIds()`, split out so the
+    /// "undecodable means nil, never an empty set" rule is unit-testable
+    /// without writing over the real archive.
+    nonisolated static func mediaIds(inArchive data: Data) -> Set<String>? {
+        guard let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data) else { return nil }
+        var ids = Set<String>()
+        for thread in snapshot.threads {
+            for message in thread.messages {
+                ids.formUnion(message.mediaIds)
+            }
+        }
+        return ids
+    }
 
     #if DEBUG
     /// Put the session into the state a running GROUP round leaves it in.

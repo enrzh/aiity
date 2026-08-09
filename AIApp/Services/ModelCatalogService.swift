@@ -333,6 +333,13 @@ enum MediaCapability {
         if preset.dialect == .mlx { return false }
         // Pure LAN runtimes rarely implement /images.
         if ["ollama", "lmstudio", "localai"].contains(presetId) { return false }
+        // A provider that needs a credential and has none can only ever answer
+        // 401. Offering the model a tool whose every call is a guaranteed auth
+        // error is worse than not offering it: it burns the tool budget and
+        // ends the turn with an error instead of an answer.
+        if preset.needsKey, bearerToken(from: apiKey).trimmingCharacters(in: .whitespaces).isEmpty {
+            return false
+        }
         return true
     }
 
@@ -354,21 +361,35 @@ struct MediaRoute: Equatable {
     var model: String
     var apiKey: String
 
+    /// Which provider serves this modality: the slot's own choice, else the
+    /// chat provider when it can do media (migration path for older installs).
+    /// Nil when nothing can.
+    static func servingPresetId(modality: ModelModality, from settings: ProviderSettings) -> String? {
+        guard modality == .image else { return nil }
+        var presetId = settings.activePresetId(for: modality)
+        if presetId.isEmpty { presetId = settings.presetId }
+        guard MediaCapability.supports(modality, presetId: presetId) else { return nil }
+        return presetId
+    }
+
+    /// Synchronous "could this possibly work?" — the same gates as `resolve`
+    /// minus the async OAuth refresh. Used where a route cannot be awaited:
+    /// deciding whether the system prompt may promise image generation at all.
+    /// Promising a capability the model has no tool for makes it either
+    /// hallucinate a picture it never made or apologise for a missing feature.
+    static func canResolve(modality: ModelModality, from settings: ProviderSettings) -> Bool {
+        guard let presetId = servingPresetId(modality: modality, from: settings) else { return false }
+        return MediaCapability.canUseMedia(
+            presetId: presetId,
+            apiKey: AuthStore.storedKeySynchronously(presetId: presetId),
+            modality: modality
+        )
+    }
+
     /// Resolves the modality slot. Empty slot falls back to the chat provider
     /// when that provider can do media (migration path for older installs).
     static func resolve(modality: ModelModality, from settings: ProviderSettings) async -> MediaRoute? {
-        guard modality == .image else { return nil }
-
-        var presetId = settings.activePresetId(for: modality)
-        if presetId.isEmpty {
-            let chatId = settings.presetId
-            if MediaCapability.supports(modality, presetId: chatId) {
-                presetId = chatId
-            } else {
-                return nil
-            }
-        }
-        guard MediaCapability.supports(modality, presetId: presetId) else { return nil }
+        guard let presetId = servingPresetId(modality: modality, from: settings) else { return nil }
 
         let connection = ProviderSettings.connectionSnapshot(presetId: presetId)
         let apiKey = await AuthStore.effectiveKey(for: connection)

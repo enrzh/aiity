@@ -69,20 +69,22 @@ final class ProviderCompatTests: XCTestCase {
     }
 
     func testWebAppBuilderDetectsOpenRequests() {
-        XCTAssertEqual(WebAppBuilder.detectOpenRequest("Öffne app.allo.restaurant als Browser-Mini-App"), "app.allo.restaurant")
+        XCTAssertEqual(WebAppBuilder.detectOpenRequest("Öffne music.youtube.com als Browser-Mini-App"), "music.youtube.com")
         XCTAssertEqual(WebAppBuilder.detectOpenRequest("open example.com"), "example.com")
-        XCTAssertEqual(WebAppBuilder.detectOpenRequest("app.allo.restaurant"), "app.allo.restaurant")
+        XCTAssertEqual(WebAppBuilder.detectOpenRequest("youtube.com"), "youtube.com")
+        // A long, non-.com TLD still parses as a bare host.
+        XCTAssertEqual(WebAppBuilder.detectOpenRequest("open example.museum"), "example.museum")
         XCTAssertEqual(WebAppBuilder.detectOpenRequest("https://foo.bar/x"), "https://foo.bar/x")
         // Not open-requests:
         XCTAssertNil(WebAppBuilder.detectOpenRequest("Bau mir einen Trinkgeld-Rechner"))
-        XCTAssertNil(WebAppBuilder.detectOpenRequest("was ist app.allo.restaurant für ein service"))
+        XCTAssertNil(WebAppBuilder.detectOpenRequest("was ist youtube.com für ein service"))
         XCTAssertNil(WebAppBuilder.detectOpenRequest("erkläre mir z.b. das"))
     }
 
     func testWebAppBuilderHTMLIsBrowserCapability() {
-        let html = WebAppBuilder.html(urlString: "app.allo.restaurant")
+        let html = WebAppBuilder.html(urlString: "youtube.com")
         XCTAssertTrue(html.contains("capability: browser"))
-        XCTAssertTrue(html.contains("https://app.allo.restaurant"))
+        XCTAssertTrue(html.contains("https://youtube.com"))
         XCTAssertEqual(MiniAppCapability.from(html: html), .browser)
     }
 

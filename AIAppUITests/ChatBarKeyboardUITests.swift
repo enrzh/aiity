@@ -172,23 +172,8 @@ final class ChatBarKeyboardUITests: XCTestCase {
 
     /// Tap `control` until `target` appears — bounded, never blind.
     ///
-    /// `tap()` does not wait for hittability: it takes a hit point from the
-    /// current snapshot and, when the element is covered, drops the event
-    /// silently. The cold-start splash covers a tab bar and toolbar that
-    /// already EXIST in the tree, so the very first tap after launch is the
-    /// one that goes missing.
-    @discardableResult
-    private func tap(_ control: XCUIElement, until target: XCUIElement, attempts: Int = 4) -> Bool {
-        for attempt in 0..<attempts {
-            if target.exists { return true }
-            let hittable = XCTNSPredicateExpectation(
-                predicate: NSPredicate(format: "isHittable == true"), object: control)
-            guard XCTWaiter.wait(for: [hittable], timeout: 10) == .completed else { continue }
-            control.tap()
-            if target.waitForExistence(timeout: attempt == 0 ? 8 : 4) { return true }
-        }
-        return target.exists
-    }
+    // `tap(_:until:)` — the bounded tap-and-verify this suite also carried a
+    // copy of — now lives once in UITestSupport.swift.
 
     /// A slow, deliberate downward drag across the transcript (upper third of
     /// the window, well clear of the keyboard) — registers as a scroll so

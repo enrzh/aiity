@@ -166,6 +166,14 @@ struct MiniAppRunnerView: UIViewRepresentable {
     /// Drop a mini-app's persistent cookie jar when the app itself is deleted.
     /// Otherwise its logins outlive it on disk, owned by nothing.
     static func removeSessionStore(for appId: String) {
+        // WKWebsiteDataStore's class APIs post their work to WebKit's run loop,
+        // and that run loop does not exist until WebKit has been initialised in
+        // this process. Deleting a mini-app in a session where no web view was
+        // ever created therefore segfaulted inside WTF::RunLoop::dispatch — the
+        // app died mid-delete, before the record was even removed. Touching the
+        // default store first brings WebKit up, on the main thread, where it
+        // expects to be initialised.
+        _ = WKWebsiteDataStore.default()
         WKWebsiteDataStore.remove(forIdentifier: sessionStoreID(for: appId)) { _ in }
     }
 

@@ -1,6 +1,9 @@
 import SwiftUI
 import SwiftData
 import Foundation
+// `AiityAppShortcuts.updateAppShortcutParameters()` — tells the system the
+// mini-app / agent vocabulary changed.
+import AppIntents
 
 @main
 struct AIAppApp: App {
@@ -19,6 +22,12 @@ struct AIAppApp: App {
         // while the app is foreground — the normal mini-app notify() case.
         // Installing is not a permission request; no dialog is involved.
         AppNotificationDelegate.install()
+        // BGTaskScheduler requires every launch handler to be registered before
+        // the app finishes launching — registering later throws. Registration
+        // itself schedules nothing and asks for no permission; `scheduleAll()`
+        // runs from the scene (see RootView) once there is something to keep
+        // warm. See BackgroundWork.swift for what may and may not run there.
+        BackgroundWorkCoordinator.shared.registerHandlers()
 
         #if DEBUG
         // Pull the last run's report over the console instead of asking anyone
@@ -156,6 +165,8 @@ struct AIAppApp: App {
 struct RootView: View {
     @ObservedObject private var prefs = AppPreferences.shared
     @ObservedObject private var sync = SyncStatus.shared
+    /// Siri / Shortcuts requests waiting for a scene to carry them out.
+    @ObservedObject private var intents = IntentRouter.shared
     @StateObject private var session = ChatSession()
     @StateObject private var settingsStore = SettingsStore()
     @StateObject private var accountStore = AccountStore()
@@ -164,6 +175,10 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var showOnboarding = false
     @State private var selectedTab = 0
+    /// Mini-app an `OpenMiniAppIntent` asked for. Presented from the root, not
+    /// from the library screen, so the sandbox opens whether or not the Apps
+    /// tab has ever been built.
+    @State private var intentMiniApp: MiniApp?
     /// Soft floor so the launch entrance can play once instead of flashing.
     @State private var splashFinished = false
 
@@ -263,11 +278,38 @@ struct RootView: View {
                 session.chatPresented = false
             }
         }
+        // Presented from the root so a Shortcut can open a mini-app without the
+        // Apps tab having been visited. Same component the library uses, so
+        // consent and the per-app data store behave identically.
+        .sheet(item: $intentMiniApp) { app in
+            MiniAppSheet(
+                appId: app.id.uuidString,
+                name: app.name,
+                html: app.runnableHTML,
+                libraryId: app.id,
+                emoji: app.emoji,
+                iconSymbol: app.iconSymbol
+            )
+            .environmentObject(session)
+        }
         .onAppear {
             if !onboarding.completed {
                 showOnboarding = true
             }
             Analytics.track("app_open")
+            // A COLD launch from Siri can run the intent before this scene
+            // exists, so the request is picked up here rather than only from
+            // the onChange below.
+            performIntentRoute()
+            refreshMiniAppIndex()
+            // Ask for the first occurrence of the background tasks. iOS decides
+            // if and when they actually run; a pending request is replaced, not
+            // duplicated, so re-submitting on every launch is free.
+            BackgroundWorkCoordinator.shared.scheduleAll()
+        }
+        .onChange(of: intents.pending?.sequence) { _, _ in
+            // Warm path: the app was already running, `perform()` just landed.
+            performIntentRoute()
         }
         .onChange(of: scenePhase) { _, phase in
             // Keep agent streaming alive briefly in background + Live Activity.
@@ -275,12 +317,82 @@ struct RootView: View {
             case .background:
                 DiagnosticsRecorder.shared.noteScenePhase(background: true)
                 session.handleAppBackground()
+                // Last guaranteed moment to capture apps created during this
+                // session for the Siri/Shortcuts picker.
+                refreshMiniAppIndex()
+                // Leaving the app is the moment a background wake-up becomes
+                // useful at all — re-arm both requests from here.
+                BackgroundWorkCoordinator.shared.scheduleAll()
             case .active:
                 DiagnosticsRecorder.shared.noteScenePhase(background: false)
                 session.handleAppForeground()
+                // Coming back can mean CloudKit imported apps from another
+                // device while we were away. `save` no-ops when nothing
+                // changed, so this costs one small fetch.
+                refreshMiniAppIndex()
             default:
                 break
             }
+        }
+    }
+
+    // MARK: - Siri / Shortcuts
+
+    /// Carry out whatever an App Intent asked for. Intents never touch the
+    /// session themselves — see `IntentRouter` for why the hand-off exists.
+    private func performIntentRoute() {
+        guard let route = intents.consumeRoute() else { return }
+        switch route {
+        case .newChat(let prompt):
+            selectedTab = 0
+            openIntentThread(participants: [], staged: prompt)
+        case .askAgent(let id, let question):
+            selectedTab = 0
+            // Re-check the roster: the agent could have been deleted or
+            // switched off between picking it in Shortcuts and running it. An
+            // unresolvable participant would otherwise produce a "group" nobody
+            // is in, which answers as a plain chat with no explanation.
+            let stillThere = AgentStore.active().contains { $0.id == id }
+            openIntentThread(participants: stillThere ? [id] : [], staged: question)
+        case .openMiniApp(let id):
+            selectedTab = 1
+            let descriptor = FetchDescriptor<MiniApp>(predicate: #Predicate { $0.id == id })
+            intentMiniApp = try? modelContext.fetch(descriptor).first
+        }
+    }
+
+    /// Open a fresh conversation and stage the text. Never sends — `ChatView`
+    /// puts it in the composer and raises the keyboard, the user presses send.
+    private func openIntentThread(participants: [UUID], staged: String) {
+        // `newThread` refuses while a turn is running, and that refusal is
+        // correct: it protects the live conversation. Falling back to staging
+        // into whatever is open beats losing the user's words.
+        if let threadId = session.newThread(participantAgentIds: participants) {
+            session.open(threadId: threadId)
+        }
+        let trimmed = staged.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            intents.stagedComposerText = trimmed
+        }
+    }
+
+    /// Refresh the name-only snapshot the entity query reads. `propertiesToFetch`
+    /// keeps the bundled HTML out of it — the picker needs a name and an icon,
+    /// not hundreds of KB per app.
+    private func refreshMiniAppIndex() {
+        var descriptor = FetchDescriptor<MiniApp>(
+            sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
+        )
+        descriptor.propertiesToFetch = [\.id, \.name, \.iconSymbol]
+        descriptor.fetchLimit = MiniAppIndex.limit
+        guard let apps = try? modelContext.fetch(descriptor) else { return }
+        let changed = MiniAppIndex.save(
+            apps.map { MiniAppIndex.Entry(id: $0.id, name: $0.name, symbol: $0.iconSymbol) }
+        )
+        // Only on a real change: re-indexing on every foreground is churn the
+        // system charges us for.
+        if changed {
+            AiityAppShortcuts.updateAppShortcutParameters()
         }
     }
 }
