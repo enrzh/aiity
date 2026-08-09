@@ -38,14 +38,17 @@ enum ToolRegistry {
         apiKey: String,
         delegating: Bool = false
     ) async -> [AgentTool] {
-        // Local Ollama/LM Studio/MLX: no tools. Tool schemas make small models
-        // invent fake <tool_call>/function JSON and answer nonsense.
+        // Local Ollama/LM Studio/LocalAI/MLX: no tools by default. Tool schemas
+        // make small models invent fake <tool_call>/function JSON and answer
+        // nonsense. NOT sub2api / custom-openai — those front real models; see
+        // `LocalRuntimePolicy`.
         guard LocalRuntimePolicy.shouldSendTools(settings) else { return [] }
 
         var tools: [AgentTool] = [
             WebSearchTool(settings: settings),
-            // Private/LAN fetches only allowed when the chat provider is itself local.
-            FetchURLTool(allowPrivateHosts: LocalRuntimePolicy.isLocal(settings)),
+            // Private/LAN fetches only allowed when the chat endpoint is itself
+            // self-hosted (endpoint question, not a capability one).
+            FetchURLTool(allowPrivateHosts: LocalRuntimePolicy.isSelfHosted(settings)),
         ]
         if let imageRoute = await MediaRoute.resolve(modality: .image, from: settings) {
             tools.append(ImageGenerationTool(route: imageRoute))

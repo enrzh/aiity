@@ -6869,6 +6869,39 @@
         }
       }
     },
+    "Automatisch": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic"
+          }
+        }
+      }
+    },
+    "Automatisch heißt hier: Werkzeuge sind aktiv.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic means here: tools are on."
+          }
+        }
+      }
+    },
+    "Automatisch heißt hier: keine Werkzeuge, weil hier meist kleine Modelle laufen. „Immer senden“ schaltet sie frei.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic means here: no tools, because this usually runs small models. “Always send” enables them."
+          }
+        }
+      }
+    },
     "Autorisierungscode oder Callback-URL hier einfügen.": {
       "extractionState": "manual",
       "localizations": {
@@ -20700,6 +20733,17 @@
         }
       }
     },
+    "Immer senden": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Always send"
+          }
+        }
+      }
+    },
     "Importiert": {
       "extractionState": "manual",
       "localizations": {
@@ -31406,6 +31450,17 @@
         }
       }
     },
+    "Nie senden": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Never send"
+          }
+        }
+      }
+    },
     "Noch kein Konto — am besten einen API-Key eintragen (Pay-as-you-go).": {
       "extractionState": "manual",
       "localizations": {
@@ -37058,6 +37113,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "스택 (프레임 %lld개)"
+          }
+        }
+      }
+    },
+    "Standard für Ollama, LM Studio, LocalAI und On-Device. Jeder Anbieter kann das unter Mehr → KI-Anbieter → Werkzeuge überschreiben — an wie aus.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default for Ollama, LM Studio, LocalAI and on-device. Every provider can override it under More → AI providers → Tools — on as well as off."
           }
         }
       }
@@ -42815,6 +42881,61 @@
           "stringUnit": {
             "state": "translated",
             "value": "개인 주소(%@)로의 리디렉션이 차단되었습니다."
+          }
+        }
+      }
+    },
+    "Werkzeuge": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tools"
+          }
+        }
+      }
+    },
+    "Werkzeuge senden": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send tools"
+          }
+        }
+      }
+    },
+    "Werkzeuge sind Websuche, Seiten lesen, Bilder erzeugen und die Geräte-Tools. Kleine Modelle (Ollama, LM Studio, LocalAI, On-Device) erfinden damit oft Funktionsaufrufe statt zu antworten — nur sie bekommen deshalb standardmäßig keine. Gateways und eigene OpenAI-kompatible Server bekommen sie, weil dort meist große Modelle laufen.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tools means web search, reading pages, generating images and the device tools. Small models (Ollama, LM Studio, LocalAI, on-device) often invent function calls instead of answering — which is why only they get none by default. Gateways and your own OpenAI-compatible servers do get them, because those usually run large models."
+          }
+        }
+      }
+    },
+    "Werkzeuge sind aktiv — auch bei einem kleinen Modell.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tools are on — even for a small model."
+          }
+        }
+      }
+    },
+    "Werkzeuge sind aus — auch bei einem großen Modell.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tools are off — even for a large model."
           }
         }
       }

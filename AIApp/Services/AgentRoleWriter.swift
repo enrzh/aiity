@@ -28,7 +28,7 @@ enum AgentRoleWriter {
     /// intent is kept and tightened rather than replaced with something new.
     static func write(name: String, existing: String, settings: ProviderSettings) async throws -> String {
         let apiKey = await AuthStore.effectiveKey(for: settings)
-        if settings.preset.needsKey, apiKey.isEmpty, !ConnectionProbe.isLocalStyle(settings.presetId) {
+        if settings.preset.needsKey, apiKey.isEmpty, !ConnectionProbe.isSelfHostedEndpoint(settings.presetId) {
             throw WriterError.notConfigured
         }
         let provider = settings.makeProvider(apiKey: apiKey)

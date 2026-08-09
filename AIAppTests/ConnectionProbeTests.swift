@@ -88,10 +88,14 @@ final class ConnectionProbeTests: XCTestCase {
         XCTAssertEqual(url?.absoluteString, "http://192.168.1.5:11434/api/tags")
     }
 
-    func testLocalStylePresets() {
-        XCTAssertTrue(ConnectionProbe.isLocalStyle("ollama"))
-        XCTAssertTrue(ConnectionProbe.isLocalStyle("lmstudio"))
-        XCTAssertFalse(ConnectionProbe.isLocalStyle("anthropic"))
+    /// Endpoint locality only — the gateway/BYO-URL presets belong here even
+    /// though they are NOT small-model runtimes (see LocalRuntimePolicyTests).
+    func testSelfHostedEndpointPresets() {
+        XCTAssertTrue(ConnectionProbe.isSelfHostedEndpoint("ollama"))
+        XCTAssertTrue(ConnectionProbe.isSelfHostedEndpoint("lmstudio"))
+        XCTAssertTrue(ConnectionProbe.isSelfHostedEndpoint("sub2api"))
+        XCTAssertTrue(ConnectionProbe.isSelfHostedEndpoint("custom-openai"))
+        XCTAssertFalse(ConnectionProbe.isSelfHostedEndpoint("anthropic"))
     }
 
     func testCapabilitiesSteerLocalToTemplateMode() {

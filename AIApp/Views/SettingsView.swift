@@ -151,6 +151,10 @@ struct SettingsView: View {
                     }
                     .accessibilityIdentifier("allow-local-tools")
 
+                    Text("Standard für Ollama, LM Studio, LocalAI und On-Device. Jeder Anbieter kann das unter Mehr → KI-Anbieter → Werkzeuge überschreiben — an wie aus.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
                     Toggle(isOn: $prefs.smartSuggestions) {
                         Label("Ideen vom Modell", systemImage: "lightbulb")
                     }

@@ -141,12 +141,23 @@ final class ProviderPresetCatalogTests: XCTestCase {
                       "unknown ids: \(MediaCapability.imagePresetIds.subtracting(ids))")
     }
 
-    /// Same guard for the local-wizard set the probe treats specially.
-    func testLocalPresetIdsAreASubsetOfTheCatalog() {
+    /// A typo in the small-model set is invisible in the worst direction: the
+    /// preset silently keeps its tools instead of being protected.
+    func testSmallModelPresetIdsAreASubsetOfTheCatalog() {
         let ids = Set(catalog.map(\.id))
-        XCTAssertTrue(ConnectionProbe.localPresetIds.isSubset(of: ids),
-                      "unknown ids: \(ConnectionProbe.localPresetIds.subtracting(ids))")
-        for id in ConnectionProbe.localPresetIds {
+        XCTAssertTrue(LocalRuntimePolicy.smallModelPresetIds.isSubset(of: ids),
+                      "unknown ids: \(LocalRuntimePolicy.smallModelPresetIds.subtracting(ids))")
+        let plausible = ConnectionProbe.selfHostedPresetIds.union([LocalRuntimePolicy.mlxPresetId])
+        XCTAssertTrue(LocalRuntimePolicy.smallModelPresetIds.isSubset(of: plausible),
+                      "a small-model runtime that is not even self-hosted makes no sense")
+    }
+
+    /// Same guard for the address-wizard set the probe treats specially.
+    func testSelfHostedPresetIdsAreASubsetOfTheCatalog() {
+        let ids = Set(catalog.map(\.id))
+        XCTAssertTrue(ConnectionProbe.selfHostedPresetIds.isSubset(of: ids),
+                      "unknown ids: \(ConnectionProbe.selfHostedPresetIds.subtracting(ids))")
+        for id in ConnectionProbe.selfHostedPresetIds {
             XCTAssertTrue(ProviderPreset.preset(for: id).editableBaseURL,
                           "\(id): local-wizard preset without an editable address")
         }

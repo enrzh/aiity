@@ -40,9 +40,11 @@ struct ProviderConnectionView: View {
     /// commit it.
     @State private var modelDraft = ""
     @State private var showLeaveWithoutModelDialog = false
+    /// Per-provider tool policy, mirrored from `LocalRuntimePolicy` on appear.
+    @State private var toolPolicy: LocalRuntimePolicy.ToolPolicy = .auto
 
     private var preset: ProviderPreset { ProviderPreset.preset(for: presetId) }
-    private var isLocalWizard: Bool { ConnectionProbe.isLocalStyle(presetId) }
+    private var isLocalWizard: Bool { ConnectionProbe.isSelfHostedEndpoint(presetId) }
     private var isActiveForModality: Bool {
         settingsStore.isActive(presetId: presetId, for: modality)
     }
@@ -82,6 +84,7 @@ struct ProviderConnectionView: View {
             if preset.dialect == .mlx {
                 if modality == .chat {
                     Section("Modelle auf dem Gerät") { localModelRows }
+                    toolPolicySection
                     if isActiveForModality { testConnectionSection }
                 } else {
                     Section {
@@ -104,6 +107,7 @@ struct ProviderConnectionView: View {
                 }
                 if supportsThisModality {
                     modelSection
+                    if modality == .chat { toolPolicySection }
                     if isActiveForModality || modality == .chat {
                         testConnectionSection
                     }
@@ -148,6 +152,7 @@ struct ProviderConnectionView: View {
         }
         .onAppear {
             syncDraftsFromStore()
+            toolPolicy = LocalRuntimePolicy.toolPolicy(forPresetId: presetId)
             // Instant model list from cache/defaults, then silent refresh.
             bootstrapModels()
         }
@@ -327,6 +332,59 @@ struct ProviderConnectionView: View {
         } footer: {
             Text("Geführtes Setup für Ollama, LM Studio, LocalAI und OpenAI-kompatible Server. Danach „Verbindung testen“.")
         }
+    }
+
+    // MARK: Tools
+
+    /// Where a user asking "warum hat der Chat keine Websuche?" actually looks:
+    /// on the provider they configured. Shows what the app decides on its own
+    /// for THIS provider, and lets them override it in both directions — the
+    /// small-model protection stays reachable for a tiny model behind a
+    /// custom endpoint, without hiding tools from a gateway to a big one.
+    private var toolPolicySection: some View {
+        Section {
+            Picker(selection: toolPolicyBinding) {
+                ForEach(LocalRuntimePolicy.ToolPolicy.allCases) { option in
+                    Text(option.title).tag(option)
+                }
+            } label: {
+                Label("Werkzeuge senden", systemImage: "wrench.and.screwdriver")
+            }
+            .accessibilityIdentifier("tool-policy-picker")
+
+            Text(toolPolicyStatus)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } header: {
+            Text("Werkzeuge")
+        } footer: {
+            Text("Werkzeuge sind Websuche, Seiten lesen, Bilder erzeugen und die Geräte-Tools. Kleine Modelle (Ollama, LM Studio, LocalAI, On-Device) erfinden damit oft Funktionsaufrufe statt zu antworten — nur sie bekommen deshalb standardmäßig keine. Gateways und eigene OpenAI-kompatible Server bekommen sie, weil dort meist große Modelle laufen.")
+        }
+    }
+
+    private var toolPolicyBinding: Binding<LocalRuntimePolicy.ToolPolicy> {
+        Binding(
+            get: { toolPolicy },
+            set: { newValue in
+                toolPolicy = newValue
+                LocalRuntimePolicy.setToolPolicy(newValue, forPresetId: presetId)
+            }
+        )
+    }
+
+    /// Honest, provider-specific: says what is actually happening right now,
+    /// not what the setting is called.
+    private var toolPolicyStatus: String {
+        let dialect = preset.dialect
+        guard toolPolicy == .auto else {
+            return toolPolicy == .always
+                ? String(localized: "Werkzeuge sind aktiv — auch bei einem kleinen Modell.")
+                : String(localized: "Werkzeuge sind aus — auch bei einem großen Modell.")
+        }
+        if LocalRuntimePolicy.autoSendsTools(presetId: presetId, dialect: dialect) {
+            return String(localized: "Automatisch heißt hier: Werkzeuge sind aktiv.")
+        }
+        return String(localized: "Automatisch heißt hier: keine Werkzeuge, weil hier meist kleine Modelle laufen. „Immer senden“ schaltet sie frei.")
     }
 
     private var testConnectionSection: some View {

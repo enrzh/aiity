@@ -82,6 +82,15 @@ final class BrowserFetch: NSObject {
         }
         self.allowPrivateHosts = allowPrivateHosts
 
+        // The app's only other entry point where WebKit *class* APIs
+        // (`nonPersistent()`, `WKContentRuleListStore.default()`) run before any
+        // web view exists — the agent can call fetch_url on a launch that never
+        // showed a mini-app. Those two tolerate it today; WKWebsiteDataStore's
+        // deletion APIs do not (see WebKitRuntime), so every entry point brings
+        // WebKit up the same way instead of depending on which WebKit class
+        // happens to self-initialise.
+        WebKitRuntime.ensureInitialised()
+
         let configuration = WKWebViewConfiguration()
         // Non-persistent: a research fetch must not inherit or leave behind the
         // user's cookies, and must not accumulate session state across pages.

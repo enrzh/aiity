@@ -22,7 +22,7 @@ enum SubAgentRunner {
         let settings = agent.settings(fallback: chatSettings)
         let apiKey = await AuthStore.effectiveKey(for: settings)
 
-        if settings.preset.needsKey, apiKey.isEmpty, !ConnectionProbe.isLocalStyle(settings.presetId) {
+        if settings.preset.needsKey, apiKey.isEmpty, !ConnectionProbe.isSelfHostedEndpoint(settings.presetId) {
             return String(localized: "[\(agent.name) hat kein Konto — unter Anbieter einen Key hinterlegen.]")
         }
         if settings.effectiveModel.trimmingCharacters(in: .whitespaces).isEmpty,

@@ -148,7 +148,7 @@ enum ModelCatalogService {
             return try await performList(request, settings: settings, apiKey: apiKey)
         } catch {
             // Ollama native tags when OpenAI /models fails
-            if ConnectionProbe.isLocalStyle(settings.presetId)
+            if ConnectionProbe.isSelfHostedEndpoint(settings.presetId)
                 || settings.presetId == "ollama",
                let tags = ConnectionProbe.ollamaTagsURL(from: listBase.trimmingCharacters(in: CharacterSet(charactersIn: "/"))) {
                 var tagsReq = URLRequest(url: tags)
@@ -252,7 +252,7 @@ enum ModelCatalogService {
         if noToolHints.contains(where: { id.contains($0) }) { return false }
         // Tiny / base instruct without tool training (heuristic)
         if id.contains("1b") || id.contains("0.5b") { return false }
-        if ConnectionProbe.isLocalStyle(presetId) {
+        if ConnectionProbe.isSelfHostedEndpoint(presetId) {
             // Locals: optimistic true — OpenAICompatibleProvider retries without tools
             return true
         }

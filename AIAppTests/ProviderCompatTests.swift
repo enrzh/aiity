@@ -154,17 +154,30 @@ final class ProviderCompatTests: XCTestCase {
     func testLocalToolsGatedByPreference() {
         let key = AppPreferences.allowLocalToolsKey
         let original = UserDefaults.standard.bool(forKey: key)
-        defer { UserDefaults.standard.set(original, forKey: key) }
+        let policies = UserDefaults.standard.dictionary(forKey: LocalRuntimePolicy.toolPolicyKey)
+        UserDefaults.standard.removeObject(forKey: LocalRuntimePolicy.toolPolicyKey)
+        defer {
+            UserDefaults.standard.set(original, forKey: key)
+            if let policies {
+                UserDefaults.standard.set(policies, forKey: LocalRuntimePolicy.toolPolicyKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: LocalRuntimePolicy.toolPolicyKey)
+            }
+        }
 
         var settings = ProviderSettings()
         settings.presetId = "ollama"
         UserDefaults.standard.set(false, forKey: key)
-        XCTAssertFalse(LocalRuntimePolicy.shouldSendTools(settings), "local off by default")
+        XCTAssertFalse(LocalRuntimePolicy.shouldSendTools(settings), "small local runtime off by default")
         UserDefaults.standard.set(true, forKey: key)
-        XCTAssertTrue(LocalRuntimePolicy.shouldSendTools(settings), "local on when enabled")
+        XCTAssertTrue(LocalRuntimePolicy.shouldSendTools(settings), "small local runtime on when enabled")
         // Cloud always gets tools regardless of the toggle.
         settings.presetId = "anthropic"
         UserDefaults.standard.set(false, forKey: key)
+        XCTAssertTrue(LocalRuntimePolicy.shouldSendTools(settings))
+        // …and so does a self-hosted GATEWAY: the switch is about small models,
+        // not about who owns the address.
+        settings.presetId = "sub2api"
         XCTAssertTrue(LocalRuntimePolicy.shouldSendTools(settings))
     }
 

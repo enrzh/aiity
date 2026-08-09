@@ -340,7 +340,12 @@ struct ProviderSettings: Codable, Equatable {
                 baseURL: baseURL(forKey: apiKey),
                 apiKey: apiKey,
                 model: effectiveModel,
-                isLocalRuntime: LocalRuntimePolicy.isLocal(self)
+                // Small-model tuning (low temperature, short max_tokens) and
+                // the tool decision are BOTH capability questions — a
+                // self-hosted address alone must not trigger either, or a
+                // frontier model behind sub2api gets throttled and de-tooled.
+                isSmallModelRuntime: LocalRuntimePolicy.usesSmallModelProfile(self),
+                sendsTools: LocalRuntimePolicy.shouldSendTools(self)
             )
         case .mlx:
             return MLXProvider(modelId: localModelId)

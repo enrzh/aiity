@@ -12,15 +12,23 @@ struct OpenAICompatibleProvider: LLMProvider {
     var baseURL: String
     var apiKey: String
     var model: String
-    /// When true (Ollama/LM Studio/…), use lower temperature and shorter max tokens.
-    var isLocalRuntime: Bool = false
+    /// When true (Ollama/LM Studio/LocalAI), use lower temperature and shorter
+    /// max tokens. A *self-hosted address* is not enough — see
+    /// `LocalRuntimePolicy.usesSmallModelProfile`.
+    var isSmallModelRuntime: Bool = false
+    /// Whether tool definitions may ride along. Resolved ONCE by
+    /// `ProviderSettings.makeProvider` via `LocalRuntimePolicy.shouldSendTools`
+    /// (per-provider policy + the legacy global switch), so this type no longer
+    /// re-derives the decision from a preference it cannot see the context for.
+    var sendsTools: Bool = true
 
     func streamChat(messages: [ChatMessage], tools: [ToolSpec]) -> AsyncThrowingStream<ChatEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    // Local runtimes get tools only when the user opted in.
-                    let effectiveTools = (isLocalRuntime && !LocalRuntimePolicy.localToolsEnabled) ? [] : tools
+                    // Belt and braces: the registry already withholds the tools
+                    // themselves when the policy says no.
+                    let effectiveTools = sendsTools ? tools : []
                     var attempt = 0
                     while true {
                         do {
@@ -30,7 +38,7 @@ struct OpenAICompatibleProvider: LLMProvider {
                                 model: model,
                                 messages: messages,
                                 tools: effectiveTools,
-                                isLocalRuntime: isLocalRuntime,
+                                isSmallModelRuntime: isSmallModelRuntime,
                                 allowToolRetry: !effectiveTools.isEmpty,
                                 allowStreamRetry: true,
                                 yield: { continuation.yield($0) }
@@ -61,7 +69,7 @@ struct OpenAICompatibleProvider: LLMProvider {
         model: String,
         messages: [ChatMessage],
         tools: [ToolSpec],
-        isLocalRuntime: Bool,
+        isSmallModelRuntime: Bool,
         allowToolRetry: Bool,
         allowStreamRetry: Bool,
         yield: (ChatEvent) -> Void
@@ -85,7 +93,7 @@ struct OpenAICompatibleProvider: LLMProvider {
             "stream": true,
             "messages": messages.map(encodeMessage),
         ]
-        if isLocalRuntime {
+        if isSmallModelRuntime {
             body["temperature"] = LocalRuntimePolicy.temperature
             body["max_tokens"] = LocalRuntimePolicy.maxTokens
             // Ollama OpenAI-compat also honors top-level temperature; options help native.
@@ -123,7 +131,7 @@ struct OpenAICompatibleProvider: LLMProvider {
                 try await run(
                     baseURL: baseURL, apiKey: apiKey, model: model,
                     messages: messages, tools: [],
-                    isLocalRuntime: isLocalRuntime,
+                    isSmallModelRuntime: isSmallModelRuntime,
                     allowToolRetry: false, allowStreamRetry: allowStreamRetry,
                     yield: yield
                 )
@@ -133,7 +141,7 @@ struct OpenAICompatibleProvider: LLMProvider {
                 try await runNonStreaming(
                     baseURL: baseURL, apiKey: apiKey, model: model,
                     messages: messages, tools: tools,
-                    isLocalRuntime: isLocalRuntime,
+                    isSmallModelRuntime: isSmallModelRuntime,
                     yield: yield
                 )
                 return
@@ -239,7 +247,7 @@ struct OpenAICompatibleProvider: LLMProvider {
                 try await runNonStreaming(
                     baseURL: baseURL, apiKey: apiKey, model: model,
                     messages: messages, tools: tools,
-                    isLocalRuntime: isLocalRuntime,
+                    isSmallModelRuntime: isSmallModelRuntime,
                     yield: yield
                 )
                 return
@@ -256,7 +264,7 @@ struct OpenAICompatibleProvider: LLMProvider {
         model: String,
         messages: [ChatMessage],
         tools: [ToolSpec],
-        isLocalRuntime: Bool,
+        isSmallModelRuntime: Bool,
         yield: (ChatEvent) -> Void
     ) async throws {
         guard let url = ProviderRequestSupport.endpoint(base: baseURL, path: "/chat/completions") else {
@@ -272,7 +280,7 @@ struct OpenAICompatibleProvider: LLMProvider {
             "stream": false,
             "messages": messages.map(encodeMessage),
         ]
-        if isLocalRuntime {
+        if isSmallModelRuntime {
             body["temperature"] = LocalRuntimePolicy.temperature
             body["max_tokens"] = LocalRuntimePolicy.maxTokens
         } else {
@@ -298,7 +306,7 @@ struct OpenAICompatibleProvider: LLMProvider {
                 try await runNonStreaming(
                     baseURL: baseURL, apiKey: apiKey, model: model,
                     messages: messages, tools: [],
-                    isLocalRuntime: isLocalRuntime,
+                    isSmallModelRuntime: isSmallModelRuntime,
                     yield: yield
                 )
                 return

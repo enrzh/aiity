@@ -15,8 +15,11 @@ import Foundation
 ///   path needs the Claude-CLI beta header, which this app decided not to
 ///   extend beyond user-initiated chat, and unattended calls would burn
 ///   429-prone plan quota.
-/// * **No local runtimes.** MLX and the LAN presets keep the static chips —
-///   they are the "non-local provider" condition anyway.
+/// * **No self-hosted endpoints.** MLX, the LAN presets, and the
+///   bring-your-own-URL ones (custom-openai, sub2api) keep the static chips.
+///   This gate uses `LocalRuntimePolicy.isSelfHosted` — the endpoint predicate
+///   — on purpose, and not the tool-capability one: a gateway may well be able
+///   to answer, but nobody asked it to, and it is the user's own box.
 /// * **No user content leaves the device.** The prompt carries a bucketed
 ///   mini-app count and nothing else: no message text, no chat titles, no app
 ///   names. That is what keeps the privacy promise intact.
@@ -48,9 +51,12 @@ enum ChatSuggestionService {
         enabled: Bool
     ) -> Bool {
         guard enabled else { return false }
-        // Covers MLX and every local-style preset (Ollama, LM Studio, LocalAI,
-        // custom-openai, sub2api).
-        guard !LocalRuntimePolicy.isLocal(settings) else { return false }
+        // Endpoint question, deliberately the WIDER of the two predicates:
+        // covers MLX and every self-hosted preset (Ollama, LM Studio, LocalAI,
+        // custom-openai, sub2api). sub2api and custom-openai do get the full
+        // tool set now, but unattended background traffic to an endpoint the
+        // user configured themselves stays off — see `LocalRuntimePolicy`.
+        guard !LocalRuntimePolicy.isSelfHosted(settings) else { return false }
         guard settings.preset.dialect != .mlx else { return false }
         guard !settings.model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
         switch credential {

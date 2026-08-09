@@ -105,7 +105,7 @@ enum GroupChatRunner {
         apiKey: String,
         isCancelled: @escaping () -> Bool
     ) async -> String {
-        if settings.preset.needsKey, apiKey.isEmpty, !ConnectionProbe.isLocalStyle(settings.presetId) {
+        if settings.preset.needsKey, apiKey.isEmpty, !ConnectionProbe.isSelfHostedEndpoint(settings.presetId) {
             return String(localized: "(kein Konto hinterlegt — unter Anbieter einen Key eintragen)")
         }
         // MLX keeps its model in a DIFFERENT field. `makeProvider` builds

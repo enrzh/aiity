@@ -192,9 +192,14 @@ struct MLXProvider: LLMProvider {
                         throw ProviderError.badResponse(0, String(localized: "Modell nicht heruntergeladen — bitte in den Einstellungen laden."))
                     }
                     let container = try await MLXRuntime.shared.container(for: modelId)
-                    // Tools only when the user opted local models in; the <tool_call>
-                    // convention is taught via the system prompt (buildChat).
-                    let effectiveTools = LocalRuntimePolicy.localToolsEnabled ? tools : []
+                    // Tools only when the policy for the on-device runtime says
+                    // so (global "Web-Tools für lokale Modelle" or the
+                    // per-provider setting under Anbieter → On-Device MLX); the
+                    // <tool_call> convention is taught via the system prompt
+                    // (buildChat).
+                    let effectiveTools = LocalRuntimePolicy.shouldSendTools(
+                        presetId: LocalRuntimePolicy.mlxPresetId, dialect: .mlx
+                    ) ? tools : []
                     let chat = Self.buildChat(messages: messages, tools: effectiveTools)
 
                     let fullText: String = try await container.perform { context in

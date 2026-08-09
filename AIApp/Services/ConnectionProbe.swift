@@ -25,11 +25,19 @@ struct ProbeFailure: Error, Equatable {
 /// path is thin and returns clear German/English error strings (no silent fail).
 enum ConnectionProbe {
 
-    /// Local LAN presets that get the first-class wizard treatment.
-    static let localPresetIds: Set<String> = ["ollama", "lmstudio", "localai", "custom-openai", "sub2api"]
+    /// Presets whose endpoint the user supplies themselves — a LAN runtime, a
+    /// self-hosted gateway, any OpenAI-compatible URL. They get the first-class
+    /// address wizard and the forgiving probe fallbacks.
+    ///
+    /// This is an ENDPOINT question, not a model-capability one: `sub2api`
+    /// fronts frontier models and `custom-openai` is usually a hosted API.
+    /// Whether tools may be sent is decided separately by
+    /// `LocalRuntimePolicy.usesSmallModelProfile` — see its type doc for why
+    /// the single old list (`localPresetIds`) was a bug.
+    static let selfHostedPresetIds: Set<String> = ["ollama", "lmstudio", "localai", "custom-openai", "sub2api"]
 
-    static func isLocalStyle(_ presetId: String) -> Bool {
-        localPresetIds.contains(presetId)
+    static func isSelfHostedEndpoint(_ presetId: String) -> Bool {
+        selfHostedPresetIds.contains(presetId)
     }
 
     /// Soft capability profile used by the agent to steer mini-app generation.
@@ -40,7 +48,10 @@ enum ConnectionProbe {
         case .anthropic:
             return (tools: true, miniAppPro: true)
         case .openai:
-            if isLocalStyle(settings.presetId) || settings.presetId == "custom-openai" {
+            // Endpoint-based on purpose: a self-hosted server may front a
+            // frontier model (tools stay on — see LocalRuntimePolicy) but we
+            // still steer mini-apps to the safe template mode there.
+            if isSelfHostedEndpoint(settings.presetId) {
                 return (tools: true, miniAppPro: false)
             }
             return (tools: true, miniAppPro: true)
@@ -151,7 +162,7 @@ enum ConnectionProbe {
                     models: models,
                     reason: String(localized: "Modelle gefunden (\(models.count)), aber keine Modell-ID zum Testen."),
                     toolsLikely: false,
-                    chatOnly: isLocalStyle(settings.presetId)
+                    chatOnly: isSelfHostedEndpoint(settings.presetId)
                 )
             }
 
@@ -172,7 +183,7 @@ enum ConnectionProbe {
                     chatOnly: true
                 )
             case .success:
-                let local = isLocalStyle(settings.presetId)
+                let local = isSelfHostedEndpoint(settings.presetId)
                 return ConnectionProbeResult(
                     ok: true,
                     models: models,

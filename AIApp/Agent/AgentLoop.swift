@@ -288,8 +288,10 @@ final class ChatSession: ObservableObject {
         imageToolAvailable: Bool = false,
         deviceToolNames: Set<String> = []
     ) -> String {
-        // Local LAN / MLX: keep it dumb-simple so 1–8B models stay coherent.
-        if LocalRuntimePolicy.isLocal(settings) {
+        // Ollama / LM Studio / LocalAI / MLX: keep it dumb-simple so 1–8B
+        // models stay coherent. A self-hosted ADDRESS does not qualify — a
+        // frontier model behind sub2api gets the full prompt.
+        if LocalRuntimePolicy.usesSmallModelProfile(settings) {
             var system = LocalRuntimePolicy.shouldSendTools(settings)
                 ? LocalRuntimePolicy.systemPromptWithTools
                 : LocalRuntimePolicy.systemPrompt
@@ -442,10 +444,12 @@ final class ChatSession: ObservableObject {
         // Pin full mini-app HTML into the conversation (hidden in UI) so the
         // model always sees it — even when OAuth trims the system prompt.
         ensureSourcePinned()
-        // Local models struggle with long histories — keep a short window.
+        // Small local models struggle with long histories — keep a short
+        // window. Capability question, not an address one: a gateway to a
+        // frontier model keeps the full history and its tool scaffolding.
         // Recorded, not applied: the window shapes the REQUEST (see
         // `outgoing`), never the stored conversation.
-        usesLocalHistoryWindow = LocalRuntimePolicy.isLocal(settings)
+        usesLocalHistoryWindow = LocalRuntimePolicy.usesSmallModelProfile(settings)
         // Everything from here on is the ACTIVE turn — `outgoing` must never
         // strip its tool scaffolding, only window the turns before it.
         turnStartIndex = messages.count
@@ -495,7 +499,7 @@ final class ChatSession: ObservableObject {
                 AgentLiveActivityController.shared.fail(message: errorMessage ?? String(localized: "Kein Modell"))
                 return
             }
-            if runSettings.preset.needsKey && apiKey.isEmpty && !ConnectionProbe.isLocalStyle(runSettings.presetId) {
+            if runSettings.preset.needsKey && apiKey.isEmpty && !ConnectionProbe.isSelfHostedEndpoint(runSettings.presetId) {
                 errorMessage = String(localized: "Kein API-Key / Abo-Login — unter KI-Anbieter ein Konto verbinden.")
                 busy = false
                 AgentLiveActivityController.shared.fail(message: errorMessage ?? "Kein Key")

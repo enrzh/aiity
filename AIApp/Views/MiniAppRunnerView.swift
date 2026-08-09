@@ -78,6 +78,10 @@ struct MiniAppRunnerView: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> WKWebView {
+        // The data store below is chosen before the web view exists, so the
+        // class API runs first here too. Same guard as everywhere else — see
+        // WebKitRuntime for why WebKit's class APIs need one at all.
+        WebKitRuntime.ensureInitialised()
         let configuration = WKWebViewConfiguration()
         configuration.userContentController.add(context.coordinator, name: "bridge")
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
@@ -166,14 +170,10 @@ struct MiniAppRunnerView: UIViewRepresentable {
     /// Drop a mini-app's persistent cookie jar when the app itself is deleted.
     /// Otherwise its logins outlive it on disk, owned by nothing.
     static func removeSessionStore(for appId: String) {
-        // WKWebsiteDataStore's class APIs post their work to WebKit's run loop,
-        // and that run loop does not exist until WebKit has been initialised in
-        // this process. Deleting a mini-app in a session where no web view was
-        // ever created therefore segfaulted inside WTF::RunLoop::dispatch — the
-        // app died mid-delete, before the record was even removed. Touching the
-        // default store first brings WebKit up, on the main thread, where it
-        // expects to be initialised.
-        _ = WKWebsiteDataStore.default()
+        // Deleting is the one mini-app action that needs no web view, so this
+        // is where WebKit's uninitialised-run-loop segfault actually fired.
+        // WebKitRuntime carries the full explanation.
+        WebKitRuntime.ensureInitialised()
         WKWebsiteDataStore.remove(forIdentifier: sessionStoreID(for: appId)) { _ in }
     }
 

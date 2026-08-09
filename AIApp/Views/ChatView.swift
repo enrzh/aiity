@@ -80,7 +80,7 @@ struct ChatView: View {
     private var needsSetup: Bool {
         let s = settingsStore.settings
         if s.preset.dialect == .mlx { return false }
-        if ConnectionProbe.isLocalStyle(s.presetId) {
+        if ConnectionProbe.isSelfHostedEndpoint(s.presetId) {
             return s.effectiveBaseURL.isEmpty || s.effectiveModel.isEmpty
         }
         return s.effectiveModel.isEmpty
