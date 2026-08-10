@@ -111,6 +111,24 @@ actor AtomicFileStore<Value: Codable & Sendable> {
         }
     }
 
+    /// Restores already-encoded bytes after an external file replacement races
+    /// an older in-flight save. Keeping this raw avoids dropping fields written
+    /// by a newer app version while still using the store's atomic write path.
+    func restoreRaw(_ data: Data) throws {
+        do {
+            try FileManager.default.createDirectory(
+                at: url.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try data.write(to: url, options: .atomic)
+        } catch {
+            throw RepositoryError.writeFailed(
+                path: url.lastPathComponent,
+                underlying: String(describing: error)
+            )
+        }
+    }
+
     /// Remove the stored file. Absence is success — deleting nothing is fine.
     func delete() throws {
         do {

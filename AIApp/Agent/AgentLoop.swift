@@ -86,6 +86,12 @@ final class ChatSession: ObservableObject {
     /// Drives the push from the conversation list into a chat. Nil = list shown.
     @Published var openThreadId: UUID?
     private var activeThreadId = UUID()
+    private let chatDirectory: URL?
+    private let threadRepository: ChatThreadRepository
+    private var persistenceRevision: UInt64 = 0
+    private var persistenceDispatchTask: Task<Void, Never>?
+    private var persistenceReloadTask: Task<Void, Never>?
+    private var removeLegacyAfterNextWrite = false
 
     /// Chips offered in the chat empty state. THE composition point: whatever
     /// wants to influence those four slots — the curated pool, the optional
@@ -178,8 +184,14 @@ final class ChatSession: ObservableObject {
     private(set) var expirationSteps: [String] = []
     #endif
 
-    init() {
-        restore()
+    init(chatDirectory: URL? = nil) {
+        self.chatDirectory = chatDirectory
+        let restored = ChatThreadRepository.restoreSynchronously(directory: chatDirectory)
+        threadRepository = ChatThreadRepository(
+            directory: chatDirectory,
+            initialWritesAllowed: restored.writesAllowed
+        )
+        applyRestoration(restored)
         observeLiveActivityStopRequests()
         // Cold launch is one of the two moments the stop-vs-resume contract is
         // evaluated (the other is foreground). Runs AFTER restore() so the
@@ -671,12 +683,9 @@ final class ChatSession: ObservableObject {
         runningThreadId = nil
         ScreenWake.shared.setAgentBusy(false)
         AgentLiveActivityController.shared.cancel()
-        if let last = messages.indices.last,
-           messages[last].role == .assistant,
-           messages[last].text.isEmpty,
-           messages[last].toolCalls.isEmpty {
-            messages.remove(at: last)
-        }
+        // The cancelled stream owns its assistant placeholder. It flushes any
+        // buffered tail, removes the row if it stayed empty, then persists.
+        // Removing it here races that flush and can invalidate its index.
         // Stopping mid-tool-loop can leave an assistant `tool_use` whose results
         // never arrived. Anthropic rejects that thread forever ("tool_use ids
         // found without tool_result"), so drop the dangling calls (and the whole
@@ -697,6 +706,8 @@ final class ChatSession: ObservableObject {
         if busy {
             AgentLiveActivityController.shared.enterBackgroundWhileBusy()
         }
+        persist()
+        Task { await flushPersistence() }
     }
 
     /// App became active again.
@@ -945,16 +956,38 @@ final class ChatSession: ObservableObject {
 
             messages.append(ChatMessage(role: .assistant, text: ""))
             let assistantIndex = messages.count - 1
+            let assistantId = messages[assistantIndex].id
             var requestedCalls: [ToolCallData] = []
             AgentLiveActivityController.shared.update(phase: statusLine, progress: 0.25 + Double(round) * 0.1)
+
+            var streamBuffer = StreamingTextBuffer()
+            func publishBufferedText(_ chunk: String) {
+                guard let index = messages.firstIndex(where: { $0.id == assistantId }) else { return }
+                messages[index].text += chunk
+            }
+            func finishCancelledStream() {
+                if let tail = streamBuffer.flush() { publishBufferedText(tail) }
+                if let index = messages.firstIndex(where: { $0.id == assistantId }),
+                   messages[index].text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                   messages[index].toolCalls.isEmpty,
+                   messages[index].mediaIds.isEmpty {
+                    messages.remove(at: index)
+                }
+                persist()
+            }
 
             do {
                 var charBudget = 0
                 for try await event in provider.streamChat(messages: outgoing(Array(messages[..<assistantIndex])), tools: specs) {
-                    if Task.isCancelled { return }
+                    if Task.isCancelled {
+                        finishCancelledStream()
+                        return
+                    }
                     switch event {
                     case .textDelta(let delta):
-                        messages[assistantIndex].text += delta
+                        if let chunk = streamBuffer.append(delta) {
+                            publishBufferedText(chunk)
+                        }
                         charBudget += delta.count
                         if charBudget >= 200 {
                             charBudget = 0
@@ -987,10 +1020,16 @@ final class ChatSession: ObservableObject {
                         break
                     }
                 }
+                if let tail = streamBuffer.flush() { publishBufferedText(tail) }
             } catch is CancellationError {
+                finishCancelledStream()
                 return
             } catch {
-                if Task.isCancelled { return }
+                if let tail = streamBuffer.flush() { publishBufferedText(tail) }
+                if Task.isCancelled {
+                    finishCancelledStream()
+                    return
+                }
                 if let urlError = error as? URLError, urlError.code == .cancelled { return }
                 // A socket that froze because iOS suspended the process throws
                 // the same URLError a broken network does. It is not a fault,
@@ -1084,15 +1123,41 @@ final class ChatSession: ObservableObject {
         AgentLiveActivityController.shared.update(phase: statusLine, progress: 0.85)
         messages.append(ChatMessage(role: .assistant, text: ""))
         let assistantIndex = messages.count - 1
+        let assistantId = messages[assistantIndex].id
+        var streamBuffer = StreamingTextBuffer()
+        func publishBufferedText(_ chunk: String) {
+            guard let index = messages.firstIndex(where: { $0.id == assistantId }) else { return }
+            messages[index].text += chunk
+        }
+        func finishCancelledStream() {
+            if let tail = streamBuffer.flush() { publishBufferedText(tail) }
+            if let index = messages.firstIndex(where: { $0.id == assistantId }),
+               messages[index].text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+               messages[index].toolCalls.isEmpty,
+               messages[index].mediaIds.isEmpty {
+                messages.remove(at: index)
+            }
+            persist()
+        }
         do {
             for try await event in provider.streamChat(messages: outgoing(Array(messages[..<assistantIndex])), tools: []) {
-                if Task.isCancelled { return }
+                if Task.isCancelled {
+                    finishCancelledStream()
+                    return
+                }
                 if case .textDelta(let delta) = event {
-                    messages[assistantIndex].text += delta
+                    if let chunk = streamBuffer.append(delta) {
+                        publishBufferedText(chunk)
+                    }
                 }
             }
+            if let tail = streamBuffer.flush() { publishBufferedText(tail) }
         } catch {
-            if Task.isCancelled { return }
+            if let tail = streamBuffer.flush() { publishBufferedText(tail) }
+            if Task.isCancelled {
+                finishCancelledStream()
+                return
+            }
             if messages[assistantIndex].text.isEmpty {
                 messages.remove(at: assistantIndex)
                 errorMessage = NetworkErrorFriendly.message(for: error)
@@ -1695,30 +1760,26 @@ final class ChatSession: ObservableObject {
 
     // MARK: - Persistence
 
-    private struct Snapshot: Codable {
-        var threads: [ChatThread]
-        var activeThreadId: UUID
-    }
-
-    /// v1 single-conversation format, migrated on first launch.
-    private struct LegacySnapshot: Codable {
-        var messages: [ChatMessage]
-        var editingContext: EditingContext?
-    }
-
-    private static let storeURL: URL = {
-        let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        return directory.appendingPathComponent("chat-threads.json")
-    }()
-
-    private static let legacyStoreURL: URL = {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("chat-session.json")
-    }()
-
-    /// Public hook so UI can flush after clearing edit mode etc.
+    /// Public hook so UI can snapshot after clearing edit mode etc.
     func persistPublic() { persist() }
+
+    /// Wait for the newest snapshot to enter the repository, then force its
+    /// debounced write. Backgrounding uses this as the last durability barrier.
+    @discardableResult
+    func flushPersistence() async -> Bool {
+        let reload = persistenceReloadTask
+        await reload?.value
+        let dispatch = persistenceDispatchTask
+        await dispatch?.value
+        do {
+            try await threadRepository.flush()
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            DiagnosticsRecorder.shared.record("chat", "Archiv konnte nicht geschrieben werden: \(error)")
+            return false
+        }
+    }
 
     /// Every media id the persisted archive references, read straight off disk
     /// WITHOUT constructing a session.
@@ -1733,7 +1794,11 @@ final class ChatSession: ObservableObject {
     /// "delete every image the user owns", which is exactly the wrong answer
     /// for a file that simply failed to parse.
     nonisolated static func persistedMediaIds() -> Set<String>? {
-        guard let data = try? Data(contentsOf: storeURL) else { return nil }
+        let directory = FileManager.default.urls(
+            for: .applicationSupportDirectory, in: .userDomainMask
+        )[0]
+        let url = directory.appendingPathComponent("chat-threads.json")
+        guard let data = try? Data(contentsOf: url) else { return nil }
         return mediaIds(inArchive: data)
     }
 
@@ -1741,14 +1806,7 @@ final class ChatSession: ObservableObject {
     /// "undecodable means nil, never an empty set" rule is unit-testable
     /// without writing over the real archive.
     nonisolated static func mediaIds(inArchive data: Data) -> Set<String>? {
-        guard let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data) else { return nil }
-        var ids = Set<String>()
-        for thread in snapshot.threads {
-            for message in thread.messages {
-                ids.formUnion(message.mediaIds)
-            }
-        }
-        return ids
+        ChatThreadRepository.mediaIds(inArchive: data)
     }
 
     #if DEBUG
@@ -1799,8 +1857,22 @@ final class ChatSession: ObservableObject {
     /// silently declines to write at all.
     func reloadFromDisk() {
         guard !busy else { return }
-        restore()
-        openThreadId = nil
+        persistenceReloadTask?.cancel()
+        let dispatch = persistenceDispatchTask
+        dispatch?.cancel()
+        let repository = threadRepository
+        persistenceReloadTask = Task { [weak self] in
+            await dispatch?.value
+            guard let self, !Task.isCancelled else { return }
+            let restored = await repository.discardPendingWritesAndRestore(
+                invalidatingThrough: self.persistenceRevision
+            )
+            guard !Task.isCancelled else { return }
+            self.persistenceDispatchTask = nil
+            self.persistenceReloadTask = nil
+            self.applyRestoration(restored)
+            self.openThreadId = nil
+        }
     }
 
     /// Drop threads that hold no real content (newThread/startEditing can leave
@@ -1827,40 +1899,48 @@ final class ChatSession: ObservableObject {
     }
 
     private func persist() {
-        // Hard stop: an archive we failed to read AND failed to copy is still
-        // the only copy there is. Writing anything over it is the loss.
-        guard persistDisabledReason == nil else { return }
+        guard persistDisabledReason == nil, persistenceReloadTask == nil else { return }
         syncActiveIntoThreads()
         pruneThreads()
-        let snapshot = Snapshot(threads: threads, activeThreadId: activeThreadId)
-        if let data = try? JSONEncoder().encode(snapshot) {
-            try? data.write(to: Self.storeURL, options: .atomic)
+        persistenceRevision &+= 1
+        let revision = persistenceRevision
+        let snapshot = ChatThreadRepository.Snapshot(
+            threads: threads,
+            activeThreadId: activeThreadId
+        )
+        let removeLegacy = removeLegacyAfterNextWrite
+        removeLegacyAfterNextWrite = false
+        persistenceDispatchTask?.cancel()
+        persistenceDispatchTask = Task { [threadRepository] in
+            guard !Task.isCancelled else { return }
+            await threadRepository.enqueue(
+                snapshot,
+                revision: revision,
+                removeLegacyAfterSave: removeLegacy
+            )
         }
     }
 
-    private func restore() {
-        let stored = try? Data(contentsOf: Self.storeURL)
-        if let stored,
-           let snapshot = try? JSONDecoder().decode(Snapshot.self, from: stored),
-           !snapshot.threads.isEmpty {
+    private func applyRestoration(_ restored: ChatThreadRepository.Restoration) {
+        let previousDisabledReason = persistDisabledReason
+        if restored.writesAllowed {
+            persistDisabledReason = nil
+            if errorMessage == previousDisabledReason { errorMessage = nil }
+        }
+        if let snapshot = restored.snapshot, !snapshot.threads.isEmpty {
             threads = snapshot.threads
             activeThreadId = snapshot.threads.contains(where: { $0.id == snapshot.activeThreadId })
                 ? snapshot.activeThreadId
                 : snapshot.threads[0].id
             loadActiveThread()
+            if restored.needsMigration {
+                removeLegacyAfterNextWrite = restored.removeLegacyAfterSave
+                persist()
+            }
             return
         }
 
-        // The file EXISTS but would not decode. Starting fresh here is what
-        // destroys a history: the very next persist() writes an empty snapshot
-        // over it. Keep the bytes under a timestamped name first, so a bad
-        // decode costs a restart instead of every conversation.
-        if let stored, stored.count > 1, !quarantineChatStore(stored) {
-            // The bytes could not be copied aside, so the unreadable file is
-            // still the only copy of the user's history. Starting fresh and
-            // saving would overwrite it — a few hundred bytes fit where the
-            // multi-megabyte copy did not. Come up empty and refuse to write
-            // instead, so a restart or freeing some space can still recover it.
+        if !restored.writesAllowed {
             persistDisabledReason = String(localized: "Der Chat-Verlauf konnte weder gelesen noch gesichert werden ")
                 + String(localized: "(vermutlich zu wenig Speicherplatz). Es wird nichts geschrieben, damit die Datei ")
                 + String(localized: "erhalten bleibt — bitte Speicher freigeben und die App neu starten.")
@@ -1873,55 +1953,10 @@ final class ChatSession: ObservableObject {
             return
         }
 
-        if let data = try? Data(contentsOf: Self.legacyStoreURL),
-           let legacy = try? JSONDecoder().decode(LegacySnapshot.self, from: data),
-           !legacy.messages.isEmpty {
-            var thread = ChatThread(messages: legacy.messages, editingContext: legacy.editingContext)
-            if let firstUser = legacy.messages.first(where: { $0.role == .user }) {
-                thread.title = String(firstUser.text.prefix(48))
-            }
-            threads = [thread]
-            activeThreadId = thread.id
-            loadActiveThread()
-            // Save the migrated copy BEFORE dropping the source. Deleting first
-            // means a crash in between loses both the old file and the new one.
-            persist()
-            if FileManager.default.fileExists(atPath: Self.storeURL.path) {
-                try? FileManager.default.removeItem(at: Self.legacyStoreURL)
-            }
-            return
-        }
-
         let fresh = ChatThread()
         threads = [fresh]
         activeThreadId = fresh.id
         loadActiveThread()
-    }
-
-    /// Move an undecodable chat archive aside instead of letting it be
-    /// overwritten. Named with a timestamp so repeated failures do not
-    /// overwrite each other's evidence.
-    /// Move an undecodable archive aside. Returns false when the copy failed,
-    /// in which case the original is still the only copy in existence.
-    ///
-    /// This used to return Void, so its own comment — "do NOT continue" — was
-    /// unenforceable: `restore()` carried on to `threads = [ChatThread()]`, and
-    /// the next persist() wrote a few hundred bytes of empty snapshot over a
-    /// multi-megabyte archive that had just failed to be copied. The condition
-    /// that makes the copy fail is a nearly full disk, which is also a
-    /// plausible cause of the bad file — so the two coincide by nature rather
-    /// than by bad luck.
-    @discardableResult
-    private func quarantineChatStore(_ data: Data) -> Bool {
-        let stamp = ISO8601DateFormatter().string(from: Date())
-            .replacingOccurrences(of: ":", with: "-")
-        let target = Self.storeURL.deletingLastPathComponent()
-            .appendingPathComponent("chat-threads.json.corrupt-\(stamp)")
-        guard (try? data.write(to: target, options: .atomic)) != nil else {
-            return false
-        }
-        try? FileManager.default.removeItem(at: Self.storeURL)
-        return true
     }
 
     /// Set when an archive could not be read AND could not be copied aside.

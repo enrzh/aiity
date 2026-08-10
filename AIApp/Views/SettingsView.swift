@@ -237,6 +237,13 @@ struct SettingsView: View {
         }
         Task {
             await sync.waitUntilInitialImportSettled()
+            // Drain chat writes before BackupService decides whether the on-disk
+            // archive is empty. Otherwise an older debounced snapshot can land
+            // after the import and overwrite the restored conversation.
+            guard await session.flushPersistence() else {
+                importSummary = String(localized: "Chat-Verlauf konnte vor dem Import nicht gesichert werden.")
+                return
+            }
             applyBackup(data)
         }
     }
