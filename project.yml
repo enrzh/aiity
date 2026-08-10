@@ -199,6 +199,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.aiity.app.tests
         SWIFT_VERSION: "5.9"
+        GENERATE_INFOPLIST_FILE: YES
   AIAppUITests:
     type: bundle.ui-testing
     platform: iOS
@@ -209,6 +210,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.aiity.app.uitests
         SWIFT_VERSION: "5.9"
+        GENERATE_INFOPLIST_FILE: YES
 schemes:
   AIApp:
     build:

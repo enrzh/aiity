@@ -1,0 +1,52 @@
+name: iOS verification
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Build and test
+    runs-on: macos-15
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Select stable Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.4'
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Resolve Swift packages
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project AIApp.xcodeproj \
+            -scheme AIApp \
+            -skipPackagePluginValidation \
+            -skipMacroValidation
+
+      - name: Build and test on iOS Simulator
+        run: |
+          SIMULATOR_ID="$(xcrun simctl list devices available | awk -F '[()]' '/iPhone/{print $2; exit}')"
+          test -n "$SIMULATOR_ID"
+          echo "Using iOS Simulator: $SIMULATOR_ID"
+          xcodebuild test \
+            -project AIApp.xcodeproj \
+            -scheme AIApp \
+            -destination "id=$SIMULATOR_ID" \
+            -only-testing:AIAppTests \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO
