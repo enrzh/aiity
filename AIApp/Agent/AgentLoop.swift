@@ -1552,7 +1552,7 @@ final class ChatSession: ObservableObject {
         // assigning `messages` below replaced the LIVE conversation instead of
         // a fresh one — destroying it on disk via persist(), and leaving the
         // in-flight turn indexing into an array that no longer has its slot.
-        guard newThread() != nil else {
+        guard let threadId = newThread() else {
             errorMessage = String(localized: "Es läuft gerade eine Antwort — bitte kurz warten oder stoppen.")
             return
         }
@@ -1565,13 +1565,13 @@ final class ChatSession: ObservableObject {
         ]
         ensureSourcePinned()
         draftMiniApp = nil
-        chatPresented = true
+        presentEditingThread(threadId)
         persist()
     }
 
     /// Preview / unsaved draft → new edit thread (keep will insert a new app).
     func startEditingDraft(name: String, html: String, emoji: String = "✨") {
-        guard newThread() != nil else {
+        guard let threadId = newThread() else {
             errorMessage = String(localized: "Es läuft gerade eine Antwort — bitte kurz warten oder stoppen.")
             return
         }
@@ -1584,8 +1584,25 @@ final class ChatSession: ObservableObject {
         ]
         ensureSourcePinned()
         draftMiniApp = nil
-        chatPresented = true
+        presentEditingThread(threadId)
         persist()
+    }
+
+    /// Put the freshly made edit thread ON SCREEN, not merely in the list.
+    ///
+    /// Both entry points above used to raise `chatPresented` alone, which only
+    /// selects the Chat tab. That was enough while the tab WAS the conversation;
+    /// since the tab became a conversation list (`ChatListView` pushes on
+    /// `openThreadId`), selecting it landed the user on the list with the new
+    /// chat as one more row — the mini-app runner's AI button looked like it
+    /// did nothing at all. It survived review because the list keeps whatever
+    /// was already pushed: with a chat open beforehand the push was simply
+    /// still there, so the bug only showed after a launch or a step back.
+    ///
+    /// Setting both is deliberate: the tab and the push have separate owners.
+    private func presentEditingThread(_ threadId: UUID) {
+        chatPresented = true
+        openThreadId = threadId
     }
 
     private func loadActiveThread() {

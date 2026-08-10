@@ -21,6 +21,7 @@ enum DiagnosticsReport {
         var out: [String] = []
         out.append("aiity — Diagnose")
         out.append("Erstellt: \(stamp(generatedAt))")
+        out.append(contentsOf: distributionLines())
         out.append("")
 
         out.append(contentsOf: previousSection(previous, verdict: verdict))
@@ -55,6 +56,65 @@ enum DiagnosticsReport {
         out.append(contentsOf: breadcrumbLines(current.breadcrumbs))
 
         return out.joined(separator: "\n")
+    }
+
+    // MARK: How this copy was installed
+
+    /// Which CloudKit database this copy of the app talks to — the first
+    /// question about any sync failure, and the one no report could answer
+    /// until now.
+    ///
+    /// There is no API for it. CloudKit picks the environment from the code
+    /// signature: a build signed for distribution (TestFlight or App Store)
+    /// uses **Production**, a build signed for development uses
+    /// **Development**. That matters because `NSPersistentCloudKitContainer`
+    /// creates missing record types on the fly in Development and *cannot* in
+    /// Production — so a schema that was only ever exercised by debug runs
+    /// works on the developer's device and fails per-record on everyone
+    /// else's, until it is promoted in the CloudKit Console.
+    ///
+    /// The App Store receipt tracks the same distinction closely enough to be
+    /// worth reporting, and the wording stays hedged where it has to: a
+    /// Release build installed straight from Xcode also carries a sandbox
+    /// receipt while running against Development.
+    static func distributionLines() -> [String] {
+        #if DEBUG
+        let isDebug = true
+        #else
+        let isDebug = false
+        #endif
+        let url = Bundle.main.appStoreReceiptURL
+        let name = (url.map { FileManager.default.fileExists(atPath: $0.path) } == true)
+            ? url?.lastPathComponent
+            : nil
+        return distributionLines(receiptName: name, isDebugBuild: isDebug)
+    }
+
+    /// Pure, so the mapping is testable without a receipt on disk.
+    static func distributionLines(receiptName: String?, isDebugBuild: Bool) -> [String] {
+        if isDebugBuild {
+            return [
+                String(localized: "Installation: Debug-Build aus Xcode"),
+                String(localized: "CloudKit:     Development-Umgebung"),
+            ]
+        }
+        switch receiptName {
+        case "sandboxReceipt":
+            return [
+                String(localized: "Installation: TestFlight (Sandbox-Beleg) — oder Release-Build direkt aus Xcode"),
+                String(localized: "CloudKit:     Production-Umgebung (bei Installation aus Xcode: Development)"),
+            ]
+        case "receipt":
+            return [
+                String(localized: "Installation: App Store"),
+                String(localized: "CloudKit:     Production-Umgebung"),
+            ]
+        default:
+            return [
+                String(localized: "Installation: unbekannt (kein Kaufbeleg vorhanden)"),
+                String(localized: "CloudKit:     Umgebung folgt der Signatur — Vertriebssignatur = Production"),
+            ]
+        }
     }
 
     // MARK: Previous run
@@ -208,6 +268,23 @@ enum DiagnosticsReport {
             format: String(localized: "  Speicher: %.0f MB belegt · %.0f MB verfügbar · %d Warnung(en)"),
             run.footprintMB, run.availableMemoryMB, run.memoryWarnings
         ))
+        out.append(contentsOf: syncLines(run))
+        return out
+    }
+
+    /// The iCloud block. Present only when something actually failed, and
+    /// explicitly labelled as the *last* failure of that run: `syncFailure` is
+    /// never cleared by a later success, so without the wording a recovered
+    /// sync would read as a live one. The per-record lines below it are the
+    /// point — they name the record type and carry CloudKit's own server text.
+    static func syncLines(_ run: DiagnosticRun) -> [String] {
+        guard let failure = run.syncFailure, !failure.isEmpty else { return [] }
+        var out = ["", String(localized: "  iCloud — letzter Fehler in diesem Lauf:")]
+        for line in failure.split(separator: "\n", omittingEmptySubsequences: false) {
+            out.append("  \(line)")
+        }
+        out.append(String(localized: "  (Ein späterer Erfolg löscht diesen Eintrag nicht — ob der Abgleich"))
+        out.append(String(localized: "   danach wieder lief, steht in den Ereignissen unter \"icloud\".)"))
         return out
     }
 

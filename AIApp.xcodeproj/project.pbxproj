@@ -38,11 +38,14 @@
 		1C99875F3564B076392F5868 /* MiniAppValidatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D6A69B321F0B9D850477143 /* MiniAppValidatorTests.swift */; };
 		21A06D89166AEB7E11D5799B /* AuditRemainderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72C211BC38C86A009122848F /* AuditRemainderTests.swift */; };
 		2313637FF6ED7049FDBC8801 /* ModalChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63D2679C540EB651BD2325AF /* ModalChrome.swift */; };
+		248866AFE17B1622E7B88AB0 /* CloudKitErrorDigestTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D2A9E9D9A21447D9F407739 /* CloudKitErrorDigestTests.swift */; };
 		28AADA661062BD46DB0A0EDC /* SettingsRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41FC1000764FE804EBCFC923 /* SettingsRow.swift */; };
 		29754FE8303B56FDFE9BD7FF /* LLMProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1BE1D072ECC42831F6482CF /* LLMProvider.swift */; };
 		2A1AB1ABBBB454CDD76C7CFE /* NetworkErrorFriendly.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D251FBE571B441140F3B945 /* NetworkErrorFriendly.swift */; };
 		2D1330A2FD233A7800198AE2 /* MiniAppBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1392287F6C0E834FAA71B8B6 /* MiniAppBundle.swift */; };
 		2DE0C1B1FCBB88F53A5DEF5E /* BrowserRunnerIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCF5F5A05AB3668BECC04646 /* BrowserRunnerIntegrationTests.swift */; };
+		2F0C6CEBE5A15AC2BF2CF030 /* CloudKitErrorDigest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2344F8D4FBCC0A8E56C51947 /* CloudKitErrorDigest.swift */; };
+		3017C110AA958F70550C4054 /* MiniAppSessionStoreSweep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84190B44BAD282D02D84E638 /* MiniAppSessionStoreSweep.swift */; };
 		303E97A8E0D506C15DD7271B /* BundledSkills in Resources */ = {isa = PBXBuildFile; fileRef = 76B856813601A1FE8ED70BC7 /* BundledSkills */; };
 		30845FF5876ED109329F0CD9 /* OAuthServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8015895FBCB654D64B179212 /* OAuthServiceTests.swift */; };
 		3114C004A552375EF3D8F08E /* ProviderProfilesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C5FF94B44063B01088D5671 /* ProviderProfilesTests.swift */; };
@@ -171,6 +174,7 @@
 		D817671B08A9EFCFAA46BF12 /* MiniAppServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5A7EBC99589ED208D3D8121 /* MiniAppServices.swift */; };
 		D8E24D6523B25B4C6DB156AB /* AuthStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F007D44D78D3E579B415CC0 /* AuthStore.swift */; };
 		DC148E7BE9604F3F8FB0172B /* DiagnosticsRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1518D6D1989698FF92DF5D /* DiagnosticsRecorder.swift */; };
+		DC92C3BE2B43622823123047 /* MiniAppSessionStoreSweepTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BB7F9B4CDF91637C4542741 /* MiniAppSessionStoreSweepTests.swift */; };
 		DEFB0E361D6D325BB82B0C31 /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = B87EE1D71C2386865E3FE7A7 /* MLXLMCommon */; };
 		E0CE34C7AD86D9B4F85A3A54 /* SyncStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0406DECBE62CEB9AB0FE4A2 /* SyncStatus.swift */; };
 		E2247F4E9DA2AC5211C3F07B /* AppNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2490BAAC944CD31E6953877B /* AppNotifications.swift */; };
@@ -262,6 +266,7 @@
 		20EFAF7053FFF7D489E383CB /* LocalMemoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalMemoryTests.swift; sourceTree = "<group>"; };
 		2173ADC631DA046FFCE1D350 /* BackgroundWorkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundWorkTests.swift; sourceTree = "<group>"; };
 		22FCF2E8FDC1437D7606750E /* AddSkillSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddSkillSheet.swift; sourceTree = "<group>"; };
+		2344F8D4FBCC0A8E56C51947 /* CloudKitErrorDigest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitErrorDigest.swift; sourceTree = "<group>"; };
 		235A2D84903E13A3D8E7A10F /* AgentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentsView.swift; sourceTree = "<group>"; };
 		2490BAAC944CD31E6953877B /* AppNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNotifications.swift; sourceTree = "<group>"; };
 		266D94DDD73F14B006FB2D68 /* BrowserFetchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserFetchTests.swift; sourceTree = "<group>"; };
@@ -307,9 +312,11 @@
 		663370337C8CA56C965C2B3D /* AgentModelPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentModelPicker.swift; sourceTree = "<group>"; };
 		669F884F0BE67CE591B3C406 /* CloudSettingsSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSettingsSyncTests.swift; sourceTree = "<group>"; };
 		69A13B6EF2EBD864ADF05F14 /* AgentLiveActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentLiveActivityController.swift; sourceTree = "<group>"; };
+		6BB7F9B4CDF91637C4542741 /* MiniAppSessionStoreSweepTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniAppSessionStoreSweepTests.swift; sourceTree = "<group>"; };
 		6C6B1D27DAE42B985CF36BE1 /* ProviderCompatTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderCompatTests.swift; sourceTree = "<group>"; };
 		6CD59DF34EB2C44797D18EB6 /* MiniAppBundleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniAppBundleTests.swift; sourceTree = "<group>"; };
 		6CDEE0662D6422273000A263 /* ImportSkillModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportSkillModal.swift; sourceTree = "<group>"; };
+		6D2A9E9D9A21447D9F407739 /* CloudKitErrorDigestTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitErrorDigestTests.swift; sourceTree = "<group>"; };
 		6E2F0648BFF26215581F3521 /* ProviderSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderSettings.swift; sourceTree = "<group>"; };
 		6F413BE2BC01CC36FA3EAE4B /* ProviderLiveSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderLiveSmokeTests.swift; sourceTree = "<group>"; };
 		71BE07E108BB15C9A6DA6F5B /* ProbeStubServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProbeStubServer.swift; sourceTree = "<group>"; };
@@ -326,6 +333,7 @@
 		7FAABD9AFCC0E572641D5FE3 /* ReportContentSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportContentSheet.swift; sourceTree = "<group>"; };
 		8015895FBCB654D64B179212 /* OAuthServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthServiceTests.swift; sourceTree = "<group>"; };
 		80E3E32AC152F5BECD5FA8A3 /* SyncStatusTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatusTests.swift; sourceTree = "<group>"; };
+		84190B44BAD282D02D84E638 /* MiniAppSessionStoreSweep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniAppSessionStoreSweep.swift; sourceTree = "<group>"; };
 		851324968383202E8E3BAF7B /* AnthropicProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnthropicProvider.swift; sourceTree = "<group>"; };
 		853A340F86123771FFE3A9D4 /* WebKitRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebKitRuntime.swift; sourceTree = "<group>"; };
 		868E8C9882FDA18A0B8629A9 /* AIAppTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = AIAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -465,6 +473,7 @@
 				F04C8896CDE2E3B7A606FC63 /* BackupService.swift */,
 				A0B53E04A2ED7E9CA68C7EE3 /* BrowserNavigationPolicy.swift */,
 				19A8642C34B44DBCEB6A7414 /* ChatSuggestionService.swift */,
+				2344F8D4FBCC0A8E56C51947 /* CloudKitErrorDigest.swift */,
 				E01B36A1AC5AEAA61AB520F9 /* CloudSettingsSync.swift */,
 				F9FF8C6F144D582B46438129 /* ConnectionProbe.swift */,
 				76428C2E2A2205D360142202 /* ContentReport.swift */,
@@ -476,6 +485,7 @@
 				43918F31F3CCEA61F225CBF9 /* MemoryPressure.swift */,
 				1392287F6C0E834FAA71B8B6 /* MiniAppBundle.swift */,
 				7267ACD1A86943F0D49BC51E /* MiniAppIndex.swift */,
+				84190B44BAD282D02D84E638 /* MiniAppSessionStoreSweep.swift */,
 				B64CD47856B221735B081C23 /* MiniAppValidator.swift */,
 				2C86F83176F788DEC5D87646 /* ModelCatalogCache.swift */,
 				C60F49D56B0F41AE9A20553C /* ModelCatalogService.swift */,
@@ -586,6 +596,7 @@
 				D6C1B1F921652AA5B53D0B27 /* BrowserRunnerPolicyTests.swift */,
 				E6A5B12C8708F001BA3C6239 /* ChatSuggestionServiceTests.swift */,
 				1E69A8AEAC6C19636B9C18FB /* ChatSuggestionsTests.swift */,
+				6D2A9E9D9A21447D9F407739 /* CloudKitErrorDigestTests.swift */,
 				669F884F0BE67CE591B3C406 /* CloudSettingsSyncTests.swift */,
 				18BAB401436AAC0B0CA8FE9B /* ConnectionProbeTests.swift */,
 				1F1ABE9698E6EB896BFDD090 /* ContentReportTests.swift */,
@@ -598,6 +609,7 @@
 				DA8466963EF2CD19656D9FEB /* LocalRuntimePolicyTests.swift */,
 				6CD59DF34EB2C44797D18EB6 /* MiniAppBundleTests.swift */,
 				0C9A59361BEACB918BD5FC01 /* MiniAppEditContextTests.swift */,
+				6BB7F9B4CDF91637C4542741 /* MiniAppSessionStoreSweepTests.swift */,
 				0D6A69B321F0B9D850477143 /* MiniAppValidatorTests.swift */,
 				17F951165BDDAA69ACF6561E /* ModelCatalogTests.swift */,
 				CF50068F397ABE734B1173E6 /* NotificationPolicyTests.swift */,
@@ -988,6 +1000,7 @@
 				9F54633AA821CC4FC6431783 /* ChatSuggestionService.swift in Sources */,
 				C88E8F6AC4777A28E3DA78A3 /* ChatSuggestions.swift in Sources */,
 				97B77AE2989796A7A348153B /* ChatView.swift in Sources */,
+				2F0C6CEBE5A15AC2BF2CF030 /* CloudKitErrorDigest.swift in Sources */,
 				B4BE292E26EB150B92CF74DB /* CloudSettingsSync.swift in Sources */,
 				80862C128CB62D9B0BA431B6 /* ConnectionProbe.swift in Sources */,
 				59F430BC43E2753F665F45D6 /* ConnectionsOverviewView.swift in Sources */,
@@ -1023,6 +1036,7 @@
 				70A6E03977A48B6A17A2D102 /* MiniAppIndex.swift in Sources */,
 				C3D0A39A19C380D5BE46DF50 /* MiniAppRunnerView.swift in Sources */,
 				D817671B08A9EFCFAA46BF12 /* MiniAppServices.swift in Sources */,
+				3017C110AA958F70550C4054 /* MiniAppSessionStoreSweep.swift in Sources */,
 				789237983030FA01832A6906 /* MiniAppSheet.swift in Sources */,
 				0EDB9E10A7D741108C97D3D9 /* MiniAppTile.swift in Sources */,
 				971CD1E01BCDF6DFA3A9BEF7 /* MiniAppValidator.swift in Sources */,
@@ -1089,6 +1103,7 @@
 				63EDDC5053BB2C08A98E5A19 /* BrowserRunnerPolicyTests.swift in Sources */,
 				9E050D42E7ADC95703AF24FB /* ChatSuggestionServiceTests.swift in Sources */,
 				B3FE7459265FC7F06DF95975 /* ChatSuggestionsTests.swift in Sources */,
+				248866AFE17B1622E7B88AB0 /* CloudKitErrorDigestTests.swift in Sources */,
 				174E25E995015BDFFBC64DD8 /* CloudSettingsSyncTests.swift in Sources */,
 				CD53EF76E6E3BECAE16D7AA3 /* ConnectionProbeTests.swift in Sources */,
 				19E0A1AA8F85273072F4DEAE /* ContentReportTests.swift in Sources */,
@@ -1101,6 +1116,7 @@
 				6AB254B91A2E253599524DD2 /* LocalRuntimePolicyTests.swift in Sources */,
 				5195B6E0E2F504654EFF8AB0 /* MiniAppBundleTests.swift in Sources */,
 				40747E4CD7BA22059AE5B22D /* MiniAppEditContextTests.swift in Sources */,
+				DC92C3BE2B43622823123047 /* MiniAppSessionStoreSweepTests.swift in Sources */,
 				1C99875F3564B076392F5868 /* MiniAppValidatorTests.swift in Sources */,
 				ACC26DC315DAF4BAFD2C574A /* ModelCatalogTests.swift in Sources */,
 				1C74A9D92B0DC67AE42B109F /* NotificationPolicyTests.swift in Sources */,

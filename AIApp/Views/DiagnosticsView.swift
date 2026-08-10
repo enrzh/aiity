@@ -5,6 +5,7 @@ import UIKit
 /// tap. The whole point is that nobody has to go digging in iOS Settings →
 /// Analyse & Verbesserungen → Analysedaten, or attach the phone to a Mac.
 struct DiagnosticsView: View {
+    @ObservedObject private var sync = SyncStatus.shared
     @State private var run: DiagnosticRun?
     @State private var verdict: DiagnosticVerdict = .noPreviousRun
     @State private var metricKit: String?
@@ -28,6 +29,8 @@ struct DiagnosticsView: View {
 
                 breadcrumbSection(run)
             }
+
+            iCloudSection
 
             metricKitSection
             exportSection
@@ -159,6 +162,32 @@ struct DiagnosticsView: View {
                     .padding(.vertical, 1)
                 }
             }
+        }
+    }
+
+    /// The iCloud block, shown only when there is something to show. Prefers
+    /// the live failure of THIS run over the one recorded for the previous
+    /// one — if sync is failing right now, that is the copy someone should be
+    /// pasting into a bug report.
+    @ViewBuilder private var iCloudSection: some View {
+        let live = sync.lastSyncDetail
+        let previous = (run?.syncFailure).map { $0.split(separator: "\n").map(String.init) } ?? []
+        let lines = live.isEmpty ? previous : live
+
+        if !lines.isEmpty {
+            Section {
+                ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
+                    Text(line)
+                        .font(index == 0 ? .subheadline : .system(.caption, design: .monospaced))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+                }
+            } header: {
+                Text(live.isEmpty ? "iCloud (letzter Lauf)" : "iCloud (jetzt)")
+            } footer: {
+                Text("CloudKit meldet Sammelfehler — die Zeilen darunter sind die einzelnen Gründe pro Eintrag, samt Servertext. Genau das braucht die Fehlersuche; die Mini-Apps auf diesem Gerät sind davon nicht betroffen.")
+            }
+            .accessibilityIdentifier("diagnostics-icloud")
         }
     }
 

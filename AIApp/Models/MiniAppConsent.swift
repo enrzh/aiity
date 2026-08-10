@@ -13,8 +13,27 @@ enum MiniAppConsent {
         return MiniAppCapability(rawValue: raw)
     }
 
+    /// Every grant the user has made, keyed by app id.
+    ///
+    /// Read by `MiniAppSessionStoreSweep`, which needs the COMPLETE list of ids
+    /// that could own a persistent cookie jar: the runner only picks a
+    /// persistent `WKWebsiteDataStore` when the grant here is `.browser`, so an
+    /// id absent from this map can have no store — and chat previews, which
+    /// have no library record at all, appear nowhere else.
+    static func grants() -> [String: MiniAppCapability] {
+        let map = UserDefaults.standard.dictionary(forKey: key) as? [String: String] ?? [:]
+        return map.compactMapValues(MiniAppCapability.init(rawValue:))
+    }
+
     /// Forget a deleted app's grant, so a future app that happens to reuse the
     /// id does not silently inherit permission the user never gave it.
+    ///
+    /// Two callers, and both are needed. `LibraryView`'s delete alert covers
+    /// the delete the user performs HERE; `MiniAppSessionStoreSweep.run` covers
+    /// every disappearance that alert never sees — above all a mini-app deleted
+    /// on ANOTHER device, whose record vanishes through CloudKit mirroring with
+    /// no alert to run. Without the second caller the grant outlives the record
+    /// and silently re-arms if a record with the same UUID ever returns.
     static func revoke(appId: String) {
         var map = UserDefaults.standard.dictionary(forKey: key) as? [String: String] ?? [:]
         map.removeValue(forKey: appId)

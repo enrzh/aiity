@@ -216,6 +216,19 @@ struct RootView: View {
             try? await Task.sleep(nanoseconds: 950_000_000)
             splashFinished = true
         }
+        // A mini-app deleted on ANOTHER device takes its record away through
+        // CloudKit mirroring, which never runs the library's delete alert — so
+        // both things the alert would have cleaned up are left owned by
+        // nothing: the persistent cookie jar (real site logins) and the consent
+        // grant (which would silently re-arm network/browser capability if a
+        // record with that UUID ever returned). One pass reconciles both, in
+        // that order — see the ordering note on MiniAppSessionStoreSweep before
+        // adding any other caller. It waits for the initial import on its own,
+        // refuses to act on a recovered or in-memory store, and does nothing at
+        // all unless some grant exists, so it costs most users nothing.
+        .task {
+            await MiniAppSessionStoreSweep.run(context: modelContext)
+        }
         .onChange(of: sync.initialImportComplete) { _, complete in
             // CloudKit cannot enforce UUID uniqueness — once the first import
             // has settled, fold any records that arrived as duplicates of

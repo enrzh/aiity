@@ -53,6 +53,47 @@ final class MiniAppEditContextTests: XCTestCase {
         XCTAssertFalse(system.contains(huge))
     }
 
+    /// Starting an edit must PUSH the new conversation, not just select the
+    /// Chat tab. `ChatListView` navigates on `openThreadId`, so leaving it nil
+    /// dropped the user on the conversation list — the mini-app runner's AI
+    /// button then looked like it did nothing.
+    @MainActor
+    func testStartEditingOpensTheNewConversation() {
+        let session = ChatSession()
+        session.startEditing(id: UUID(), name: "Notizen", html: "<html></html>")
+
+        XCTAssertTrue(session.chatPresented, "the Chat tab must be selected")
+        XCTAssertEqual(session.openThreadId, session.activeThreadIdForTesting,
+                       "the edit thread must be the one pushed on the Chat tab")
+        XCTAssertNotNil(session.editingContext)
+    }
+
+    @MainActor
+    func testStartEditingDraftOpensTheNewConversation() {
+        let session = ChatSession()
+        session.startEditingDraft(name: "Vorschau", html: "<html></html>")
+
+        XCTAssertTrue(session.chatPresented)
+        XCTAssertEqual(session.openThreadId, session.activeThreadIdForTesting)
+    }
+
+    /// The refusal path must not navigate either: pushing a thread that was
+    /// never created would show the running conversation under a new identity.
+    @MainActor
+    func testStartEditingWhileBusyDoesNotNavigate() {
+        let session = ChatSession()
+        guard session.newThread() != nil else { return XCTFail("no thread") }
+        session.busy = true
+        session.openThreadId = nil
+        session.chatPresented = false
+
+        session.startEditing(id: UUID(), name: "Timer", html: "<html></html>")
+
+        XCTAssertNil(session.openThreadId, "a refused edit must not push anything")
+        XCTAssertFalse(session.chatPresented)
+        XCTAssertNotNil(session.errorMessage)
+    }
+
     @MainActor
     func testEnsureSourcePinnedInsertsAndRefreshes() {
         let session = ChatSession()

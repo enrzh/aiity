@@ -463,6 +463,7 @@ struct ChatView: View {
         .background(Color.accentColor.opacity(0.08))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Bearbeiten: \(ctx.name)")
+        .accessibilityIdentifier("editing-banner")
     }
 
     private var setupBanner: some View {

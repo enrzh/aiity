@@ -97,6 +97,15 @@ struct DiagnosticRun: Codable, Sendable {
     var breadcrumbs: [DiagnosticBreadcrumb]
     var fatal: DiagnosticFatal?
 
+    /// The last iCloud failure of this run, already unwrapped down to the
+    /// per-record reasons (see `CloudKitErrorDigest`). A field rather than a
+    /// breadcrumb for the same reason `provider` is: it survives the
+    /// breadcrumb ring buffer, and a sync failure reported from a device is
+    /// unreadable without the record type and the server message. Never
+    /// cleared by a later success — "failed, then recovered" is a different
+    /// story from "never failed", and the breadcrumbs tell which one it was.
+    var syncFailure: String?
+
     init(
         id: UUID = UUID(),
         startedAt: Date = Date(),
@@ -113,7 +122,8 @@ struct DiagnosticRun: Codable, Sendable {
         provider: String = "",
         model: String = "",
         breadcrumbs: [DiagnosticBreadcrumb] = [],
-        fatal: DiagnosticFatal? = nil
+        fatal: DiagnosticFatal? = nil,
+        syncFailure: String? = nil
     ) {
         self.id = id
         self.startedAt = startedAt
@@ -131,12 +141,14 @@ struct DiagnosticRun: Codable, Sendable {
         self.model = model
         self.breadcrumbs = breadcrumbs
         self.fatal = fatal
+        self.syncFailure = syncFailure
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, startedAt, appVersion, build, systemVersion, deviceModel
         case endedCleanlyAt, lastActiveAt, wasInBackground, memoryWarnings
         case footprintMB, availableMemoryMB, provider, model, breadcrumbs, fatal
+        case syncFailure
     }
 
     init(from decoder: Decoder) throws {
@@ -157,6 +169,9 @@ struct DiagnosticRun: Codable, Sendable {
         model = try c.decodeIfPresent(String.self, forKey: .model) ?? ""
         breadcrumbs = try c.decodeIfPresent([DiagnosticBreadcrumb].self, forKey: .breadcrumbs) ?? []
         fatal = try c.decodeIfPresent(DiagnosticFatal.self, forKey: .fatal)
+        // decodeIfPresent: a run recorded by build 12 has no such key, and a
+        // report from the very build this was added for must still open.
+        syncFailure = try c.decodeIfPresent(String.self, forKey: .syncFailure)
     }
 }
 
@@ -438,6 +453,17 @@ final class DiagnosticsRecorder: @unchecked Sendable {
             // Not throttled: this is set once per send and is the first thing
             // anyone asks about a crash in this app. Losing it to a 0.5s window
             // would cost far more than the write saves.
+            flushLocked(force: true)
+        }
+    }
+
+    /// The unwrapped iCloud failure. Flushed immediately for the same reason
+    /// `noteProvider` is: a sync failure is often followed by the app being
+    /// backgrounded and killed, and losing it to the 0.5 s coalescing window
+    /// costs the one fact the report exists to carry.
+    func noteSyncFailure(_ detail: String) {
+        queue.async { [self] in
+            current.syncFailure = detail
             flushLocked(force: true)
         }
     }

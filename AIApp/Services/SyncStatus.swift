@@ -52,6 +52,35 @@ final class SyncStatus: ObservableObject {
         let kind: Kind
         let succeeded: Bool
         let errorDescription: String?
+        /// The failure with `partialFailure` unwrapped — see
+        /// `CloudKitErrorDigest`. `nil` on success, and on the failures that
+        /// arrive without an `Error` at all.
+        let digest: CloudKitErrorDigest?
+
+        init(
+            kind: Kind,
+            succeeded: Bool,
+            errorDescription: String?,
+            digest: CloudKitErrorDigest? = nil
+        ) {
+            self.kind = kind
+            self.succeeded = succeeded
+            self.errorDescription = errorDescription
+            self.digest = digest
+        }
+
+        /// German label for the event, so a report says *which* half of sync
+        /// broke: an export failure means this device's changes are not
+        /// reaching iCloud, an import failure means other devices' changes are
+        /// not arriving here. They have different consequences.
+        var kindLabel: String {
+            switch kind {
+            case .setup: return String(localized: "Einrichtung")
+            case .import: return String(localized: "Import (von iCloud)")
+            case .export: return String(localized: "Export (nach iCloud)")
+            case .unknown: return String(localized: "Abgleich")
+            }
+        }
     }
 
     @Published private(set) var mode: Mode = .localOnly
@@ -77,6 +106,13 @@ final class SyncStatus: ObservableObject {
     /// next successful one. Surfaced in Settings so "iCloud aktiv" cannot
     /// stand unqualified while every export quietly fails.
     @Published private(set) var lastSyncError: String?
+
+    /// The per-record detail behind `lastSyncError`, already rendered for the
+    /// diagnostics report. Kept separate on purpose: the Settings row gets one
+    /// actionable German sentence, the report gets the record types, server
+    /// messages and counts that make the failure fixable. Cleared by the next
+    /// successful event, exactly like `lastSyncError`.
+    @Published private(set) var lastSyncDetail: [String] = []
 
     /// Whether the device currently appears to have a usable iCloud account.
     /// Checked when sync starts and re-checked on `.CKAccountChanged`, so
@@ -170,7 +206,11 @@ final class SyncStatus: ObservableObject {
             let outcome = SyncEventOutcome(
                 kind: SyncEventOutcome.Kind(event.type),
                 succeeded: event.succeeded,
-                errorDescription: event.error?.localizedDescription
+                errorDescription: event.error?.localizedDescription,
+                // `localizedDescription` of a partial failure is the useless
+                // "Der Vorgang konnte nicht abgeschlossen werden.
+                // (CKErrorDomain-Fehler 2.)" — the reasons are one level down.
+                digest: event.error.map(CloudKitErrorDigest.make(from:))
             )
             Task { @MainActor in self?.note(outcome) }
         })
@@ -194,9 +234,28 @@ final class SyncStatus: ObservableObject {
     /// un-constructible `NSPersistentCloudKitContainer.Event`.
     func note(_ outcome: SyncEventOutcome) {
         if outcome.succeeded {
+            let recovering = lastSyncError != nil
             lastSyncError = nil
+            lastSyncDetail = []
+            // The recorded failure is deliberately NOT cleared — a report is
+            // read after the fact, and "it failed, then recovered" is a
+            // different story from "it never failed". The breadcrumb supplies
+            // the second half.
+            if recovering {
+                breadcrumb("\(outcome.kindLabel): wieder erfolgreich")
+            }
         } else {
-            lastSyncError = outcome.errorDescription ?? String(localized: "Unbekannter Sync-Fehler")
+            // Prefer the unwrapped reason. `errorDescription` is only the
+            // fallback, because for the failure this exists to explain it is
+            // the string "CKErrorDomain-Fehler 2".
+            let message = outcome.digest?.userMessage
+                ?? outcome.errorDescription
+                ?? String(localized: "Unbekannter Sync-Fehler")
+            lastSyncError = message
+            var detail = ["\(outcome.kindLabel): \(message)"]
+            detail.append(contentsOf: outcome.digest?.diagnosticLines ?? [])
+            lastSyncDetail = detail
+            recordSyncFailure(detail, summary: "\(outcome.kindLabel): \(message)")
         }
         // Only a SUCCESSFUL import settles the placeholder — a failed one
         // means the data did NOT arrive, and settling on it would show the
@@ -205,6 +264,20 @@ final class SyncStatus: ObservableObject {
         if outcome.kind == .import, outcome.succeeded {
             markImportSettled()
         }
+    }
+
+    /// Both diagnostics hooks are limited to the app-wide singleton: a
+    /// `SyncStatus` built by a test must not write a fabricated CloudKit
+    /// failure into the recorder that the next real report would then show.
+    private func breadcrumb(_ message: String) {
+        guard self === SyncStatus.shared else { return }
+        DiagnosticsRecorder.shared.record("icloud", message)
+    }
+
+    private func recordSyncFailure(_ detail: [String], summary: String) {
+        breadcrumb(summary)
+        guard self === SyncStatus.shared else { return }
+        DiagnosticsRecorder.shared.noteSyncFailure(detail.joined(separator: "\n"))
     }
 
     private func refreshAccountStatus() {

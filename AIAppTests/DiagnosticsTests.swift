@@ -43,6 +43,26 @@ final class DiagnosticsDecodingTests: XCTestCase {
         XCTAssertTrue(run.breadcrumbs.isEmpty)
     }
 
+    /// `syncFailure` was added after build 12 shipped. The first report that
+    /// will ever carry it is read on a build that has it, but the PREVIOUS
+    /// run's file was written by one that did not.
+    func testARecordWithoutTheSyncFieldStillDecodes() throws {
+        let run = try JSONDecoder().decode(DiagnosticRun.self, from: Data(legacyRun.utf8))
+        XCTAssertNil(run.syncFailure)
+    }
+
+    func testTheSyncFailureSurvivesARoundTrip() throws {
+        var original = DiagnosticRun(
+            appVersion: "0.6.0", build: "13",
+            systemVersion: "27.0", deviceModel: "iPhone18,4"
+        )
+        original.syncFailure = "Export (nach iCloud): …\n  • 9× CKErrorDomain 22 (batchRequestFailed)"
+        let decoded = try JSONDecoder().decode(
+            DiagnosticRun.self, from: JSONEncoder().encode(original)
+        )
+        XCTAssertEqual(decoded.syncFailure, original.syncFailure)
+    }
+
     func testBreadcrumbsSurviveARoundTrip() throws {
         let original = DiagnosticRun(
             appVersion: "0.6.0", build: "44",
@@ -263,6 +283,74 @@ final class DiagnosticsReportTests: XCTestCase {
         XCTAssertFalse(DiagnosticsReport.metricKitHighlights("").isEmpty)
     }
 
+    /// The point of the whole exercise: a report forwarded from a device has
+    /// to name the record type and CloudKit's own server text, otherwise the
+    /// next round of guessing starts from the same "CKErrorDomain-Fehler 2".
+    func testTheReportCarriesTheUnwrappedICloudFailure() {
+        var current = DiagnosticRun(
+            appVersion: "0.6.0", build: "13", systemVersion: "27.0", deviceModel: "iPhone18,4"
+        )
+        current.syncFailure = [
+            "Export (nach iCloud): iCloud lehnt das Datenformat ab",
+            "Fehler: CKErrorDomain 2 (partialFailure)",
+            "  • 1× CKErrorDomain 12 (invalidArguments)",
+            "      Server: Cannot create new type CD_MiniApp in production schema",
+        ].joined(separator: "\n")
+
+        let text = DiagnosticsReport.render(
+            previous: nil, verdict: .noPreviousRun, metricKit: nil,
+            current: current, generatedAt: Date(timeIntervalSince1970: 770_001_000)
+        )
+        XCTAssertTrue(text.contains("CD_MiniApp"), text)
+        XCTAssertTrue(text.contains("invalidArguments"))
+        XCTAssertTrue(text.contains("Export (nach iCloud)"))
+        // Never cleared by a later success, so it must not read as live.
+        XCTAssertTrue(text.contains("letzter Fehler in diesem Lauf"))
+    }
+
+    /// Development vs Production is what separates "works on my device" from
+    /// "fails for every TestFlight user", and no report so far said which one
+    /// it was looking at.
+    func testTheReportNamesTheCloudKitEnvironmentItWouldHaveUsed() {
+        XCTAssertTrue(
+            DiagnosticsReport.distributionLines(receiptName: "sandboxReceipt", isDebugBuild: false)
+                .joined().contains("TestFlight")
+        )
+        XCTAssertTrue(
+            DiagnosticsReport.distributionLines(receiptName: "receipt", isDebugBuild: false)
+                .joined().contains("App Store")
+        )
+        // A debug build outranks whatever receipt happens to be lying around.
+        XCTAssertTrue(
+            DiagnosticsReport.distributionLines(receiptName: "sandboxReceipt", isDebugBuild: true)
+                .joined().contains("Development")
+        )
+        // No receipt is not an excuse to guess.
+        XCTAssertTrue(
+            DiagnosticsReport.distributionLines(receiptName: nil, isDebugBuild: false)
+                .joined().contains("unbekannt")
+        )
+        for lines in [
+            DiagnosticsReport.distributionLines(receiptName: "sandboxReceipt", isDebugBuild: false),
+            DiagnosticsReport.distributionLines(receiptName: "receipt", isDebugBuild: false),
+            DiagnosticsReport.distributionLines(receiptName: nil, isDebugBuild: true),
+        ] {
+            XCTAssertEqual(lines.count, 2)
+            XCTAssertTrue(lines.joined().contains("CloudKit"), "\(lines)")
+        }
+    }
+
+    func testTheReportSaysNothingAboutICloudWhenNothingFailed() {
+        let text = DiagnosticsReport.render(
+            previous: nil, verdict: .noPreviousRun, metricKit: nil,
+            current: DiagnosticRun(
+                appVersion: "0.6.0", build: "13", systemVersion: "27.0", deviceModel: "iPhone18,4"
+            ),
+            generatedAt: Date()
+        )
+        XCTAssertFalse(text.contains("iCloud —"), "a healthy run must not grow an alarming empty section")
+    }
+
     func testDurationsReadInTheRightUnit() {
         let start = Date(timeIntervalSince1970: 0)
         XCTAssertEqual(DiagnosticsReport.duration(from: start, to: start.addingTimeInterval(45)), "45s")
@@ -315,6 +403,18 @@ final class DiagnosticsRecorderTests: XCTestCase {
             "a run with no memory warning must still carry its footprint"
         )
         XCTAssertEqual(recovered.memoryWarnings, 0)
+    }
+
+    /// The sync failure has to survive the process that saw it. A CloudKit
+    /// export failing is often followed by the app being backgrounded and
+    /// killed, so it is flushed immediately and read back by the next launch.
+    func testTheICloudFailureSurvivesIntoTheNextLaunch() throws {
+        let first = DiagnosticsRecorder(directory: directory)
+        first.noteSyncFailure("Export (nach iCloud): abgelehnt\n  • 1× CKErrorDomain 12 (invalidArguments)")
+        try waitForFlush(in: directory, named: "current-run.json", containing: "invalidArguments")
+
+        let recovered = try XCTUnwrap(DiagnosticsRecorder(directory: directory).lastRunSnapshot().run)
+        XCTAssertTrue(recovered.syncFailure?.contains("invalidArguments") == true)
     }
 
     func testAFreshInstallHasNoPreviousRun() {

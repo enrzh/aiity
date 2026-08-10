@@ -143,12 +143,15 @@ struct MiniAppSheet: View {
         UIApplication.shared.sendAction(
             #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
         )
+        // Route BEFORE dismissing, and without a timer. The destination is set
+        // up underneath a sheet that is still on screen, so the dismissal
+        // uncovers a Chat tab that already shows the conversation — nothing has
+        // to be timed against the dismissal animation. The old 0.35 s hop also
+        // read `openChatTab` out of an @Environment whose view had already been
+        // torn down by then, which resolves to the key's no-op default.
+        openChatTab()
+        onEditWithAI?()
         dismiss()
-        // Defer so sheet dismissal doesn't fight tab switch.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-            openChatTab()
-            onEditWithAI?()
-        }
     }
 }
 

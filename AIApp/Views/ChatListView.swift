@@ -7,7 +7,6 @@ struct ChatListView: View {
     @EnvironmentObject private var session: ChatSession
     @ObservedObject private var agentStore = AgentStore.shared
     @State private var showNewChat = false
-    @State private var deleteCandidate: ChatThread?
     @Environment(\.colorScheme) private var colorScheme
 
     private var threads: [ChatThread] {
@@ -64,26 +63,10 @@ struct ChatListView: View {
                     startChat(participants: participants)
                 }
             }
-            // Centered alert, deliberately NOT a confirmationDialog: the swipe
-            // already happens at the row, so a sheet sliding up from the bottom
-            // reads as a second, unrelated gesture surface. A centered alert
-            // interrupts where the eye already is.
-            .alert(
-                String(localized: "Chat löschen?"),
-                isPresented: Binding(
-                    get: { deleteCandidate != nil },
-                    set: { if !$0 { deleteCandidate = nil } }
-                ),
-                presenting: deleteCandidate
-            ) { thread in
-                Button("Löschen", role: .destructive) {
-                    session.deleteThread(thread.id)
-                    deleteCandidate = nil
-                }
-                Button("Abbrechen", role: .cancel) { deleteCandidate = nil }
-            } message: { thread in
-                Text("„\(thread.title.isEmpty ? "Neuer Chat" : thread.title)“ wird entfernt.")
-            }
+            // No confirmation on swipe (user request): the swipe itself is the
+            // deliberate gesture, and this is how Mail and Messages behave.
+            // Mini-apps and agents still confirm — those are authored work,
+            // and a mini-app also owns a persistent cookie jar.
         }
     }
 
@@ -132,7 +115,7 @@ struct ChatListView: View {
         .accessibilityIdentifier("thread-row")
         .swipeActions {
             Button(role: .destructive) {
-                deleteCandidate = thread
+                session.deleteThread(thread.id)
             } label: {
                 Label("Löschen", systemImage: "trash")
             }

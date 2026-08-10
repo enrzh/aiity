@@ -94,7 +94,10 @@ struct AgentsView: View {
                 }
                 .environmentObject(settingsStore)
             }
-            .confirmationDialog(
+            // Centered alert, matching the mini-app library. A bottom sheet
+            // reads as a continuation of the swipe that opened it; a
+            // destructive step should interrupt where the eye already is.
+            .alert(
                 String(localized: "Agent löschen?"),
                 isPresented: Binding(
                     get: { deleteCandidate != nil },

@@ -98,6 +98,58 @@ final class FullFlowUITests: XCTestCase {
                       "reopening should restore that conversation")
     }
 
+    /// The sparkles button INSIDE the running mini-app must land in a real
+    /// conversation, not merely on the Chat tab.
+    ///
+    /// Backing out to the chat list first is the whole point: popping clears
+    /// `session.openThreadId`, which is exactly the state a launch starts in.
+    /// The library's context-menu path (covered above) only looked healthy
+    /// because that flow had already pushed a ChatView earlier and the push
+    /// simply survived the tab switch — with no chat open, both edit entry
+    /// points stopped at the list and the user never saw a composer.
+    func testMiniAppRunnerAIButtonOpensEditingConversation() {
+        app.launch()
+        startFreshThread()
+
+        // Build and keep an app so the library has something to run.
+        sendChatMessage("Recherchier kurz und bau mir eine Notiz-App")
+        let keepButton = app.buttons["keep-app"]
+        XCTAssertTrue(keepButton.waitForExistence(timeout: 25), "mini-app card should appear")
+        let keptBefore = keptCount
+        XCTAssertTrue(tap(keepButton, untilTrue: { self.keptCount > keptBefore }),
+                      "keeping should confirm")
+
+        // Leave the conversation: no chat is open now, the state every launch
+        // starts in and the one the user reported from.
+        backToChatList()
+        XCTAssertTrue(app.buttons["new-chat"].waitForExistence(timeout: 10),
+                      "backing out should land on the chat list")
+        XCTAssertTrue(waitFor(timeout: 5) { !app.descendants(matching: .any)["chat-input"].firstMatch.exists },
+                      "no conversation may be open for this to test anything")
+
+        // Run the kept app.
+        openAppsTab()
+        let libraryItem = app.buttons["library-app"].firstMatch
+        XCTAssertTrue(libraryItem.waitForExistence(timeout: 10), "kept app should show up in the library")
+        let runner = app.webViews.firstMatch
+        XCTAssertTrue(tap(libraryItem, until: runner), "mini-app web view should load")
+
+        // The AI button: dismisses the runner and opens the editing chat.
+        let aiEdit = app.buttons["miniapp-ai-edit"]
+        XCTAssertTrue(aiEdit.waitForExistence(timeout: 10), "the runner should offer the AI edit button")
+        let composer = app.descendants(matching: .any)["chat-input"].firstMatch
+        XCTAssertTrue(tap(aiEdit, until: composer),
+                      "the AI button should open a conversation with the composer, not just the chat list")
+        XCTAssertTrue(waitFor(timeout: 5) { !runner.exists },
+                      "the mini-app runner sheet should be gone")
+
+        let banner = app.descendants(matching: .any)["editing-banner"].firstMatch
+        XCTAssertTrue(banner.waitForExistence(timeout: 5), "the editing banner should name the app being edited")
+        XCTAssertTrue(banner.label.contains("Notizen"), "banner should name the app, got: \(banner.label)")
+        let intro = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Du bearbeitest'")).firstMatch
+        XCTAssertTrue(intro.waitForExistence(timeout: 5), "the conversation should be seeded with the editing intro")
+    }
+
     /// Image generation: the stub scripts a generate_image tool call for a
     /// "Bild" request; the tool posts to /v1/images/generations, stores the
     /// PNG, and the chat shows it inline.

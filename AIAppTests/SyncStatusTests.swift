@@ -1,3 +1,4 @@
+import CloudKit
 import XCTest
 import SwiftData
 @testable import AIApp
@@ -106,6 +107,61 @@ final class SyncStatusTests: XCTestCase {
         }
         await status.waitUntilInitialImportSettled()
         XCTAssertTrue(status.initialImportComplete)
+    }
+
+    // MARK: - Partial failures
+
+    /// The reported bug: an export ends with `CKError.partialFailure`, whose
+    /// `localizedDescription` is "…(CKErrorDomain-Fehler 2.)". That string is
+    /// what the user saw, and it names neither a cause nor an action.
+    func testPartialFailureSurfacesTheUnwrappedReasonNotTheContainerCode() {
+        let status = makeStatus()
+        status.report(.synced)
+
+        let raw = NSError(domain: CKErrorDomain, code: CKError.Code.partialFailure.rawValue, userInfo: [
+            NSLocalizedDescriptionKey: "Der Vorgang konnte nicht abgeschlossen werden. (CKErrorDomain-Fehler 2.)",
+            CKPartialErrorsByItemIDKey: [
+                CKRecord.ID(recordName: "R1"): NSError(
+                    domain: CKErrorDomain, code: CKError.Code.quotaExceeded.rawValue, userInfo: [:]
+                ),
+            ],
+        ])
+        status.note(SyncStatus.SyncEventOutcome(
+            kind: .export,
+            succeeded: false,
+            errorDescription: raw.localizedDescription,
+            digest: CloudKitErrorDigest.make(from: raw)
+        ))
+
+        XCTAssertNotNil(status.lastSyncError)
+        XCTAssertFalse(
+            status.subtitle.contains("CKErrorDomain-Fehler 2"),
+            "the container code must never be what the user is shown"
+        )
+        XCTAssertTrue(status.subtitle.contains("iCloud-Speicher ist voll"))
+        // The detail is what makes a device report actionable.
+        XCTAssertTrue(status.lastSyncDetail.first?.contains("Export") == true,
+                      "the detail must say WHICH half of sync failed")
+        XCTAssertTrue(status.lastSyncDetail.joined().contains("quotaExceeded"))
+    }
+
+    func testASuccessClearsBothTheMessageAndTheDetail() {
+        let status = makeStatus()
+        status.report(.synced)
+        status.note(outcome(.export, succeeded: false, error: "irgendwas"))
+        XCTAssertFalse(status.lastSyncDetail.isEmpty)
+
+        status.note(outcome(.export, succeeded: true))
+        XCTAssertNil(status.lastSyncError)
+        XCTAssertTrue(status.lastSyncDetail.isEmpty)
+    }
+
+    func testAFailureWithoutADigestStillFallsBackToTheRawDescription() {
+        let status = makeStatus()
+        status.report(.synced)
+        status.note(outcome(.setup, succeeded: false, error: "Setup fehlgeschlagen"))
+        XCTAssertEqual(status.lastSyncError, "Setup fehlgeschlagen")
+        XCTAssertEqual(status.lastSyncDetail, ["Einrichtung: Setup fehlgeschlagen"])
     }
 
     // MARK: - Account availability
