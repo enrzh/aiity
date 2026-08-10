@@ -97,6 +97,18 @@ final class ModelCatalogTests: XCTestCase {
         }
     }
 
+    func testSelfHostedCatalogUsesConfiguredLANEndpoint() async throws {
+        let server = try ProbeStubServer(mode: .openai)
+        defer { server.stop() }
+
+        var settings = ProviderSettings()
+        settings.presetId = "custom-openai"
+        settings.baseURL = server.baseURL + "/v1"
+
+        let models = try await ModelCatalogService.fetchModels(settings: settings, apiKey: "test")
+        XCTAssertEqual(Set(models.map(\.id)), ["stub-large", "stub-mini"])
+    }
+
     func testIsLikelyChatModelKeepsChatHidesSpecialised() {
         // Chat models stay.
         for id in ["gpt-4.1", "gpt-4o", "gpt-5", "o3-mini", "claude-sonnet-4-5",

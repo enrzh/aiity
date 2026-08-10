@@ -21,6 +21,8 @@ final class ProbeStubServer {
         case unauthorized
         /// Every route answers 404.
         case notFound
+        /// Redirects every route to the provided URL.
+        case redirect(URL)
         /// Image generation: one scripted answer shape (see `ImageScenario`).
         /// Mirrors the scenarios `tools/stub_llm_server.py` serves under
         /// `/v1/images/generations?scenario=…`.
@@ -168,6 +170,13 @@ final class ProbeStubServer {
     }
 
     private func respond(_ connection: NWConnection, method: String, path: String) {
+        if case .redirect(let target) = mode {
+            let head = "HTTP/1.1 302 Found\r\nLocation: \(target.absoluteString)\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            connection.send(content: Data(head.utf8), completion: .contentProcessed { _ in
+                connection.cancel()
+            })
+            return
+        }
         let (status, body, contentType) = route(method: method, path: path)
         var head = "HTTP/1.1 \(status) \(Self.statusText(status))\r\n"
         head += "Content-Type: \(contentType)\r\n"
@@ -202,6 +211,8 @@ final class ProbeStubServer {
         case .unauthorized:
             return (401, json(#"{"error":{"message":"invalid api key"}}"#), "application/json")
         case .notFound:
+            return miss
+        case .redirect:
             return miss
         case .images(let scenario):
             return imageRoute(scenario: scenario, method: method, path: path)

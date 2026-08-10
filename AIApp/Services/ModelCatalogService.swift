@@ -188,7 +188,10 @@ enum ModelCatalogService {
         settings: ProviderSettings,
         apiKey: String
     ) async throws -> [CatalogModel] {
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await ProviderHTTP.quickData(
+            for: request,
+            allowPrivate: LocalRuntimePolicy.isSelfHosted(settings)
+        )
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard (200...299).contains(status) else {
             throw ProviderError.fromHTTP(status: status, body: String(decoding: data.prefix(400), as: UTF8.self))

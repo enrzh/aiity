@@ -109,6 +109,15 @@ final class ChatSuggestionServiceTests: XCTestCase {
         ))
     }
 
+    func testRequestRefusesPublicCleartextBaseURLBeforeSendingAPIKey() {
+        var settings = cloudSettings()
+        settings.baseURL = "http://api.example.com/v1"
+
+        XCTAssertNil(ChatSuggestionService.request(
+            settings: settings, apiKey: "sk-test", prompt: "hallo"
+        ))
+    }
+
     /// Nothing the user wrote may end up in the body — only a bucketed count.
     func testPromptCarriesNoUserContent() {
         let prompt = ChatSuggestionService.prompt(savedAppCount: 7)

@@ -132,6 +132,7 @@ enum ChatSuggestionService {
         switch settings.preset.dialect {
         case .openai:
             guard let url = URL(string: "\(base)/chat/completions") else { return nil }
+            guard (try? ProviderHTTP.validateQuickTarget(url, allowPrivate: false)) != nil else { return nil }
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.timeoutInterval = requestTimeout
@@ -148,6 +149,7 @@ enum ChatSuggestionService {
             return request
         case .anthropic:
             guard let url = URL(string: "\(base)/v1/messages") else { return nil }
+            guard (try? ProviderHTTP.validateQuickTarget(url, allowPrivate: false)) != nil else { return nil }
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.timeoutInterval = requestTimeout
@@ -293,7 +295,7 @@ enum ChatSuggestionService {
         ) else { return nil }
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await ProviderHTTP.quickData(for: request, allowPrivate: false)
             guard let http = response as? HTTPURLResponse,
                   (200...299).contains(http.statusCode) else { return nil }
             let items = parse(data, dialect: settings.preset.dialect)

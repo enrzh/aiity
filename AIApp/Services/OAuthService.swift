@@ -59,7 +59,13 @@ final class OAuthService: NSObject, ObservableObject {
             URLQueryItem(name: "code_challenge", value: Self.s256Challenge(of: verifier)),
             URLQueryItem(name: "code_challenge_method", value: "S256"),
         ]
-        let callback = try await presentBrowser(url: components.url!, callbackScheme: "aiapp")
+        guard let authorizeURL = components.url else { throw OAuthError.badCallback }
+        do {
+            try ProviderHTTP.validateQuickTarget(authorizeURL, allowPrivate: false)
+        } catch {
+            throw OAuthError.badCallback
+        }
+        let callback = try await presentBrowser(url: authorizeURL, callbackScheme: "aiapp")
         guard let code = URLComponents(url: callback, resolvingAgainstBaseURL: false)?
             .queryItems?.first(where: { $0.name == "code" })?.value else {
             throw OAuthError.noCode
@@ -97,7 +103,10 @@ final class OAuthService: NSObject, ObservableObject {
             items.append(URLQueryItem(name: key, value: value))
         }
         components.queryItems = (components.queryItems ?? []) + items
-        guard let url = components.url else { return nil }
+        guard let url = components.url,
+              (try? ProviderHTTP.validateQuickTarget(url, allowPrivate: false)) != nil else {
+            return nil
+        }
         return PendingPaste(presetId: preset.id, verifier: verifier, state: state, authorizeURL: url)
     }
 
@@ -195,7 +204,8 @@ final class OAuthService: NSObject, ObservableObject {
     enum ContentType { case json, form }
 
     private nonisolated static func postForm(_ urlString: String, contentType: ContentType, body: [String: String]) async throws -> [String: Any] {
-        var request = URLRequest(url: URL(string: urlString)!)
+        guard let url = URL(string: urlString) else { throw OAuthError.badCallback }
+        var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json, text/plain, */*", forHTTPHeaderField: "Accept")
         switch contentType {
@@ -208,7 +218,12 @@ final class OAuthService: NSObject, ObservableObject {
             components.queryItems = body.map { URLQueryItem(name: $0.key, value: $0.value) }
             request.httpBody = components.percentEncodedQuery?.data(using: .utf8)
         }
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await ProviderHTTP.quickData(for: request, allowPrivate: false)
+        } catch let error as NetworkTransportError {
+            throw OAuthError.exchangeFailed(error.localizedDescription)
+        }
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(status), let object = jsonObject(data) else {
             throw OAuthError.exchangeFailed("HTTP \(status): \(String(decoding: data.prefix(300), as: UTF8.self))")
