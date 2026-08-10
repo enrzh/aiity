@@ -220,6 +220,16 @@ final class ChatThreadRepositoryTests: XCTestCase {
         XCTAssertEqual(restored.snapshot, value)
     }
 
+    func testEnqueueAndFlushDurablyCommitsRequestedRevisionBeforeReturning() async throws {
+        let repo = repository(debounceNanoseconds: 60_000_000_000)
+        let value = snapshot("barrier")
+
+        try await repo.enqueueAndFlush(value, revision: 7)
+
+        let restored = await repository().restore()
+        XCTAssertEqual(restored.snapshot, value)
+    }
+
     func testPersistedMediaIdsSupportsVersionedAndUnversionedArchives() throws {
         let value = ChatThreadRepository.Snapshot(
             threads: [thread("media", mediaIds: ["a.png", "b.mov"])],
@@ -267,13 +277,34 @@ final class ChatThreadRepositoryTests: XCTestCase {
             options: .atomic
         )
 
-        session.reloadFromDisk()
+        try await session.reloadFromDisk()
+
+        XCTAssertEqual(session.messages.first?.text, "imported archive")
         await session.flushPersistence()
-        try await Task.sleep(nanoseconds: 250_000_000)
 
         let disk = await repository().restore()
         XCTAssertEqual(session.messages.first?.text, "imported archive")
-        XCTAssertEqual(disk.snapshot, imported, "a pre-import debounce must never overwrite the import")
+        XCTAssertEqual(disk.snapshot?.activeThreadId, imported.activeThreadId)
+        XCTAssertEqual(disk.snapshot?.threads.first?.id, imported.threads.first?.id)
+        XCTAssertEqual(
+            disk.snapshot?.threads.first?.messages,
+            imported.threads.first?.messages,
+            "a pre-import debounce must never overwrite the imported messages"
+        )
+    }
+
+    @MainActor
+    func testReloadStateRejectsNewThreadsAndGeneration() {
+        let session = ChatSession(chatDirectory: directory)
+        let originalThread = session.activeThreadIdForTesting
+        session.setPersistenceReloadInProgressForTesting(true)
+
+        XCTAssertNil(session.newThread())
+        session.send("must not start", settings: ProviderSettings())
+
+        XCTAssertEqual(session.activeThreadIdForTesting, originalThread)
+        XCTAssertTrue(session.messages.isEmpty)
+        XCTAssertFalse(session.busy)
     }
 
     @MainActor
@@ -294,7 +325,7 @@ final class ChatThreadRepositoryTests: XCTestCase {
             to: directory.appendingPathComponent("chat-threads.json"),
             options: .atomic
         )
-        session.reloadFromDisk()
+        try await session.reloadFromDisk()
         await session.flushPersistence()
 
         XCTAssertNil(session.persistDisabledReason)

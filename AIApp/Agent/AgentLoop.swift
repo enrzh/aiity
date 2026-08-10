@@ -90,7 +90,8 @@ final class ChatSession: ObservableObject {
     private let threadRepository: ChatThreadRepository
     private var persistenceRevision: UInt64 = 0
     private var persistenceDispatchTask: Task<Void, Never>?
-    private var persistenceReloadTask: Task<Void, Never>?
+    private var persistenceReloadTask: Task<Void, Error>?
+    @Published private(set) var persistenceReloadInProgress = false
     private var removeLegacyAfterNextWrite = false
 
     /// Chips offered in the chat empty state. THE composition point: whatever
@@ -413,7 +414,7 @@ final class ChatSession: ObservableObject {
 
     func send(_ input: String, settings: ProviderSettings) {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, !busy else { return }
+        guard !text.isEmpty, !busy, !persistenceReloadInProgress else { return }
         errorMessage = nil
         // Which provider a run was using is the first question about any crash
         // in this app, so it goes into the run record, not just a breadcrumb.
@@ -629,6 +630,7 @@ final class ChatSession: ObservableObject {
 
     /// After "Behalten", keep the pin in sync with the new HTML.
     func updateEditingSource(html: String, name: String? = nil) {
+        guard !persistenceReloadInProgress else { return }
         guard var ctx = editingContext else { return }
         ctx.html = html
         if let name, !name.isEmpty { ctx.name = name }
@@ -853,6 +855,7 @@ final class ChatSession: ObservableObject {
     /// Apply the stop-vs-resume contract. Called on cold launch and on every
     /// foreground.
     func evaluateInterruptedTurn(now: Date = Date()) {
+        guard !persistenceReloadInProgress else { return }
         let decision = TurnRestorePolicy.decide(
             stopRequestedAt: AgentRunStopRequest.pendingDate(),
             pending: PendingTurnStore.load(),
@@ -888,6 +891,7 @@ final class ChatSession: ObservableObject {
 
     /// The user declined the resume offer.
     func dismissInterruptedTurn() {
+        guard !persistenceReloadInProgress else { return }
         interruptedTurn = nil
         PendingTurnStore.clear()
     }
@@ -904,6 +908,7 @@ final class ChatSession: ObservableObject {
     /// therefore discarded here by design.
     @discardableResult
     func rewindToInterruptedTurnStart(_ pending: PendingTurn) -> String? {
+        guard !persistenceReloadInProgress else { return nil }
         if activeThreadId != pending.threadId {
             switchTo(threadId: pending.threadId)
             guard activeThreadId == pending.threadId else { return nil }
@@ -921,7 +926,7 @@ final class ChatSession: ObservableObject {
     /// replay re-spends the user's own tokens on a request that may well have
     /// completed server-side.
     func resumeInterruptedTurn(settings: ProviderSettings) {
-        guard !busy, let pending = interruptedTurn else { return }
+        guard !busy, !persistenceReloadInProgress, let pending = interruptedTurn else { return }
         interruptedTurn = nil
         PendingTurnStore.clear()
         guard let text = rewindToInterruptedTurnStart(pending) else { return }
@@ -1319,7 +1324,7 @@ final class ChatSession: ObservableObject {
 
     @discardableResult
     func newThread(participantAgentIds: [UUID] = [], title: String = "") -> UUID? {
-        guard !busy else { return nil }
+        guard !busy, !persistenceReloadInProgress else { return nil }
         syncActiveIntoThreads()
         var thread = ChatThread()
         thread.participantAgentIds = participantAgentIds
@@ -1365,7 +1370,7 @@ final class ChatSession: ObservableObject {
     /// is user-driven on purpose: the agents never decide to keep going by
     /// themselves.
     func continueGroupDiscussion(settings: ProviderSettings) {
-        guard !busy, activeThreadIsGroup, !messages.isEmpty else { return }
+        guard !busy, !persistenceReloadInProgress, activeThreadIsGroup, !messages.isEmpty else { return }
         // A manual round is its own budget, not a continuation of the last one.
         groupRoundsThisTurn = 0
         runGroupRound(settings: settings)
@@ -1544,6 +1549,7 @@ final class ChatSession: ObservableObject {
 
     /// Open a conversation from the list: make it active and drive the push.
     func open(threadId: UUID) {
+        guard !persistenceReloadInProgress else { return }
         switchTo(threadId: threadId)
         // Push only what we actually switched to. `switchTo` can decline (an
         // unknown id), and pushing regardless would show the CURRENT
@@ -1561,6 +1567,7 @@ final class ChatSession: ObservableObject {
     var activeThreadIsGroup: Bool { !activeParticipantIds.isEmpty }
 
     func switchTo(threadId: UUID) {
+        guard !persistenceReloadInProgress else { return }
         guard threadId != activeThreadId else { return }
         guard threads.contains(where: { $0.id == threadId }) else { return }
 
@@ -1591,7 +1598,7 @@ final class ChatSession: ObservableObject {
     }
 
     func deleteThread(_ threadId: UUID) {
-        guard !busy else { return }
+        guard !busy, !persistenceReloadInProgress else { return }
         threads.removeAll { $0.id == threadId }
         if threadId == activeThreadId {
             if let next = threads.max(by: { $0.updatedAt < $1.updatedAt }) {
@@ -1613,6 +1620,7 @@ final class ChatSession: ObservableObject {
 
     /// Entry point from the library / mini-app sheet: continue a saved mini-app.
     func startEditing(id: UUID, name: String, html: String) {
+        guard !persistenceReloadInProgress else { return }
         // `newThread()` returns nil while a turn is running. Ignoring that and
         // assigning `messages` below replaced the LIVE conversation instead of
         // a fresh one — destroying it on disk via persist(), and leaving the
@@ -1636,6 +1644,7 @@ final class ChatSession: ObservableObject {
 
     /// Preview / unsaved draft → new edit thread (keep will insert a new app).
     func startEditingDraft(name: String, html: String, emoji: String = "✨") {
+        guard !persistenceReloadInProgress else { return }
         guard let threadId = newThread() else {
             errorMessage = String(localized: "Es läuft gerade eine Antwort — bitte kurz warten oder stoppen.")
             return
@@ -1767,17 +1776,38 @@ final class ChatSession: ObservableObject {
     /// debounced write. Backgrounding uses this as the last durability barrier.
     @discardableResult
     func flushPersistence() async -> Bool {
-        let reload = persistenceReloadTask
-        await reload?.value
-        let dispatch = persistenceDispatchTask
-        await dispatch?.value
-        do {
-            try await threadRepository.flush()
-            return true
-        } catch {
-            errorMessage = error.localizedDescription
-            DiagnosticsRecorder.shared.record("chat", "Archiv konnte nicht geschrieben werden: \(error)")
-            return false
+        while true {
+            if let reload = persistenceReloadTask {
+                do {
+                    try await reload.value
+                } catch {
+                    errorMessage = error.localizedDescription
+                    return false
+                }
+                continue
+            }
+
+            let write = makePersistenceWrite()
+            persistenceDispatchTask?.cancel()
+            persistenceDispatchTask = nil
+            do {
+                try await threadRepository.enqueueAndFlush(
+                    write.snapshot,
+                    revision: write.revision,
+                    removeLegacyAfterSave: write.removeLegacy
+                )
+            } catch {
+                errorMessage = error.localizedDescription
+                DiagnosticsRecorder.shared.record("chat", "Archiv konnte nicht geschrieben werden: \(error)")
+                return false
+            }
+
+            // MainActor can be re-entered while the repository writes. If a
+            // mutation created a newer revision, flush that one too before
+            // claiming durability.
+            if persistenceRevision == write.revision, persistenceReloadTask == nil {
+                return true
+            }
         }
     }
 
@@ -1845,6 +1875,9 @@ final class ChatSession: ObservableObject {
     }
 
     func checkpointPendingTurnForTesting() { checkpointPendingTurn(force: true) }
+    func setPersistenceReloadInProgressForTesting(_ value: Bool) {
+        persistenceReloadInProgress = value
+    }
     #endif
 
     /// Re-read the archive from disk, discarding in-memory state.
@@ -1855,24 +1888,47 @@ final class ChatSession: ObservableObject {
     /// tap on "Neuer Chat" — writes that stale state straight over everything
     /// just restored, and because the file is then non-empty a second import
     /// silently declines to write at all.
-    func reloadFromDisk() {
-        guard !busy else { return }
-        persistenceReloadTask?.cancel()
+    func reloadFromDisk() async throws {
+        guard !busy else {
+            throw CocoaError(.userCancelled, userInfo: [
+                NSLocalizedDescriptionKey: String(localized: "Import nicht möglich, solange eine Antwort läuft."),
+            ])
+        }
+        if let reload = persistenceReloadTask {
+            try await reload.value
+            return
+        }
+
+        persistenceReloadInProgress = true
         let dispatch = persistenceDispatchTask
         dispatch?.cancel()
         let repository = threadRepository
-        persistenceReloadTask = Task { [weak self] in
-            await dispatch?.value
-            guard let self, !Task.isCancelled else { return }
-            let restored = await repository.discardPendingWritesAndRestore(
-                invalidatingThrough: self.persistenceRevision
-            )
-            guard !Task.isCancelled else { return }
-            self.persistenceDispatchTask = nil
-            self.persistenceReloadTask = nil
-            self.applyRestoration(restored)
-            self.openThreadId = nil
+        let revision = persistenceRevision
+        let reload: Task<Void, Error> = Task { @MainActor in
+            do {
+                await dispatch?.value
+                let restored = await repository.discardPendingWritesAndRestore(
+                    invalidatingThrough: revision
+                )
+                self.persistenceDispatchTask = nil
+                self.applyRestoration(restored)
+                self.openThreadId = nil
+                guard restored.writesAllowed else {
+                    throw CocoaError(.fileReadCorruptFile, userInfo: [
+                        NSLocalizedDescriptionKey: String(localized: "Der importierte Chat-Verlauf konnte nicht geladen werden."),
+                    ])
+                }
+                self.persistenceReloadTask = nil
+                self.persistenceReloadInProgress = false
+                if self.removeLegacyAfterNextWrite { self.persist() }
+            } catch {
+                self.persistenceReloadTask = nil
+                self.persistenceReloadInProgress = false
+                throw error
+            }
         }
+        persistenceReloadTask = reload
+        try await reload.value
     }
 
     /// Drop threads that hold no real content (newThread/startEditing can leave
@@ -1899,7 +1955,24 @@ final class ChatSession: ObservableObject {
     }
 
     private func persist() {
-        guard persistDisabledReason == nil, persistenceReloadTask == nil else { return }
+        guard persistDisabledReason == nil, !persistenceReloadInProgress else { return }
+        let write = makePersistenceWrite()
+        persistenceDispatchTask?.cancel()
+        persistenceDispatchTask = Task { [threadRepository] in
+            guard !Task.isCancelled else { return }
+            await threadRepository.enqueue(
+                write.snapshot,
+                revision: write.revision,
+                removeLegacyAfterSave: write.removeLegacy
+            )
+        }
+    }
+
+    private func makePersistenceWrite() -> (
+        snapshot: ChatThreadRepository.Snapshot,
+        revision: UInt64,
+        removeLegacy: Bool
+    ) {
         syncActiveIntoThreads()
         pruneThreads()
         persistenceRevision &+= 1
@@ -1910,15 +1983,7 @@ final class ChatSession: ObservableObject {
         )
         let removeLegacy = removeLegacyAfterNextWrite
         removeLegacyAfterNextWrite = false
-        persistenceDispatchTask?.cancel()
-        persistenceDispatchTask = Task { [threadRepository] in
-            guard !Task.isCancelled else { return }
-            await threadRepository.enqueue(
-                snapshot,
-                revision: revision,
-                removeLegacyAfterSave: removeLegacy
-            )
-        }
+        return (snapshot, revision, removeLegacy)
     }
 
     private func applyRestoration(_ restored: ChatThreadRepository.Restoration) {

@@ -244,11 +244,11 @@ struct SettingsView: View {
                 importSummary = String(localized: "Chat-Verlauf konnte vor dem Import nicht gesichert werden.")
                 return
             }
-            applyBackup(data)
+            await applyBackup(data)
         }
     }
 
-    private func applyBackup(_ data: Data) {
+    private func applyBackup(_ data: Data) async {
         do {
             let existing = Set(savedApps.map(\.id))
             let (result, apps) = try BackupService.restore(from: data, existingIds: existing)
@@ -267,7 +267,7 @@ struct SettingsView: View {
             // an imported roster stayed invisible, the user concluded the
             // import had failed, and creating one agent wrote that single agent
             // over the restored file.
-            session.reloadFromDisk()
+            try await session.reloadFromDisk()
             AgentStore.shared.reload()
             // SkillStore has no shared instance — each view constructs its own
             // and therefore reads the restored file on next appearance, so it

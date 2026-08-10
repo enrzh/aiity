@@ -247,6 +247,21 @@ actor ChatThreadRepository {
         }
     }
 
+    /// Accepts a specific revision and does not return until that revision (or
+    /// a newer one that superseded it) is durable on disk.
+    func enqueueAndFlush(
+        _ snapshot: Snapshot,
+        revision: UInt64,
+        removeLegacyAfterSave: Bool = false
+    ) async throws {
+        enqueue(
+            snapshot,
+            revision: revision,
+            removeLegacyAfterSave: removeLegacyAfterSave
+        )
+        try await flush()
+    }
+
     /// Forces the newest queued snapshot to disk. Background/termination paths
     /// call this after awaiting their latest enqueue task.
     func flush() async throws {
