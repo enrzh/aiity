@@ -8821,6 +8821,107 @@
         }
       }
     },
+    "Braucht ~%@ — dieses iPhone (%@) gibt einer App ~%@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs ~%@ — this iPhone (%@) gives an app ~%@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Necesita ~%@ — este iPhone (%@) da a una app ~%@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nécessite ~%@ — cet iPhone (%@) ne donne à une app que ~%@"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Precisa de ~%@ — este iPhone (%@) dá a um app ~%@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Richiede ~%@ — questo iPhone (%@) dà a un’app ~%@"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Butuh ~%@ — iPhone ini (%@) hanya memberi satu aplikasi ~%@"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cần ~%@ — iPhone này (%@) chỉ cấp cho một ứng dụng ~%@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нужно ~%@ — этот iPhone (%@) даёт приложению ~%@"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "~%@ gerekir — bu iPhone (%@) bir uygulamaya ~%@ verir"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "約 %@ 必要 — この iPhone（%@）がアプリに渡せるのは約 %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "약 %@ 필요 — 이 iPhone(%@)이 앱에 주는 용량은 약 %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要约 %@ — 这台 iPhone（%@）只能给一个 App 约 %@"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "~%@ चाहिए — यह iPhone (%@) किसी ऐप को ~%@ ही देता है"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "~%@ দরকার — এই iPhone (%@) একটি অ্যাপকে ~%@ দেয়"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يحتاج ~%@ — هذا iPhone (%@) يمنح التطبيق ~%@ فقط"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "~%@ درکار ہے — یہ iPhone (%@) ایک ایپ کو صرف ~%@ دیتا ہے"
+          }
+        }
+      }
+    },
     "Brave": {
       "extractionState": "manual",
       "localizations": {
@@ -13861,6 +13962,107 @@
           "stringUnit": {
             "state": "translated",
             "value": "이 모델은 Tool-Calls를 지원하지 않습니다. 앱이 도구 없이 다시 시도합니다…"
+          }
+        }
+      }
+    },
+    "Dieses iPhone hat %@ und gibt einer App davon ~%@. Modelle, die mehr brauchen, lassen sich nicht laden.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This iPhone has %@ and gives an app ~%@ of that. Models that need more can’t be loaded."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este iPhone tiene %@ y de eso da a una app ~%@. Los modelos que necesitan más no se pueden cargar."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cet iPhone a %@ et n’en donne à une app que ~%@. Les modèles qui en demandent plus ne peuvent pas être chargés."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este iPhone tem %@ e dá a um app ~%@ disso. Modelos que precisam de mais não podem ser carregados."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Questo iPhone ha %@ e a un’app ne dà ~%@. I modelli che ne richiedono di più non possono essere caricati."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone ini punya %@ dan hanya memberi satu aplikasi ~%@ dari jumlah itu. Model yang butuh lebih banyak tidak bisa dimuat."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone này có %@ và chỉ cấp cho một ứng dụng ~%@ trong số đó. Các mô hình cần nhiều hơn sẽ không tải được."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "У этого iPhone %@, и приложению из них достаётся ~%@. Модели, которым нужно больше, загрузить нельзя."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu iPhone’da %@ var ve bunun ~%@ kadarını bir uygulamaya verir. Daha fazlasını gerektiren modeller yüklenemez."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この iPhone のメモリは %@ で、アプリに渡せるのはそのうち約 %@ です。それ以上必要なモデルは読み込めません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 iPhone은 %@이고, 그중 앱에 주는 용량은 약 %@입니다. 더 많이 필요한 모델은 불러올 수 없습니다."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这台 iPhone 有 %@，其中只能给一个 App 约 %@。需要更多内存的模型无法加载。"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "इस iPhone में %@ है और उसमें से किसी ऐप को ~%@ ही मिलता है। जिन मॉडलों को इससे ज़्यादा चाहिए, वे लोड नहीं हो सकते।"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "এই iPhone-এ %@ আছে এবং তার মধ্যে একটি অ্যাপ পায় ~%@। যেসব মডেলের এর বেশি দরকার, সেগুলো লোড করা যায় না।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يحتوي هذا iPhone على %@، ويمنح التطبيق منها ~%@ فقط. النماذج التي تحتاج أكثر من ذلك لا يمكن تحميلها."
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اس iPhone میں %@ ہے اور اس میں سے ایک ایپ کو صرف ~%@ ملتا ہے۔ جن ماڈلز کو اس سے زیادہ چاہیے، وہ لوڈ نہیں ہو سکتے۔"
           }
         }
       }

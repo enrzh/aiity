@@ -70,7 +70,7 @@ echo "    ios platform ok"
 # Check the COUNT, not the exit code: a test file absent from project.yml does
 # not compile, and xcodebuild still exits 0.
 say "Unit tests"
-MIN_TESTS="${MIN_TESTS:-768}"
+MIN_TESTS="${MIN_TESTS:-770}"
 # Pick an iPhone on a runtime this Xcode can actually target: a newer
 # simulator runtime than the installed SDK (e.g. an iOS 27 sim under Xcode 26)
 # is listed as available but cannot be built for. Override with SIM=<udid>.

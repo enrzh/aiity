@@ -326,4 +326,83 @@ final class StringCatalogTests: XCTestCase {
                           "\(key) has unknown locale codes: \(langs.subtracting(Self.shippedLanguages))")
         }
     }
+
+    /// Every format specifier in a key, keyed by the argument it consumes.
+    ///
+    /// Plain `%@` consume arguments in order; `%2$@` names one explicitly. A
+    /// translation may reorder freely with the positional form, so comparing
+    /// index → type (rather than the raw sequence) is the only check that both
+    /// permits a legitimate reorder and catches a real mismatch. `%%` is an
+    /// escaped percent sign and consumes nothing.
+    private func formatSpecifiers(of text: String) -> [Int: String] {
+        let pattern = "%(?:([0-9]+)\\$)?[-+ #0]*[0-9]*(?:\\.[0-9]+)?(hh|h|ll|l|q|z|t|j|L)?([@dioruxXeEfgGcsSpaA%])"
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [:] }
+        let ns = text as NSString
+        var found: [Int: String] = [:]
+        var auto = 0
+        for match in regex.matches(in: text, range: NSRange(location: 0, length: ns.length)) {
+            func group(_ i: Int) -> String? {
+                let r = match.range(at: i)
+                return r.location == NSNotFound ? nil : ns.substring(with: r)
+            }
+            guard let conversion = group(3), conversion != "%" else { continue }
+            let index: Int
+            if let explicit = group(1), let parsed = Int(explicit) {
+                index = parsed
+            } else {
+                auto += 1
+                index = auto
+            }
+            found[index] = (group(2) ?? "") + conversion
+        }
+        return found
+    }
+
+    /// A dropped or reordered specifier is not a cosmetic bug: `String(format:)`
+    /// fills the slots positionally, so a `%@` that went missing in Japanese
+    /// reads the next argument off the stack and can crash. Every language of
+    /// every key must consume exactly the arguments the German source key does.
+    func testEveryTranslationConsumesTheSameFormatArgumentsAsItsKey() throws {
+        for (key, entry) in try catalog() {
+            let source = formatSpecifiers(of: key)
+            for (lang, loc) in (entry["localizations"] as? [String: [String: Any]]) ?? [:] {
+                let value = ((loc["stringUnit"] as? [String: Any])?["value"] as? String) ?? ""
+                XCTAssertEqual(formatSpecifiers(of: value), source,
+                               "\(lang) changes the format arguments of \(key): \(value)")
+            }
+        }
+    }
+
+    /// The on-device memory gate is the one place where a German fallback hurts
+    /// most: the crash it explains was reported from a zh-Hans device, so the
+    /// user who needs the sentence is the one who would not have understood it.
+    /// These are the keys Swift actually extracts — the source literals contain
+    /// interpolations and are *not* the keys.
+    func testTheLocalModelMemoryGateIsTranslatedEverywhere() throws {
+        let strings = try catalog()
+        let keys = [
+            "Braucht ~%@ — dieses iPhone (%@) gibt einer App ~%@": 3,
+            "Dieses iPhone hat %@ und gibt einer App davon ~%@. Modelle, die mehr brauchen, lassen sich nicht laden.": 2,
+        ]
+        for (key, slots) in keys {
+            // Spelling the count out keeps the parser honest: one that found
+            // nothing would make every equality check below pass vacuously.
+            XCTAssertEqual(formatSpecifiers(of: key), Dictionary(
+                uniqueKeysWithValues: (1...slots).map { ($0, "@") }
+            ), "the source key no longer takes \(slots) arguments")
+            guard let entry = strings[key] else {
+                XCTFail("memory-gate key missing, so it falls back to German everywhere: \(key)")
+                continue
+            }
+            XCTAssertEqual(languages(of: entry), Self.shippedLanguages,
+                           "\(key) is not translated into every shipped language")
+            for (lang, loc) in (entry["localizations"] as? [String: [String: Any]]) ?? [:] {
+                let value = ((loc["stringUnit"] as? [String: Any])?["value"] as? String) ?? ""
+                XCTAssertFalse(value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                               "\(lang) has an empty translation for \(key)")
+                XCTAssertEqual(formatSpecifiers(of: value), formatSpecifiers(of: key),
+                               "\(lang) does not fill the same slots as \(key)")
+            }
+        }
+    }
 }
