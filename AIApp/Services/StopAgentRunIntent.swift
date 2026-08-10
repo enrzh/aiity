@@ -79,7 +79,9 @@ struct StopAgentRunIntent: LiveActivityIntent {
 
     func perform() async throws -> some IntentResult {
         AgentRunStopRequest.record()
-        NotificationCenter.default.post(name: .aiityAgentStopRequested, object: nil)
+        await MainActor.run {
+            NotificationCenter.default.post(name: .aiityAgentStopRequested, object: nil)
+        }
         await Self.endRunningActivities()
         return .result()
     }
