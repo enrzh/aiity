@@ -67,6 +67,13 @@ final class ProbeStubServer {
     /// dropped `size`"). Guarded — they are appended on the listener queue.
     private var receivedBodies: [String] = []
     private let bodyLock = NSLock()
+    private var receivedRequestCount = 0
+
+    var requestCount: Int {
+        bodyLock.lock()
+        defer { bodyLock.unlock() }
+        return receivedRequestCount
+    }
 
     struct StartupError: Error {}
 
@@ -130,11 +137,12 @@ final class ProbeStubServer {
             var buffer = buffered
             if let data { buffer.append(data) }
             if let request = Self.parseRequest(buffer) {
+                self.bodyLock.lock()
+                self.receivedRequestCount += 1
                 if !request.body.isEmpty {
-                    self.bodyLock.lock()
                     self.receivedBodies.append(request.body)
-                    self.bodyLock.unlock()
                 }
+                self.bodyLock.unlock()
                 self.respond(connection, method: request.method, path: request.path)
                 return
             }

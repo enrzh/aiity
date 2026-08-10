@@ -142,7 +142,10 @@ struct AnthropicProvider: LLMProvider {
         }
         request.httpBody = jsonData(body)
 
-        let (bytes, response) = try await ProviderHTTP.streaming.bytes(for: request)
+        let (bytes, response) = try await ProviderHTTP.streamingBytes(
+            for: request,
+            allowPrivate: ProviderHTTP.allowsPrivateEndpoint(url)
+        )
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
             var errorBody = ""
             for try await line in bytes.lines { errorBody += line; if errorBody.count > 600 { break } }

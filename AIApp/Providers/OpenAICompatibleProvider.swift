@@ -119,7 +119,10 @@ struct OpenAICompatibleProvider: LLMProvider {
         request.httpBody = jsonData(body)
         request.timeoutInterval = 600
 
-        let (bytes, response) = try await ProviderHTTP.streaming.bytes(for: request)
+        let (bytes, response) = try await ProviderHTTP.streamingBytes(
+            for: request,
+            allowPrivate: ProviderHTTP.allowsPrivateEndpoint(url)
+        )
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard status == 200 else {
             var errorBody = ""
@@ -298,7 +301,10 @@ struct OpenAICompatibleProvider: LLMProvider {
         }
         request.httpBody = jsonData(body)
 
-        let (data, response) = try await ProviderHTTP.streaming.data(for: request)
+        let (data, response) = try await ProviderHTTP.streamingData(
+            for: request,
+            allowPrivate: ProviderHTTP.allowsPrivateEndpoint(url)
+        )
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard status == 200 else {
             let bodyText = String(decoding: data, as: UTF8.self)

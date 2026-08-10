@@ -22,21 +22,9 @@ enum NetworkTransportError: LocalizedError, Equatable {
     }
 }
 
-/// Shared URLSessions for provider traffic. Default `.shared` is too aggressive
-/// for long Claude/Codex streams (idle timeout → “Zeitüberschreitung”).
+/// Validated URLSessions for provider traffic. Every request and redirect is
+/// checked before credentials or prompt bodies can leave their original host.
 enum ProviderHTTP {
-    /// Chat/completions SSE: tolerate slow first token + long generations.
-    static let streaming: URLSession = {
-        let config = URLSessionConfiguration.default
-        // Max silence between chunks (thinking / tool pauses).
-        config.timeoutIntervalForRequest = 300
-        // Whole turn including tools + long mini-app HTML.
-        config.timeoutIntervalForResource = 1_200
-        config.waitsForConnectivity = true
-        config.httpMaximumConnectionsPerHost = 6
-        return URLSession(configuration: config)
-    }()
-
     /// Performs short provider traffic after validating its initial destination
     /// and every redirect. `allowPrivate` is reserved for a provider endpoint
     /// the user configured themselves (LAN runtime, Tailscale peer or gateway).
@@ -47,14 +35,10 @@ enum ProviderHTTP {
         guard let url = request.url else { throw NetworkTransportError.invalidResponse }
         try validateQuickTarget(url, allowPrivate: allowPrivate)
 
-        let redirectValidator = ValidatedRedirectDelegate(
+        let (session, redirectValidator) = validatedSession(
             originURL: url,
-            allowPrivate: allowPrivate
-        )
-        let session = URLSession(
-            configuration: quickConfiguration(),
-            delegate: redirectValidator,
-            delegateQueue: nil
+            allowPrivate: allowPrivate,
+            configuration: quickConfiguration(for: request)
         )
         defer { session.finishTasksAndInvalidate() }
 
@@ -76,6 +60,62 @@ enum ProviderHTTP {
         return result
     }
 
+    /// Chat/completions SSE with the same target and redirect checks as short
+    /// metadata calls, but with timeouts suitable for slow first tokens.
+    static func streamingBytes(
+        for request: URLRequest,
+        allowPrivate: Bool
+    ) async throws -> (URLSession.AsyncBytes, URLResponse) {
+        guard let url = request.url else { throw NetworkTransportError.invalidResponse }
+        try validateQuickTarget(url, allowPrivate: allowPrivate)
+        let (session, redirectValidator) = validatedSession(
+            originURL: url,
+            allowPrivate: allowPrivate,
+            configuration: streamingConfiguration()
+        )
+
+        do {
+            let result = try await session.bytes(for: request)
+            session.finishTasksAndInvalidate()
+            if let redirectError = redirectValidator.error { throw redirectError }
+            guard result.1 is HTTPURLResponse else { throw NetworkTransportError.invalidResponse }
+            return result
+        } catch {
+            session.invalidateAndCancel()
+            throw redirectValidator.error ?? error
+        }
+    }
+
+    /// Non-stream fallback for the same long-lived provider request path.
+    static func streamingData(
+        for request: URLRequest,
+        allowPrivate: Bool
+    ) async throws -> (Data, URLResponse) {
+        guard let url = request.url else { throw NetworkTransportError.invalidResponse }
+        try validateQuickTarget(url, allowPrivate: allowPrivate)
+        let (session, redirectValidator) = validatedSession(
+            originURL: url,
+            allowPrivate: allowPrivate,
+            configuration: streamingConfiguration()
+        )
+        defer { session.finishTasksAndInvalidate() }
+
+        do {
+            let result = try await session.data(for: request)
+            if let redirectError = redirectValidator.error { throw redirectError }
+            guard result.1 is HTTPURLResponse else { throw NetworkTransportError.invalidResponse }
+            return result
+        } catch {
+            throw redirectValidator.error ?? error
+        }
+    }
+
+    /// A private literal or local hostname is itself the explicit endpoint
+    /// choice. Hosted public endpoints stay on the public-only policy.
+    static func allowsPrivateEndpoint(_ url: URL) -> Bool {
+        NetworkTargetValidator.isBlocked(host: url.host ?? "")
+    }
+
     static func validateQuickTarget(_ url: URL, allowPrivate: Bool) throws {
         guard NetworkTargetValidator.isAllowed(url, allowPrivate: allowPrivate) else {
             throw NetworkTransportError.targetNotAllowed(url)
@@ -95,7 +135,7 @@ enum ProviderHTTP {
         } catch {
             throw NetworkTransportError.unsafeRedirect(url)
         }
-        if allowPrivate, !sameOrigin(originURL, url) {
+        if !sameOrigin(originURL, url) {
             throw NetworkTransportError.unsafeRedirect(url)
         }
     }
@@ -111,12 +151,34 @@ enum ProviderHTTP {
         return left.scheme == right.scheme && left.host == right.host && left.port == right.port
     }
 
-    private static func quickConfiguration() -> URLSessionConfiguration {
+    private static func quickConfiguration(for request: URLRequest) -> URLSessionConfiguration {
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 45
-        config.timeoutIntervalForResource = 60
-        config.waitsForConnectivity = true
+        let requestedTimeout = max(1, request.timeoutInterval)
+        config.timeoutIntervalForRequest = min(45, requestedTimeout)
+        config.timeoutIntervalForResource = min(60, requestedTimeout)
+        // Metadata/probe UI must fail on its own deadline instead of waiting
+        // minutes for connectivity. Streaming intentionally keeps waiting.
+        config.waitsForConnectivity = false
         return config
+    }
+
+    private static func streamingConfiguration() -> URLSessionConfiguration {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 300
+        config.timeoutIntervalForResource = 1_200
+        config.waitsForConnectivity = true
+        config.httpMaximumConnectionsPerHost = 6
+        return config
+    }
+
+    private static func validatedSession(
+        originURL: URL,
+        allowPrivate: Bool,
+        configuration: URLSessionConfiguration
+    ) -> (URLSession, ValidatedRedirectDelegate) {
+        let validator = ValidatedRedirectDelegate(originURL: originURL, allowPrivate: allowPrivate)
+        let session = URLSession(configuration: configuration, delegate: validator, delegateQueue: nil)
+        return (session, validator)
     }
 }
 
