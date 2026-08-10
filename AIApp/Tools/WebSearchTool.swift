@@ -114,7 +114,10 @@ struct WebSearchTool: AgentTool {
         var request = URLRequest(url: url)
         request.setValue(Self.browserUA, forHTTPHeaderField: "User-Agent")
         request.timeoutInterval = 18
-        let (data, _) = try await URLSession.shared.data(for: request)
+        // SearXNG is user-configurable and may intentionally run on the user's
+        // LAN/Tailscale network. Public targets and every redirect still pass
+        // through ProviderHTTP's scheme/cleartext validation.
+        let (data, _) = try await ProviderHTTP.quickData(for: request, allowPrivate: true)
         guard let object = jsonObject(data),
               let results = object["results"] as? [[String: Any]] else { return [] }
         return results.prefix(8).map { result in
@@ -137,7 +140,7 @@ struct WebSearchTool: AgentTool {
         request.setValue(braveKey, forHTTPHeaderField: "X-Subscription-Token")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.timeoutInterval = 18
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await ProviderHTTP.quickData(for: request, allowPrivate: false)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard status == 200, let object = jsonObject(data) else {
             throw URLError(.badServerResponse)
@@ -164,7 +167,7 @@ struct WebSearchTool: AgentTool {
             "max_results": 8,
             "include_answer": false,
         ])
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await ProviderHTTP.quickData(for: request, allowPrivate: false)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard status == 200, let object = jsonObject(data),
               let results = object["results"] as? [[String: Any]] else {
@@ -188,7 +191,7 @@ struct WebSearchTool: AgentTool {
         var form = URLComponents()
         form.queryItems = [URLQueryItem(name: "q", value: query)]
         request.httpBody = form.percentEncodedQuery?.data(using: .utf8)
-        let (data, _) = try await URLSession.shared.data(for: request)
+        let (data, _) = try await ProviderHTTP.quickData(for: request, allowPrivate: false)
         let html = String(decoding: data, as: UTF8.self)
         return Self.parseLiteHits(html)
     }

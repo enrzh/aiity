@@ -255,7 +255,7 @@ final class SkillStore: ObservableObject {
                 var request = URLRequest(url: url)
                 request.setValue("aiity-ios", forHTTPHeaderField: "User-Agent")
                 request.timeoutInterval = 25
-                let (data, response) = try await URLSession.shared.data(for: request)
+                let (data, response) = try await ProviderHTTP.quickData(for: request, allowPrivate: false)
                 let code = (response as? HTTPURLResponse)?.statusCode ?? 0
                 if code == 404 { lastError = "404: \(url.absoluteString)"; continue }
                 if !(200...299).contains(code) && code != 0 {

@@ -3,6 +3,21 @@ import XCTest
 
 final class ProviderHTTPTests: XCTestCase {
 
+    func testShortLivedCallSitesUseValidatedTransport() throws {
+        let testFile = URL(fileURLWithPath: #filePath)
+        let sourceRoot = testFile.deletingLastPathComponent().deletingLastPathComponent()
+        let callSites = [
+            sourceRoot.appendingPathComponent("AIApp/Tools/WebSearchTool.swift"),
+            sourceRoot.appendingPathComponent("AIApp/Models/SkillStore.swift"),
+        ]
+
+        for file in callSites {
+            let source = try String(contentsOf: file, encoding: .utf8)
+            XCTAssertFalse(source.contains("URLSession.shared"), file.lastPathComponent)
+            XCTAssertTrue(source.contains("ProviderHTTP.quickData"), file.lastPathComponent)
+        }
+    }
+
     func testQuickRequestRejectsPublicCleartextTargets() {
         let url = URL(string: "http://api.example.com/v1/models")!
 
