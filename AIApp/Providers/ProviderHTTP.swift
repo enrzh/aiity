@@ -47,7 +47,10 @@ enum ProviderHTTP {
         guard let url = request.url else { throw NetworkTransportError.invalidResponse }
         try validateQuickTarget(url, allowPrivate: allowPrivate)
 
-        let redirectValidator = ValidatedRedirectDelegate(allowPrivate: allowPrivate)
+        let redirectValidator = ValidatedRedirectDelegate(
+            originURL: url,
+            allowPrivate: allowPrivate
+        )
         let session = URLSession(
             configuration: quickConfiguration(),
             delegate: redirectValidator,
@@ -82,6 +85,32 @@ enum ProviderHTTP {
         }
     }
 
+    static func validateRedirectTarget(
+        _ url: URL,
+        from originURL: URL,
+        allowPrivate: Bool
+    ) throws {
+        do {
+            try validateQuickTarget(url, allowPrivate: allowPrivate)
+        } catch {
+            throw NetworkTransportError.unsafeRedirect(url)
+        }
+        if allowPrivate, !sameOrigin(originURL, url) {
+            throw NetworkTransportError.unsafeRedirect(url)
+        }
+    }
+
+    private static func sameOrigin(_ lhs: URL, _ rhs: URL) -> Bool {
+        func origin(_ url: URL) -> (scheme: String, host: String, port: Int?) {
+            let scheme = url.scheme?.lowercased() ?? ""
+            let defaultPort = scheme == "https" ? 443 : (scheme == "http" ? 80 : nil)
+            return (scheme, url.host?.lowercased() ?? "", url.port ?? defaultPort)
+        }
+        let left = origin(lhs)
+        let right = origin(rhs)
+        return left.scheme == right.scheme && left.host == right.host && left.port == right.port
+    }
+
     private static func quickConfiguration() -> URLSessionConfiguration {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 45
@@ -92,11 +121,13 @@ enum ProviderHTTP {
 }
 
 private final class ValidatedRedirectDelegate: NSObject, URLSessionTaskDelegate {
+    private let originURL: URL
     private let allowPrivate: Bool
     private let lock = NSLock()
     private var rejectedRedirect: NetworkTransportError?
 
-    init(allowPrivate: Bool) {
+    init(originURL: URL, allowPrivate: Bool) {
+        self.originURL = originURL
         self.allowPrivate = allowPrivate
     }
 
@@ -119,7 +150,11 @@ private final class ValidatedRedirectDelegate: NSObject, URLSessionTaskDelegate 
             return
         }
         do {
-            try ProviderHTTP.validateQuickTarget(url, allowPrivate: allowPrivate)
+            try ProviderHTTP.validateRedirectTarget(
+                url,
+                from: originURL,
+                allowPrivate: allowPrivate
+            )
             completionHandler(request)
         } catch {
             record(.unsafeRedirect(url))

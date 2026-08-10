@@ -109,6 +109,18 @@ final class ModelCatalogTests: XCTestCase {
         XCTAssertEqual(Set(models.map(\.id)), ["stub-large", "stub-mini"])
     }
 
+    func testCustomAnthropicCatalogUsesConfiguredLANEndpoint() async throws {
+        let server = try ProbeStubServer(mode: .anthropic)
+        defer { server.stop() }
+
+        var settings = ProviderSettings()
+        settings.presetId = "custom-anthropic"
+        settings.baseURL = server.baseURL
+
+        let models = try await ModelCatalogService.fetchModels(settings: settings, apiKey: "test")
+        XCTAssertEqual(models.map(\.id), ["claude-stub-1"])
+    }
+
     func testIsLikelyChatModelKeepsChatHidesSpecialised() {
         // Chat models stay.
         for id in ["gpt-4.1", "gpt-4o", "gpt-5", "o3-mini", "claude-sonnet-4-5",

@@ -95,6 +95,7 @@ final class ConnectionProbeTests: XCTestCase {
         XCTAssertTrue(ConnectionProbe.isSelfHostedEndpoint("lmstudio"))
         XCTAssertTrue(ConnectionProbe.isSelfHostedEndpoint("sub2api"))
         XCTAssertTrue(ConnectionProbe.isSelfHostedEndpoint("custom-openai"))
+        XCTAssertTrue(ConnectionProbe.isSelfHostedEndpoint("custom-anthropic"))
         XCTAssertFalse(ConnectionProbe.isSelfHostedEndpoint("anthropic"))
     }
 
@@ -147,7 +148,7 @@ final class ConnectionProbeTests: XCTestCase {
         XCTAssertTrue(result.ok, result.reason)
         XCTAssertEqual(result.models, ["claude-stub-1"])
         XCTAssertTrue(result.reason.contains("Verbunden"), result.reason)
-        XCTAssertFalse(result.chatOnly, "custom-anthropic is not local-style")
+        XCTAssertTrue(result.chatOnly, "custom-anthropic is a user-configured endpoint")
     }
 
     /// Native-Ollama runtime: /v1/models 404s, /api/tags carries the models,

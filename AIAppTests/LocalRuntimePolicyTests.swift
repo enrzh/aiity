@@ -38,7 +38,7 @@ final class LocalRuntimePolicyTests: XCTestCase {
     /// Endpoint locality: everything the user points at an address of their
     /// own, plus on-device.
     func testSelfHostedCoversEveryBringYourOwnAddressPreset() {
-        for id in ["ollama", "lmstudio", "localai", "custom-openai", "sub2api", "mlx"] {
+        for id in ["ollama", "lmstudio", "localai", "custom-openai", "custom-anthropic", "sub2api", "mlx"] {
             XCTAssertTrue(LocalRuntimePolicy.isSelfHosted(settings(id)), "\(id) is a self-hosted endpoint")
         }
         for id in ["openai", "anthropic", "openrouter", "gemini"] {
@@ -66,7 +66,7 @@ final class LocalRuntimePolicyTests: XCTestCase {
                 LocalRuntimePolicy.isSelfHosted(settings($0))
                     != LocalRuntimePolicy.usesSmallModelProfile(settings($0))
             }
-        XCTAssertEqual(Set(disagreeing), ["custom-openai", "sub2api"])
+        XCTAssertEqual(Set(disagreeing), ["custom-openai", "custom-anthropic", "sub2api"])
     }
 
     // MARK: - Tool gating

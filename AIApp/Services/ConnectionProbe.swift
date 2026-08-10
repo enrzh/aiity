@@ -34,7 +34,9 @@ enum ConnectionProbe {
     /// Whether tools may be sent is decided separately by
     /// `LocalRuntimePolicy.usesSmallModelProfile` — see its type doc for why
     /// the single old list (`localPresetIds`) was a bug.
-    static let selfHostedPresetIds: Set<String> = ["ollama", "lmstudio", "localai", "custom-openai", "sub2api"]
+    static let selfHostedPresetIds: Set<String> = [
+        "ollama", "lmstudio", "localai", "custom-openai", "custom-anthropic", "sub2api",
+    ]
 
     static func isSelfHostedEndpoint(_ presetId: String) -> Bool {
         selfHostedPresetIds.contains(presetId)
@@ -121,8 +123,7 @@ enum ConnectionProbe {
     /// Full test: normalize base URL → list models → short completion with first/default model.
     static func test(
         settings: ProviderSettings,
-        apiKey: String,
-        session: URLSession = .shared
+        apiKey: String
     ) async -> ConnectionProbeResult {
         let dialect = settings.preset.dialect
         if dialect == .mlx {
@@ -146,9 +147,15 @@ enum ConnectionProbe {
             do {
                 let catalog = try await ModelCatalogService.fetchModels(settings: settings, apiKey: apiKey)
                 models = catalog.map(\.id)
+            } catch let error as NetworkTransportError {
+                throw error
             } catch {
                 models = try await legacyListModels(
-                    modelsURL: modelsURL, base: base, dialect: dialect, apiKey: apiKey, session: session
+                    modelsURL: modelsURL,
+                    base: base,
+                    dialect: dialect,
+                    apiKey: apiKey,
+                    allowPrivate: LocalRuntimePolicy.isSelfHosted(settings)
                 )
             }
 
@@ -171,7 +178,10 @@ enum ConnectionProbe {
             ) else {
                 return .failure(String(localized: "Konnte Test-Request nicht bauen."))
             }
-            let (compData, compResponse) = try await session.data(for: completionReq)
+            let (compData, compResponse) = try await ProviderHTTP.quickData(
+                for: completionReq,
+                allowPrivate: LocalRuntimePolicy.isSelfHosted(settings)
+            )
             let compCode = (compResponse as? HTTPURLResponse)?.statusCode ?? 0
             switch parseCompletionProbe(data: compData, statusCode: compCode) {
             case .failure(let fail):
@@ -205,12 +215,15 @@ enum ConnectionProbe {
         base: String,
         dialect: ProviderDialect,
         apiKey: String,
-        session: URLSession
+        allowPrivate: Bool
     ) async throws -> [String] {
         var listRequest = URLRequest(url: modelsURL)
         listRequest.timeoutInterval = 12
         applyAuth(to: &listRequest, apiKey: apiKey, dialect: dialect)
-        let (listData, listResponse) = try await session.data(for: listRequest)
+        let (listData, listResponse) = try await ProviderHTTP.quickData(
+            for: listRequest,
+            allowPrivate: allowPrivate
+        )
         let listCode = (listResponse as? HTTPURLResponse)?.statusCode ?? 0
         switch parseModelsList(data: listData, statusCode: listCode) {
         case .success(let ids):
@@ -219,7 +232,10 @@ enum ConnectionProbe {
             if dialect == .openai, let fallback = ollamaTagsURL(from: base) {
                 var tagsReq = URLRequest(url: fallback)
                 tagsReq.timeoutInterval = 12
-                let (tagsData, tagsResp) = try await session.data(for: tagsReq)
+                let (tagsData, tagsResp) = try await ProviderHTTP.quickData(
+                    for: tagsReq,
+                    allowPrivate: allowPrivate
+                )
                 let tagsCode = (tagsResp as? HTTPURLResponse)?.statusCode ?? 0
                 switch parseModelsList(data: tagsData, statusCode: tagsCode) {
                 case .success(let ids): return ids
