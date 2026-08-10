@@ -105,6 +105,64 @@ final class SettingsTourUITests: XCTestCase {
         attach(app, name: "tour-5-anbieter")
     }
 
+    /// The on-device model list is the screen that shipped the crash: it
+    /// offered 14B/32B/70B models to every phone with nothing but a prose hint
+    /// in the subtitle, and an OOM kill leaves no crash report to trace it by.
+    ///
+    /// Note what this can and cannot check. The SIMULATOR REPORTS THE HOST
+    /// MAC'S MEMORY, so the per-device gate ("this row is blocked on YOUR
+    /// phone") cannot be reproduced here at all — that half is unit-tested
+    /// against injected budgets. What IS device-independent, and therefore
+    /// checkable here, is the catalog filter: models no iPhone can run are
+    /// removed by a fixed constant, not by reading this machine.
+    func testTheOnDeviceModelListNamesTheMemoryBudgetAndHidesTheImpossibleModels() {
+        let app = makeApp()
+        app.launch()
+        dismissCrashNoticeIfShown(in: app)
+
+        XCTAssertTrue(waitForTabBar(app), "tab bar should come up after the splash")
+        let connectionsRow = app.buttons["open-connections"]
+        XCTAssertTrue(tap(app.tabBars.buttons["Mehr"].firstMatch, until: connectionsRow),
+                      "Settings should offer the KI-Anbieter row")
+        XCTAssertTrue(tap(connectionsRow, until: app.navigationBars["Anbieter"]),
+                      "KI-Anbieter should open the provider list")
+
+        let mlxRow = app.buttons.matching(NSPredicate(format: "label CONTAINS 'MLX'")).firstMatch
+        scrollTo(mlxRow, in: app)
+        XCTAssertTrue(mlxRow.waitForExistence(timeout: 10), "provider list should include on-device MLX")
+        // The device's real capacity, said out loud — the old screen said
+        // nothing about memory anywhere, on any row.
+        let memoryNote = app.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS 'gibt einer App'")
+        ).firstMatch
+        XCTAssertTrue(tap(mlxRow, until: memoryNote),
+                      "the on-device model list must name what this phone allows an app")
+        attach(app, name: "connections-mlx-models")
+
+        // One pass down the whole list: the models that no iPhone can run must
+        // never appear, not even greyed out.
+        let impossible = ["70B", "32B", "14B", "27B"]
+        var found: Set<String> = []
+        func noteWhatIsOnScreen() {
+            for name in impossible {
+                let predicate = NSPredicate(format: "label CONTAINS %@", name)
+                if app.staticTexts.matching(predicate).firstMatch.exists
+                    || app.buttons.matching(predicate).firstMatch.exists {
+                    found.insert(name)
+                }
+            }
+        }
+        noteWhatIsOnScreen()
+        for _ in 0..<12 {
+            app.swipeUp()
+            noteWhatIsOnScreen()
+        }
+        XCTAssertTrue(
+            found.isEmpty,
+            "\(found.sorted()) cannot run on any supported iPhone and must not be offered"
+        )
+    }
+
     /// Swipes up until the element exists (lazy List rows materialize only
     /// when scrolled near the viewport).
     private func scrollTo(_ element: XCUIElement, in app: XCUIApplication, maxSwipes: Int = 8) {

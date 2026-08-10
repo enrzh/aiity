@@ -813,25 +813,51 @@ struct ProviderConnectionView: View {
 
     // MARK: On-device (MLX)
 
+    /// What this phone can actually give an app, said out loud.
+    ///
+    /// The old screen said nothing about memory at all and let every row be
+    /// tapped; the only hint was prose in a subtitle ("nur High-RAM Geräte"),
+    /// which is what let five jetsam kills happen. Naming the real number turns
+    /// "why is this greyed out?" into something the user can answer themselves.
+    private var deviceMemoryNote: String {
+        let device = LocalModelGate.deviceGigabytes(DeviceMemoryBudget.physicalMemoryBytes)
+        let budget = LocalModelGate.gigabytes(DeviceMemoryBudget.catalogBudgetBytes)
+        return String(localized: "Dieses iPhone hat \(device) und gibt einer App davon ~\(budget). Modelle, die mehr brauchen, lassen sich nicht laden.")
+    }
+
     @ViewBuilder
     private var localModelRows: some View {
-        ForEach(LocalModel.catalog) { model in
+        Text(deviceMemoryNote)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        // Downloaded models that are no longer offered still get a row, or
+        // their gigabytes would be stuck on the phone with no way to delete.
+        ForEach(LocalModel.rows(downloadedIds: modelStore.downloadedIds)) { model in
+            let shortage = modelStore.shortage(model.id)
             HStack(spacing: 12) {
                 Button {
                     settingsStore.settings.localModelId = model.id
                 } label: {
                     HStack {
-                        Image(systemName: settingsStore.settings.localModelId == model.id ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(settingsStore.settings.localModelId == model.id ? Color.accentColor : Color.secondary)
+                        Image(systemName: selectionSymbol(for: model.id, blocked: shortage != nil))
+                            .foregroundStyle(
+                                shortage != nil ? Color.secondary
+                                    : (settingsStore.settings.localModelId == model.id ? Color.accentColor : Color.secondary)
+                            )
                         VStack(alignment: .leading, spacing: 2) {
                             Text(model.displayName)
-                            Text(model.details)
+                                .foregroundStyle(shortage != nil ? Color.secondary : Color.primary)
+                            // The shortage REPLACES the marketing subtitle: two
+                            // lines that disagree about whether a model is a
+                            // good idea is how the old screen read.
+                            Text(shortage ?? model.details)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
                 }
                 .buttonStyle(.plain)
+                .disabled(shortage != nil)
                 Spacer()
                 if let fraction = modelStore.progress[model.id] {
                     ProgressView(value: fraction)
@@ -843,7 +869,7 @@ struct ProviderConnectionView: View {
                         Image(systemName: "trash")
                     }
                     .buttonStyle(.borderless)
-                } else {
+                } else if shortage == nil {
                     Button {
                         modelStore.download(model.id)
                     } label: {
@@ -851,6 +877,14 @@ struct ProviderConnectionView: View {
                             .font(.title3)
                     }
                     .buttonStyle(.borderless)
+                } else {
+                    // No download button at all rather than a disabled one: the
+                    // reason is already on the row, and a tappable-looking
+                    // arrow invites the retry that used to end in a kill.
+                    Image(systemName: "exclamationmark.circle")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel(Text("Zu wenig Speicher"))
                 }
             }
         }
@@ -859,6 +893,11 @@ struct ProviderConnectionView: View {
                 .font(.caption)
                 .foregroundStyle(.red)
         }
+    }
+
+    private func selectionSymbol(for modelId: String, blocked: Bool) -> String {
+        if blocked { return "slash.circle" }
+        return settingsStore.settings.localModelId == modelId ? "checkmark.circle.fill" : "circle"
     }
 
     // MARK: Actions

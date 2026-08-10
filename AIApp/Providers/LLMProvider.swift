@@ -100,7 +100,12 @@ enum ProviderError: LocalizedError {
         case .badResponse(_, let body):
             // `body` is often already a friendly German string from ProviderRequestSupport.
             let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
+            // "Zu wenig Speicher …" is the local-model memory refusal
+            // (MLXRuntime.assertFits) — an entirely local decision that never
+            // touched a server, so prefixing it with "API-Fehler" would send
+            // the user looking in the wrong place.
             if trimmed.hasPrefix("API-Fehler") || trimmed.hasPrefix(String(localized: "Modell")) || trimmed.hasPrefix("Auth")
+                || trimmed.hasPrefix(String(localized: "Zu wenig Speicher"))
                 || trimmed.hasPrefix(String(localized: "Dieses Modell")) || trimmed.hasPrefix("Kein Modell")
                 || trimmed.hasPrefix(String(localized: "Ungültige")) || trimmed.hasPrefix("Leere") {
                 return String(trimmed.prefix(500))

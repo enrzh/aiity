@@ -58,6 +58,43 @@ final class MLXRuntime: @unchecked Sendable {
         }
     }
 
+    /// Refuse to load a model this device cannot hold.
+    ///
+    /// This exists SEPARATELY from the picker's gate, and it is not belt and
+    /// braces. `localModelId` travels between devices: `CloudSettingsSync`
+    /// mirrors the provider setup through iCloud key-value storage, so a 12 GB
+    /// iPhone 17 Pro can legitimately select a 9B model and hand that id to an
+    /// 8 GB iPhone, which never saw a picker for it. Restoring a backup and
+    /// decoding an older `ProviderSettings` do the same. Without a refusal
+    /// here, that arrives as a jetsam kill — no alert, no crash report, no way
+    /// for the user to connect it to a choice made on another phone.
+    ///
+    /// `MemoryPressure` is unaffected and stays exactly what it was: the
+    /// post-hoc release valve for a load that was allowed and then grew. This
+    /// is the up-front refusal for a load that was never going to fit.
+    ///
+    /// Uses the LIVE budget (`os_proc_available_memory()`), not
+    /// `physicalMemory`: what matters at this instant is how much the kernel
+    /// will still hand this process, which already accounts for the
+    /// increased-memory-limit entitlement, the OS version, and whatever the app
+    /// is currently holding.
+    ///
+    /// `budgetBytes` is injectable for exactly one reason: a simulated iPhone
+    /// reports the HOST Mac's memory, so a test running there can never
+    /// reproduce a real device budget by reading one. Production always uses
+    /// the default.
+    static func assertFits(modelId: String, budgetBytes: Int64? = nil) throws {
+        let budgetBytes = budgetBytes ?? DeviceMemoryBudget.loadBudgetBytes()
+        guard case .blocked(let need, let budget) = LocalModelGate.verdict(
+            modelId: modelId, budgetBytes: budgetBytes
+        ) else { return }
+        DiagnosticsRecorder.shared.record(
+            "mlx",
+            "Laden abgelehnt: \(modelId) braucht \(need / 1_048_576) MB, verfügbar \(budget / 1_048_576) MB"
+        )
+        throw ProviderError.badResponse(0, LocalModelGate.refusalMessage(needBytes: need, budgetBytes: budget))
+    }
+
     /// Drop every resident model. A generation already in flight keeps its own
     /// reference and finishes; this only releases ours, so the memory comes
     /// back when that turn ends instead of never.
@@ -87,6 +124,9 @@ final class MLXRuntime: @unchecked Sendable {
     private static let downloadAttempts = 4
 
     func ensureDownloaded(modelId: String, onProgress: @escaping (Double) -> Void) async throws {
+        // `loadContainer` downloads AND loads, so this path allocates the model
+        // too — the gate belongs here as much as in `container(for:)`.
+        try Self.assertFits(modelId: modelId)
         // Limit the Metal cache before the first model touches the GPU.
         MLX.GPU.set(cacheLimit: 20 * 1024 * 1024)
         var lastError: Error?
@@ -149,6 +189,7 @@ final class MLXRuntime: @unchecked Sendable {
 
     func container(for modelId: String) async throws -> ModelContainer {
         if let hit = cached(modelId) { return hit }
+        try Self.assertFits(modelId: modelId)
         MLX.GPU.set(cacheLimit: 20 * 1024 * 1024)
         let configuration = ModelConfiguration(id: modelId)
         let container = try await LLMModelFactory.shared.loadContainer(hub: hub(), configuration: configuration) { _ in }
@@ -157,6 +198,7 @@ final class MLXRuntime: @unchecked Sendable {
     }
     #else
     func ensureDownloaded(modelId: String, onProgress: @escaping (Double) -> Void) async throws {
+        try Self.assertFits(modelId: modelId)
         throw ProviderError.badResponse(0, String(localized: "MLX ist in diesem Build nicht verfügbar."))
     }
     #endif
@@ -188,6 +230,10 @@ struct MLXProvider: LLMProvider {
                 #else
                 #if canImport(MLXLLM)
                 do {
+                    // Before the download check on purpose: telling someone to
+                    // go and download a model their phone can never load is a
+                    // multi-gigabyte wild goose chase.
+                    try MLXRuntime.assertFits(modelId: modelId)
                     guard LocalModelLocation.isDownloaded(modelId) else {
                         throw ProviderError.badResponse(0, String(localized: "Modell nicht heruntergeladen — bitte in den Einstellungen laden."))
                     }

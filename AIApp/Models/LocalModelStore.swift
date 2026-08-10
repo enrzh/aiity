@@ -1,16 +1,30 @@
 import Foundation
 import UIKit
 
-/// On-device models (Apple MLX, mostly 4-bit). Full list is shown regardless of
-/// device RAM — user chooses; larger downloads may fail or OOM on small phones.
+/// On-device models (Apple MLX, mostly 4-bit).
+///
+/// The list used to be shown in full regardless of device RAM, on the theory
+/// that the user chooses and a too-large model merely "may fail". It does not
+/// fail — it gets the app killed by jetsam with no crash report, which is
+/// exactly what five TestFlight crashes in fourteen minutes on one iPhone 16
+/// Pro turned out to be. `LocalModelFootprint` now decides, and it decides in
+/// two places: entries that no supported iPhone could ever run are not in
+/// `catalog` at all, and what remains is gated per device by `LocalModelGate`.
 struct LocalModel: Identifiable, Equatable {
     let id: String
     let displayName: String
     let details: String
-    /// Rough download size for UI only.
+    /// Rough DOWNLOAD size, for UI only.
+    ///
+    /// Explicitly not a memory figure and never used as one: it is the weights
+    /// on disk, before the KV cache and the MLX runtime exist. Treating it as a
+    /// footprint understates a 4B model by about 60 %. Ask
+    /// `LocalModelFootprint.peakBytes(modelId:)` for memory.
     var sizeHint: String = ""
 
-    static let catalog: [LocalModel] = [
+    /// Everything this app knows how to run, before device filtering.
+    /// `catalog` is the part worth offering; see there.
+    static let allCandidates: [LocalModel] = [
         // —— Ultra light ——
         LocalModel(
             id: "mlx-community/Llama-3.2-1B-Instruct-4bit",
@@ -197,7 +211,46 @@ struct LocalModel: Identifiable, Equatable {
         ),
     ]
 
+    /// What the app offers: every candidate the best iPhone in scope could
+    /// actually run.
+    ///
+    /// # Why removed rather than permanently shown as blocked
+    ///
+    /// A row that is blocked on *this* phone but runs on another is
+    /// informative — it tells the user what a bigger device would buy them, and
+    /// it comes back when they upgrade. A row that no iPhone can run is a
+    /// promise the product cannot keep on any hardware: it invites the download
+    /// (multiple gigabytes of the user's bandwidth), it generates "why can't
+    /// I?" support, and it is the exact UI that produced the crashes. The app
+    /// is iPhone-only (`TARGETED_DEVICE_FAMILY: "1"`), so the ceiling is the
+    /// 12 GB iPhone 17 Pro — nothing above roughly 9B at 4-bit clears it.
+    ///
+    /// Filtered rather than deleted by hand so this stays one mechanism with
+    /// one calibration: raising
+    /// `DeviceMemoryBudget.bestSupportedDevicePhysicalBytes` when a larger
+    /// iPhone ships brings the bigger models back with no edit to the list.
+    ///
+    /// Dropped at 12 GB today: Qwen2.5 14B, Qwen2.5 Coder 14B, Gemma 2 27B,
+    /// Qwen2.5 32B, Llama 3.3 70B, Mistral Nemo 12B, and the 8-bit Llama 3.1 8B
+    /// (8-bit doubles the weights of a model that only just fits at 4-bit).
+    static let catalog: [LocalModel] = allCandidates.filter {
+        LocalModelGate.isAllowedOnAnySupportedDevice(modelId: $0.id)
+    }
+
     static let defaultId = "mlx-community/Qwen3-4B-Instruct-2507-4bit"
+
+    /// The rows the settings screen shows: the catalog, plus anything already
+    /// sitting on disk from before it was filtered out.
+    ///
+    /// Without the second part an existing 8 GB download of a now-dropped model
+    /// becomes invisible and therefore undeletable — the app would keep the
+    /// user's storage hostage as a side effect of getting safer.
+    static func rows(downloadedIds: Set<String>) -> [LocalModel] {
+        let listed = Set(catalog.map(\.id))
+        return catalog + allCandidates.filter {
+            !listed.contains($0.id) && downloadedIds.contains($0.id)
+        }
+    }
 }
 
 /// Filesystem layout for on-device models — free of actor isolation because
@@ -277,12 +330,42 @@ final class LocalModelStore: ObservableObject {
         refresh()
     }
 
+    /// Scans `allCandidates`, not `catalog`: a model that was downloaded before
+    /// the footprint filter dropped it is still on disk, and has to stay
+    /// visible long enough to be deleted.
     func refresh() {
-        downloadedIds = Set(LocalModel.catalog.map(\.id).filter(LocalModelLocation.isDownloaded))
+        downloadedIds = Set(LocalModel.allCandidates.map(\.id).filter(LocalModelLocation.isDownloaded))
+    }
+
+    /// Whether this device can run the model at all — the picker's own gate,
+    /// and the reason the download button is disabled rather than merely
+    /// discouraged. `details` prose ("nur High-RAM Geräte") was the previous
+    /// mechanism, and it is what shipped the crash.
+    func canRun(_ modelId: String) -> Bool {
+        LocalModelGate.isAllowedOnThisDevice(modelId: modelId)
+    }
+
+    /// The blocking reason, or `nil` when there is none.
+    func shortage(_ modelId: String) -> String? {
+        guard case .blocked(let need, let budget) = LocalModelGate.verdict(
+            modelId: modelId, budgetBytes: DeviceMemoryBudget.catalogBudgetBytes
+        ) else { return nil }
+        return LocalModelGate.shortageTextOnThisDevice(needBytes: need, budgetBytes: budget)
     }
 
     func download(_ modelId: String) {
         guard progress[modelId] == nil else { return }
+        // Refuse here as well as in the UI: downloading a model this phone can
+        // never load spends gigabytes of the user's data to reach a model that
+        // only ever produces an error. The runtime refuses the load too — see
+        // MLXRuntime.assertFits — because a selection can arrive from another
+        // device through iCloud settings sync without passing this screen.
+        if case .blocked(let need, let budget) = LocalModelGate.verdict(
+            modelId: modelId, budgetBytes: DeviceMemoryBudget.catalogBudgetBytes
+        ) {
+            errorMessage = LocalModelGate.refusalMessage(needBytes: need, budgetBytes: budget)
+            return
+        }
         progress[modelId] = 0
         errorMessage = nil
         beginBackgroundProtection()

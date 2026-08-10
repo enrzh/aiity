@@ -157,6 +157,7 @@
 		BBCC18A2849DD39B8334C3CC /* ThreadDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0BA5DB3624B77DD42F91DB5 /* ThreadDecodingTests.swift */; };
 		BF1A4BB9E5CF4FAAE089061B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF1FC1BCBCEFE7A60CF649E6 /* SettingsView.swift */; };
 		BFD65CF0FC7E9364FFE65457 /* PersonalDataTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = C09F91F916F75D3E6DE4ED6D /* PersonalDataTools.swift */; };
+		C1AE8125E0321C1FE30A132A /* LocalModelFootprintTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E44F343CC5DE0A127A153E /* LocalModelFootprintTests.swift */; };
 		C3D0A39A19C380D5BE46DF50 /* MiniAppRunnerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CB909ED9CD414C11FD42797 /* MiniAppRunnerView.swift */; };
 		C40E237ADE63770F16E1D23A /* AgentBackgroundNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = F189D02343660DA06728FE01 /* AgentBackgroundNotifier.swift */; };
 		C4A9C03D26778668314D4496 /* AgentActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89C708D4BF2A41A45532FF21 /* AgentActivityAttributes.swift */; };
@@ -166,6 +167,7 @@
 		CBA81EE403EF33342BE869BA /* BackgroundWork.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46C242CEE8D18F27F9C4D263 /* BackgroundWork.swift */; };
 		CD53EF76E6E3BECAE16D7AA3 /* ConnectionProbeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18BAB401436AAC0B0CA8FE9B /* ConnectionProbeTests.swift */; };
 		CF2438697DF00094192B111B /* LocalMemoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20EFAF7053FFF7D489E383CB /* LocalMemoryTests.swift */; };
+		D12E80305F9E5EF2A5392E0C /* LocalModelFootprint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B9F397109623BAABABB0DB6 /* LocalModelFootprint.swift */; };
 		D1648B3A22D7A36F129DEC96 /* SkillRecommendations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AC44973E1220CAA6251212E /* SkillRecommendations.swift */; };
 		D24150977C8342B8713F34B4 /* NetworkTargetValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A47B41787BB9423ACFDFFCFB /* NetworkTargetValidator.swift */; };
 		D31DECDB34565EF98BA3E315 /* AIAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D8C4C9C0DF446132CF6E371 /* AIAppApp.swift */; };
@@ -251,6 +253,7 @@
 		0D6A69B321F0B9D850477143 /* MiniAppValidatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniAppValidatorTests.swift; sourceTree = "<group>"; };
 		0E1D030F8EEC25B7DD8590D0 /* SubAgentRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubAgentRunner.swift; sourceTree = "<group>"; };
 		0F3FDEE8823CCA1871942F2F /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
+		11E44F343CC5DE0A127A153E /* LocalModelFootprintTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalModelFootprintTests.swift; sourceTree = "<group>"; };
 		120505D3D47D96F5141DD1F2 /* HTTPPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPPolicy.swift; sourceTree = "<group>"; };
 		122F7974E96E74B9FF933BF7 /* MediaStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaStore.swift; sourceTree = "<group>"; };
 		12758331C27403CB5D849CC4 /* AccountStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountStore.swift; sourceTree = "<group>"; };
@@ -306,6 +309,7 @@
 		5A1518D6D1989698FF92DF5D /* DiagnosticsRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsRecorder.swift; sourceTree = "<group>"; };
 		5A9D5B16589E98A28D5A8625 /* AskAgentTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskAgentTool.swift; sourceTree = "<group>"; };
 		5B386A82EB8CBA6349DC2FCB /* ScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotTests.swift; sourceTree = "<group>"; };
+		5B9F397109623BAABABB0DB6 /* LocalModelFootprint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalModelFootprint.swift; sourceTree = "<group>"; };
 		5CB909ED9CD414C11FD42797 /* MiniAppRunnerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniAppRunnerView.swift; sourceTree = "<group>"; };
 		5CD90634687BA8F2AC0EF686 /* ChatThreadRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatThreadRepository.swift; sourceTree = "<group>"; };
 		5DDCB2BE19D7A63F5512FB07 /* DictationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationTests.swift; sourceTree = "<group>"; };
@@ -491,6 +495,7 @@
 				CECAE9910918A953E594FB98 /* DiagnosticsReport.swift */,
 				17F98810AC7E6282E6DEEE5E /* DictationService.swift */,
 				1573AF85215921F9F1030459 /* IntentRouter.swift */,
+				5B9F397109623BAABABB0DB6 /* LocalModelFootprint.swift */,
 				51C5F75BC4890C8C2B2AF59B /* LocalRuntimePolicy.swift */,
 				43918F31F3CCEA61F225CBF9 /* MemoryPressure.swift */,
 				1392287F6C0E834FAA71B8B6 /* MiniAppBundle.swift */,
@@ -617,6 +622,7 @@
 				5DDCB2BE19D7A63F5512FB07 /* DictationTests.swift */,
 				B9847EDD8DBD7D1BAD4F21F1 /* ImageGenerationTests.swift */,
 				20EFAF7053FFF7D489E383CB /* LocalMemoryTests.swift */,
+				11E44F343CC5DE0A127A153E /* LocalModelFootprintTests.swift */,
 				2C3071FF7163FA0580F35F6E /* LocalModelLocationTests.swift */,
 				DA8466963EF2CD19656D9FEB /* LocalRuntimePolicyTests.swift */,
 				6CD59DF34EB2C44797D18EB6 /* MiniAppBundleTests.swift */,
@@ -1039,6 +1045,7 @@
 				29754FE8303B56FDFE9BD7FF /* LLMProvider.swift in Sources */,
 				BB91BE78C0DBEFDBB5004DD0 /* LaunchSplashView.swift in Sources */,
 				B9AFB0660B84D6C0476A7E04 /* LibraryView.swift in Sources */,
+				D12E80305F9E5EF2A5392E0C /* LocalModelFootprint.swift in Sources */,
 				64CE1BDF8ABE33571E7C932B /* LocalModelStore.swift in Sources */,
 				CA64486EB3C158501F9D82B1 /* LocalRuntimePolicy.swift in Sources */,
 				38434083D764126E44AD8061 /* MLXProvider.swift in Sources */,
@@ -1130,6 +1137,7 @@
 				1902B9C68B4D85F0034D0CD0 /* DictationTests.swift in Sources */,
 				496688EC33EAA4F777E323E4 /* ImageGenerationTests.swift in Sources */,
 				CF2438697DF00094192B111B /* LocalMemoryTests.swift in Sources */,
+				C1AE8125E0321C1FE30A132A /* LocalModelFootprintTests.swift in Sources */,
 				A2CDEE0A43C9ECB7CE541427 /* LocalModelLocationTests.swift in Sources */,
 				6AB254B91A2E253599524DD2 /* LocalRuntimePolicyTests.swift in Sources */,
 				5195B6E0E2F504654EFF8AB0 /* MiniAppBundleTests.swift in Sources */,
@@ -1187,7 +1195,7 @@
 				CODE_SIGN_ENTITLEMENTS = AIApp/AIApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 15;
 				DEVELOPMENT_TEAM = H8FW6W6K2D;
 				INFOPLIST_FILE = AIApp/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1206,7 +1214,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 15;
 				DEVELOPMENT_TEAM = H8FW6W6K2D;
 				INFOPLIST_FILE = AIAppLiveActivity/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1306,7 +1314,7 @@
 				CODE_SIGN_ENTITLEMENTS = AIApp/AIApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 15;
 				DEVELOPMENT_TEAM = H8FW6W6K2D;
 				INFOPLIST_FILE = AIApp/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1325,7 +1333,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 15;
 				DEVELOPMENT_TEAM = H8FW6W6K2D;
 				INFOPLIST_FILE = AIAppLiveActivity/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

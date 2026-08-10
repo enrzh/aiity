@@ -23,5 +23,17 @@
 	<!-- CloudKit delivers change notifications via silent pushes. -->
 	<key>aps-environment</key>
 	<string>development</string>
+	<!-- On-device MLX. A foreground app is jetsammed well below the device's
+	     physical RAM: the one measurement this project has is 2822 MB in use
+	     with 554 MB left on an 8 GB phone, i.e. a limit near 3.3 GB. The 4-bit
+	     4B default model needs ~3.5 GB once its KV cache is full, so WITHOUT
+	     this entitlement the app's own default local model does not fit on any
+	     iPhone — which is what the build-9 crashes were. With it, the limit
+	     rises to roughly 62 % of physical RAM and 4B fits from 6 GB upward.
+	     Kernel-only, no Apple approval needed, but it IS visible to App Review;
+	     the justification is exactly the above. DeviceMemoryBudget mirrors this
+	     key as a constant and a unit test fails if the two disagree. -->
+	<key>com.apple.developer.kernel.increased-memory-limit</key>
+	<true/>
 </dict>
 </plist>
