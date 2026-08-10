@@ -63,6 +63,8 @@ jobs:
             -skipPackagePluginValidation \
             -skipMacroValidation \
             -parallel-testing-enabled NO \
+            -testLanguage de \
+            -testRegion DE \
             CODE_SIGNING_ALLOWED=NO \
             | tee tests.log
 

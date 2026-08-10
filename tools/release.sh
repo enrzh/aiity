@@ -99,7 +99,8 @@ TEST_LOG="$OUT/tests.log"; mkdir -p "$OUT"
 xcodebuild test -project AIApp.xcodeproj -scheme AIApp \
   -destination "id=$SIM" -only-testing:AIAppTests \
   -skipPackagePluginValidation -skipMacroValidation \
-  -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO \
+  -parallel-testing-enabled NO -testLanguage de -testRegion DE \
+  CODE_SIGNING_ALLOWED=NO \
   >"$TEST_LOG" 2>&1 || { tail -30 "$TEST_LOG"; fail "tests failed (full log: $TEST_LOG)"; }
 
 COUNT=$(grep -oE 'Executed [0-9]+ tests' "$TEST_LOG" | tail -1 | grep -oE '[0-9]+' || echo 0)
