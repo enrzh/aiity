@@ -25,6 +25,148 @@ final class MiniAppSessionStoreSweepTests: XCTestCase {
         MiniAppRunnerView.sessionStoreID(for: id)
     }
 
+    // MARK: - Hermetic state
+    //
+    // Both kinds of state these tests touch are global to the DEVICE, not to
+    // the test: the persistent `WKWebsiteDataStore` directories that
+    // `fetchAllDataStoreIdentifiers` enumerates, and the consent map in the
+    // shared `UserDefaults` — the unit host runs in the app's own container,
+    // and nothing resets either between tests or between runs.
+    //
+    // That is not mere litter, and it is what made this class fail only when
+    // run whole. A jar this class creates survives the process: even a
+    // *successful* `remove(forIdentifier:)` can leave a residual store
+    // directory behind, which the NEXT process enumerates as a data store
+    // again. Those extras land in the sweep's doomed batch, and removing them
+    // alongside a jar this process still has open makes WebKit answer
+    // "Failed to delete files on disk" (WKWebSiteDataStore code 1) for the
+    // freshly written one — an error the shipped sweep deliberately ignores.
+    // The orphan then survives a sweep that reported reaping it, and
+    // `testTheRealWebKitSweepRemovesTheOrphanedJarAndKeepsTheLiveOne` fails on
+    // a device state no test in it ever created.
+    //
+    // So: every test snapshots and clears the consent map and puts it back in
+    // `tearDown`; the two real-WebKit tests account for every identifier on
+    // disk before they sweep — theirs plus whatever they inherited, which they
+    // give a live record so it cannot be doomed — and `tearDown` takes the jars
+    // back off disk, on failure too, which the old inline cleanup at the end of
+    // the test body could not.
+
+    /// The consent map exactly as this test found it, restored in `tearDown`.
+    private var grantsBeforeTest: [String: MiniAppCapability] = [:]
+    /// Set by `usingRealDataStores()`, so `tearDown` only brings WebKit up for
+    /// the two tests that already use it.
+    private var usesRealDataStores = false
+
+    override func setUp() async throws {
+        try await super.setUp()
+        grantsBeforeTest = MiniAppConsent.grants()
+        for appId in grantsBeforeTest.keys { MiniAppConsent.revoke(appId: appId) }
+    }
+
+    override func tearDown() async throws {
+        if usesRealDataStores {
+            // Everything, not just ours: whatever is on disk when this test
+            // ends is what the next one — and the next process — would sweep.
+            _ = await purgeDataStores(await allIdentifiers())
+            usesRealDataStores = false
+        }
+        for appId in MiniAppConsent.grants().keys { MiniAppConsent.revoke(appId: appId) }
+        for (appId, capability) in grantsBeforeTest {
+            MiniAppConsent.allow(appId: appId, capability: capability)
+        }
+        grantsBeforeTest = [:]
+        try await super.tearDown()
+    }
+
+    /// Marks this test as one that puts real jars on disk, so `tearDown` takes
+    /// them off again.
+    private func usingRealDataStores() {
+        usesRealDataStores = true
+        WebKitRuntime.ensureInitialised()
+    }
+
+    /// Everything on disk that is not one of `mine` — the jars an earlier test
+    /// in this process, or an earlier run, left behind.
+    ///
+    /// These are NOT deleted here, and that is the whole point. A store this
+    /// process has already opened stays live for the lifetime of the process:
+    /// WebKit answers `remove(forIdentifier:)` for it with "Failed to delete
+    /// files on disk", and deleting it anyway only makes it reappear in the
+    /// enumeration a moment later. So instead of fighting for an empty disk,
+    /// the caller gives each of these a live `MiniApp` record. Owned means not
+    /// doomed, which leaves the sweep under test exactly ONE identifier to
+    /// reap — the orphan the test made on purpose — no matter what ran before.
+    ///
+    /// That one-identifier batch is the property this class needs. Reaping a
+    /// jar this process still holds open alongside other jars is what made
+    /// WebKit fail the orphan's removal, silently, in a sweep that reported
+    /// having reaped it.
+    private func inheritedStores(besides mine: [UUID]) async -> [UUID] {
+        Set(await allIdentifiers()).subtracting(mine).sorted { $0.uuidString < $1.uuidString }
+    }
+
+    /// Whether WebKit has stopped listing `identifier` — the reading the sweep
+    /// is judged on.
+    ///
+    /// Bounded, and it ends the instant the jar is gone. This is not a retry of
+    /// the behaviour under test and not a sleep for its own sake: the sweep has
+    /// already run and nothing else in this process deletes jars, so the only
+    /// thing that can make the identifier disappear is the removal being
+    /// asserted. `remove(forIdentifier:)` fires its completion handler before
+    /// `fetchAllDataStoreIdentifiers` is guaranteed to agree, and on a loaded
+    /// machine it does not. A jar still listed at the deadline fails the test
+    /// exactly as an immediate check would.
+    private func jarDisappeared(_ identifier: UUID, timeout: TimeInterval = 10) async -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while true {
+            if !(await allIdentifiers()).contains(identifier) { return true }
+            if Date() >= deadline { return false }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+    }
+
+    /// Gives each identifier a live record, so the sweep counts it as owned —
+    /// an app whose record still exists is exactly what "not this test's
+    /// orphan" means to the code under test.
+    private func adopt(_ identifiers: [UUID], into context: ModelContext) throws {
+        for identifier in identifiers {
+            let squatter = MiniApp(name: "Vorlauf", emoji: "📦", html: "<html>x</html>")
+            squatter.id = identifier
+            context.insert(squatter)
+        }
+        try context.save()
+    }
+
+    /// Removes `identifiers` and does not return until WebKit stops listing
+    /// them, answering with whatever refused to go.
+    ///
+    /// One `remove(forIdentifier:)` call is not enough to know a jar is gone:
+    /// it reports success while leaving a residual directory the next process
+    /// enumerates, and it fails outright for a store this process still holds
+    /// open. So removal is driven until `fetchAllDataStoreIdentifiers` — the
+    /// same reading the test asserts on — agrees. This is housekeeping, never a
+    /// retry of the behaviour under test: the sweep's own removal is still
+    /// asserted exactly once, immediately after `run` returns.
+    @discardableResult
+    private func purgeDataStores(_ identifiers: [UUID], timeout: TimeInterval = 5) async -> [UUID] {
+        guard !identifiers.isEmpty else { return [] }
+        WebKitRuntime.ensureInitialised()
+        var remaining = identifiers
+        let deadline = Date().addingTimeInterval(timeout)
+        while true {
+            for identifier in remaining {
+                await withCheckedContinuation { continuation in
+                    WKWebsiteDataStore.remove(forIdentifier: identifier) { _ in continuation.resume() }
+                }
+            }
+            let onDisk = Set(await allIdentifiers())
+            remaining = remaining.filter { onDisk.contains($0) }
+            if remaining.isEmpty || Date() >= deadline { return remaining }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+    }
+
     private func makeContext() throws -> ModelContext {
         let container = try ModelContainer(
             for: MiniApp.self,
@@ -460,7 +602,7 @@ final class MiniAppSessionStoreSweepTests: XCTestCase {
     /// shape of a mini-app deleted on another device (record gone, no alert,
     /// jar left behind).
     func testTheRealWebKitSweepRemovesTheOrphanedJarAndKeepsTheLiveOne() async throws {
-        WebKitRuntime.ensureInitialised()
+        usingRealDataStores()
         let keeper = UUID()
         let orphan = UUID()
         // Real UUID app ids pass through `sessionStoreID` unchanged, so these
@@ -473,12 +615,15 @@ final class MiniAppSessionStoreSweepTests: XCTestCase {
               onDisk.contains(store(for: orphan.uuidString)) else {
             throw XCTSkip("WebKit did not persist the test data stores in this environment")
         }
+        let inherited = await inheritedStores(besides: [store(for: keeper.uuidString),
+                                                        store(for: orphan.uuidString)])
 
         let context = try makeContext()
         let live = MiniApp(name: "Bank", emoji: "🏦", html: "<html>b</html>")
         live.id = keeper                      // the record the orphan does NOT have
         context.insert(live)
         try context.save()
+        try adopt(inherited, into: context)
         let status = SyncStatus(importWaitTimeout: 0.1) { $0(false) }
         status.report(.localOnly)
 
@@ -494,22 +639,15 @@ final class MiniAppSessionStoreSweepTests: XCTestCase {
         onDisk = await allIdentifiers()
         XCTAssertTrue(onDisk.contains(store(for: keeper.uuidString)),
                       "the live app's logins must survive the sweep")
-        XCTAssertFalse(onDisk.contains(store(for: orphan.uuidString)),
-                       "the jar with no record must be gone")
-        if case .swept(let reaped, _) = outcome.stores {
-            XCTAssertGreaterThanOrEqual(reaped, 1)
-        } else {
-            XCTFail("expected a sweep, got \(outcome)")
-        }
+        let orphanIsGone = await jarDisappeared(store(for: orphan.uuidString))
+        XCTAssertTrue(orphanIsGone, "the jar with no record must be gone")
+        XCTAssertEqual(outcome.stores, .swept(reaped: 1, kept: inherited.count + 1),
+                       "exactly the orphan, and nothing else this test put on disk")
         XCTAssertEqual(log.revoked, [orphan.uuidString],
                        "the same pass must take the orphan's grant, not only its jar")
-
-        await withCheckedContinuation { continuation in
-            WebKitRuntime.ensureInitialised()
-            WKWebsiteDataStore.remove(forIdentifier: store(for: keeper.uuidString)) { _ in
-                continuation.resume()
-            }
-        }
+        // The keeper's jar goes in `tearDown`, which also runs when an
+        // assertion above fails — leaving it behind is what poisoned the next
+        // process.
     }
 
     /// The whole leak, end to end, with NOTHING faked but the sync mode: a real
@@ -521,14 +659,12 @@ final class MiniAppSessionStoreSweepTests: XCTestCase {
     /// have silently re-armed the app is gone, AND the jar it was gating went
     /// with it rather than being stranded by an early revocation.
     func testTheShippedPathRevokesTheRealGrantAndReapsTheRealJar() async throws {
-        WebKitRuntime.ensureInitialised()
+        usingRealDataStores()
         let keeper = UUID()
         let orphan = UUID()
-        // Leave the user's real defaults exactly as we found them.
-        defer {
-            MiniAppConsent.revoke(appId: keeper.uuidString)
-            MiniAppConsent.revoke(appId: orphan.uuidString)
-        }
+        // `setUp` emptied the real consent map and `tearDown` puts the user's
+        // own grants back, so these two are the whole map the shipped
+        // `MiniAppConsent.grants()` default hands the pass.
         MiniAppConsent.allow(appId: keeper.uuidString, capability: .browser)
         MiniAppConsent.allow(appId: orphan.uuidString, capability: .browser)
         try await writeCookie(into: store(for: keeper.uuidString), name: "keep")
@@ -539,12 +675,15 @@ final class MiniAppSessionStoreSweepTests: XCTestCase {
               onDisk.contains(store(for: orphan.uuidString)) else {
             throw XCTSkip("WebKit did not persist the test data stores in this environment")
         }
+        let inherited = await inheritedStores(besides: [store(for: keeper.uuidString),
+                                                        store(for: orphan.uuidString)])
 
         let context = try makeContext()
         let live = MiniApp(name: "Bank", emoji: "🏦", html: "<html>b</html>")
         live.id = keeper
         context.insert(live)
         try context.save()
+        try adopt(inherited, into: context)
         let status = SyncStatus(importWaitTimeout: 0.1) { $0(false) }
         status.report(.localOnly)
 
@@ -558,21 +697,21 @@ final class MiniAppSessionStoreSweepTests: XCTestCase {
                        "the live app's own grant must be untouched")
         XCTAssertTrue(outcome.revokedGrants.contains(orphan.uuidString))
         XCTAssertFalse(outcome.revokedGrants.contains(keeper.uuidString))
+        XCTAssertEqual(outcome.stores, .swept(reaped: 1, kept: inherited.count + 1),
+                       "exactly the orphan, and nothing else this test put on disk")
 
         onDisk = await allIdentifiers()
-        XCTAssertFalse(onDisk.contains(store(for: orphan.uuidString)),
-                       "the jar must be reaped in the SAME pass, not stranded by the revocation")
         XCTAssertTrue(onDisk.contains(store(for: keeper.uuidString)))
-
-        await withCheckedContinuation { continuation in
-            WebKitRuntime.ensureInitialised()
-            WKWebsiteDataStore.remove(forIdentifier: store(for: keeper.uuidString)) { _ in
-                continuation.resume()
-            }
-        }
+        let orphanIsGone = await jarDisappeared(store(for: orphan.uuidString))
+        XCTAssertTrue(orphanIsGone,
+                      "the jar must be reaped in the SAME pass, not stranded by the revocation")
+        // The keeper's jar and both grants go in `tearDown`, failure included.
     }
 
     /// A persistent store only reaches disk once something is written to it.
+    /// The read-back is not decoration: it is the only thing that says the
+    /// write reached the networking process before the sweep tries to delete
+    /// the directory underneath it.
     private func writeCookie(into identifier: UUID, name: String) async throws {
         let dataStore = WKWebsiteDataStore(forIdentifier: identifier)
         let cookie = try XCTUnwrap(HTTPCookie(properties: [
@@ -580,6 +719,8 @@ final class MiniAppSessionStoreSweepTests: XCTestCase {
             .expires: Date().addingTimeInterval(3600),
         ]))
         await dataStore.httpCookieStore.setCookie(cookie)
+        let stored = await dataStore.httpCookieStore.allCookies()
+        XCTAssertTrue(stored.contains { $0.name == name }, "the jar must really hold a login")
     }
 
     private func allIdentifiers() async -> [UUID] {
