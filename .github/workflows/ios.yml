@@ -62,6 +62,7 @@ jobs:
             -only-testing:AIAppTests \
             -skipPackagePluginValidation \
             -skipMacroValidation \
+            -parallel-testing-enabled NO \
             CODE_SIGNING_ALLOWED=NO \
             | tee tests.log
 
