@@ -3,6 +3,20 @@ import SwiftData
 import UIKit
 import PhotosUI
 import UniformTypeIdentifiers
+import Foundation
+
+enum ChatToolVisualState: Equatable {
+    case active
+    case completed
+    case failed
+}
+
+struct ChatMediaPreviewRoute: Identifiable, Equatable {
+    let mediaIds: [String]
+    let selectedId: String
+
+    var id: String { selectedId }
+}
 
 struct ChatView: View {
     @EnvironmentObject private var session: ChatSession
@@ -13,6 +27,7 @@ struct ChatView: View {
     @State private var attachments: [ChatAttachment] = []
     @State private var photoItems: [PhotosPickerItem] = []
     @State private var showFileImporter = false
+    @State private var mediaPreviewRoute: ChatMediaPreviewRoute?
     @State private var previewDraft: MiniAppDraft?
     @State private var showQuickProvider = false
     @State private var showSkills = false
@@ -32,6 +47,11 @@ struct ChatView: View {
     /// — the lift padding never displaces the marker, so this stays the
     /// resting edge even while the bar is raised.
     @State private var composerRestingBottom: CGFloat = 0
+    @State private var scrollViewportHeight: CGFloat = 0
+    @State private var bottomSentinelBottom: CGFloat = 0
+    @State private var isNearBottom = true
+    @State private var showJumpToLatest = false
+    @State private var scrollToLatestRequest = 0
     /// Composer focus, owned here so the keyboard can be dropped BEFORE any
     /// sheet presents — a keyboard alive through a sheet transition is what
     /// used to leave the stale inset behind.
@@ -69,6 +89,51 @@ struct ChatView: View {
             result += text[fenceEnd.upperBound...]
         }
         return result.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    static func isNearBottom(
+        contentBottom: CGFloat,
+        viewportBottom: CGFloat,
+        threshold: CGFloat = 72
+    ) -> Bool {
+        contentBottom <= viewportBottom + threshold
+    }
+
+    static func markdownAttributedString(_ text: String) -> AttributedString {
+        (try? AttributedString(
+            markdown: text,
+            options: .init(interpretedSyntax: .full)
+        )) ?? AttributedString(text)
+    }
+
+    static func mediaPlaceholder(for kind: MediaStore.Kind) -> String {
+        switch kind {
+        case .image: return String(localized: "Bild nicht verfügbar")
+        case .videoURL: return String(localized: "Video nicht verfügbar")
+        case .file: return String(localized: "Datei nicht verfügbar")
+        }
+    }
+
+    static func toolVisualState(
+        for call: ToolCallData,
+        messages: [ChatMessage],
+        isBusy: Bool
+    ) -> ChatToolVisualState {
+        guard let result = messages.last(where: {
+            $0.role == .tool && $0.toolCallId == call.id
+        }) else {
+            return isBusy ? .active : .failed
+        }
+        return toolResultState(result.text)
+    }
+
+    static func toolResultState(_ text: String) -> ChatToolVisualState {
+        let value = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let failureMarkers = [
+            "error:", "fehler", "failed", "fehlgeschlagen", "blocked:",
+            "abgelehnt", "nicht unterstützt"
+        ]
+        return failureMarkers.contains(where: value.contains) ? .failed : .completed
     }
 
     /// Short label for the toolbar pill — model name only when possible.
@@ -130,6 +195,9 @@ struct ChatView: View {
                         ForEach(visibleMessages) { message in
                             MessageBubble(
                                 message: message,
+                                allMessages: session.messages,
+                                onPreviewMedia: { mediaPreviewRoute = $0 },
+                                isBusy: session.busy,
                                 showTyping: session.busy
                                     && message.id == visibleMessages.last?.id
                                     && message.role == .assistant
@@ -236,6 +304,17 @@ struct ChatView: View {
                             }
                             .id("error-banner")
                         }
+                        Color.clear
+                            .frame(height: 1)
+                            .id("chat-bottom-sentinel")
+                            .background(
+                                GeometryReader { geometry in
+                                    Color.clear.preference(
+                                        key: ChatBottomSentinelKey.self,
+                                        value: geometry.frame(in: .named("chat-scroll")).maxY
+                                    )
+                                }
+                            )
                     }
                     .padding(.horizontal, Theme.space3)
                     .padding(.top, Theme.space2)
@@ -251,6 +330,15 @@ struct ChatView: View {
                         value: visibleMessages.count
                     )
                 }
+                .coordinateSpace(name: "chat-scroll")
+                .background(
+                    GeometryReader { geometry in
+                        Color.clear.preference(
+                            key: ChatViewportHeightKey.self,
+                            value: geometry.size.height
+                        )
+                    }
+                )
                 // Count as well as text: a NEW message (another agent taking
                 // its turn, a tool result) left the view parked where it was,
                 // because only the last message's text was being watched.
@@ -284,26 +372,42 @@ struct ChatView: View {
                     }
                 }
                 .onChange(of: visibleMessages.count) {
-                    if let lastId = visibleMessages.last?.id {
-                        withAnimation(
-                            Theme.Motion.preferSpring(Theme.Motion.scroll, reduceMotion: reduceMotion)
-                        ) {
-                            proxy.scrollTo(lastId, anchor: .bottom)
-                        }
-                    }
+                    requestScrollToLatestIfNeeded(proxy)
                 }
                 .onChange(of: visibleMessages.last?.text) {
-                    if let lastId = visibleMessages.last?.id {
-                        withAnimation(
-                            Theme.Motion.preferSpring(Theme.Motion.scroll, reduceMotion: reduceMotion)
-                        ) {
-                            proxy.scrollTo(lastId, anchor: .bottom)
-                        }
-                    }
+                    requestScrollToLatestIfNeeded(proxy)
                 }
                 .onChange(of: session.statusLine) {
-                    if session.statusLine != nil {
-                        proxy.scrollTo("status-line", anchor: .bottom)
+                    guard session.statusLine != nil else { return }
+                    requestScrollToLatestIfNeeded(proxy)
+                }
+                .onChange(of: scrollToLatestRequest) {
+                    scrollToLatest(proxy)
+                }
+                .onPreferenceChange(ChatBottomSentinelKey.self) { value in
+                    bottomSentinelBottom = value
+                    updateScrollPosition()
+                }
+                .onPreferenceChange(ChatViewportHeightKey.self) { value in
+                    scrollViewportHeight = value
+                    updateScrollPosition()
+                }
+                .overlay(alignment: .bottomTrailing) {
+                    if showJumpToLatest {
+                        Button {
+                            scrollToLatest(proxy)
+                        } label: {
+                            Image(systemName: "arrow.down")
+                                .font(.body.weight(.bold))
+                                .frame(width: 42, height: 42)
+                                .background(Color(.systemBackground), in: Circle())
+                                .overlay(Circle().stroke(Color.secondary.opacity(0.22)))
+                        }
+                        .accessibilityIdentifier("jump-to-latest")
+                        .accessibilityLabel(String(localized: "Zu den neuesten Nachrichten"))
+                        .padding(.trailing, Theme.space3)
+                        .padding(.bottom, inputBarHeight + composerLift + 20)
+                        .transition(.scale.combined(with: .opacity))
                     }
                 }
 
@@ -441,6 +545,9 @@ struct ChatView: View {
                 model: settingsStore.settings.effectiveModel,
                 onDismiss: { reportTarget = nil }
             )
+        }
+        .sheet(item: $mediaPreviewRoute) { route in
+            ChatMediaGallery(route: route)
         }
         .fileImporter(
             isPresented: $showFileImporter,
@@ -585,7 +692,35 @@ struct ChatView: View {
         input = ""
         attachments = []
         photoItems = []
+        scrollToLatestRequest += 1
         Analytics.track("chat_send")
+    }
+
+    private func updateScrollPosition() {
+        guard scrollViewportHeight > 0, bottomSentinelBottom > 0 else { return }
+        isNearBottom = Self.isNearBottom(
+            contentBottom: bottomSentinelBottom,
+            viewportBottom: scrollViewportHeight
+        )
+        if isNearBottom { showJumpToLatest = false }
+    }
+
+    private func requestScrollToLatestIfNeeded(_ proxy: ScrollViewProxy) {
+        guard isNearBottom else {
+            showJumpToLatest = true
+            return
+        }
+        scrollToLatest(proxy)
+    }
+
+    private func scrollToLatest(_ proxy: ScrollViewProxy) {
+        guard visibleMessages.last != nil || session.statusLine != nil else { return }
+        withAnimation(
+            Theme.Motion.preferSpring(Theme.Motion.scroll, reduceMotion: reduceMotion)
+        ) {
+            proxy.scrollTo("chat-bottom-sentinel", anchor: .bottom)
+        }
+        showJumpToLatest = false
     }
 
     private func retryLastUserMessage() {
@@ -702,6 +837,20 @@ private struct InputBarHeightKey: PreferenceKey {
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
 }
 
+private struct ChatBottomSentinelKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+private struct ChatViewportHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 /// The composer's resting bottom edge in global coordinates — reported by the
 /// zero-height bottom-overlay marker in ChatView (never displaced by the lift).
 private struct ComposerRestingBottomKey: PreferenceKey {
@@ -782,6 +931,9 @@ private final class KeyboardObserver: ObservableObject {
 
 private struct MessageBubble: View {
     let message: ChatMessage
+    let allMessages: [ChatMessage]
+    let onPreviewMedia: (ChatMediaPreviewRoute) -> Void
+    let isBusy: Bool
     var showTyping: Bool = false
     @Environment(\.colorScheme) private var colorScheme
 
@@ -789,10 +941,29 @@ private struct MessageBubble: View {
         message.role == .assistant ? ChatView.strippingHTMLFence(from: message.text) : message.text
     }
 
+    private var imageMediaIds: [String] {
+        message.mediaIds.filter {
+            if case .image = MediaStore.kind(of: $0) { return true }
+            return false
+        }
+            + message.attachments
+                .filter { $0.kind == .image }
+                .map(\.mediaId)
+    }
+
+    private var previewRoute: ChatMediaPreviewRoute? {
+        guard let selectedId = imageMediaIds.first else { return nil }
+        return ChatMediaPreviewRoute(mediaIds: imageMediaIds, selectedId: selectedId)
+    }
+
     var body: some View {
         switch message.role {
         case .tool:
-            ToolChip(name: message.toolName ?? "tool", text: message.text)
+            ToolChip(
+                name: message.toolName ?? "tool",
+                text: message.text,
+                state: ChatView.toolResultState(message.text)
+            )
         case .user, .assistant, .system:
             HStack {
                 if message.role == .user { Spacer(minLength: 48) }
@@ -807,7 +978,15 @@ private struct MessageBubble: View {
                     }
                     if !message.toolCalls.isEmpty {
                         ForEach(message.toolCalls) { call in
-                            ToolChip(name: call.name, text: toolSummary(call), pending: showTyping && bubbleText.isEmpty)
+                            ToolChip(
+                                name: call.name,
+                                text: toolSummary(call),
+                                state: ChatView.toolVisualState(
+                                    for: call,
+                                    messages: allMessages,
+                                    isBusy: isBusy
+                                )
+                            )
                         }
                     }
                     if showTyping {
@@ -830,10 +1009,18 @@ private struct MessageBubble: View {
                             .foregroundStyle(message.role == .user ? Color.white : Color.primary)
                     }
                     ForEach(message.mediaIds, id: \.self) { mediaId in
-                        GeneratedMediaView(mediaId: mediaId)
+                        GeneratedMediaView(
+                            mediaId: mediaId,
+                            previewRoute: previewRoute,
+                            onPreview: onPreviewMedia
+                        )
                     }
                     ForEach(message.attachments) { attachment in
-                        ChatAttachmentBubble(attachment: attachment)
+                        ChatAttachmentBubble(
+                            attachment: attachment,
+                            previewRoute: previewRoute,
+                            onPreview: onPreviewMedia
+                        )
                     }
                 }
                 if message.role == .assistant { Spacer(minLength: 48) }
@@ -853,37 +1040,47 @@ private struct MessageBubble: View {
 
     @ViewBuilder
     private func markdownText(_ text: String) -> some View {
-        // AttributedString markdown — falls back to plain Text on parse failure.
-        if let attr = try? AttributedString(
-            markdown: text,
-            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
-        ) {
-            Text(attr)
-        } else {
-            Text(text)
-        }
+        Text(ChatView.markdownAttributedString(text))
     }
 }
 
 private struct ChatAttachmentBubble: View {
     let attachment: ChatAttachment
+    let previewRoute: ChatMediaPreviewRoute?
+    let onPreview: (ChatMediaPreviewRoute) -> Void
 
     var body: some View {
         if attachment.kind == .image,
            let data = MediaStore.data(for: attachment.mediaId),
            let image = UIImage(data: data) {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFit()
-                .frame(maxWidth: 240, maxHeight: 220)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.bubbleRadius))
+            Button {
+                if let previewRoute { onPreview(previewRoute) }
+            } label: {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: 240, maxHeight: 220)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.bubbleRadius))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(String(localized: "Bildvorschau öffnen"))
         } else {
-            Label(attachment.filename, systemImage: attachment.kind == .image ? "photo" : "doc")
+            Label(
+                attachment.kind == .image
+                    ? ChatView.mediaPlaceholder(for: .image)
+                    : attachment.filename,
+                systemImage: attachment.kind == .image ? "photo.badge.exclamationmark" : "doc"
+            )
                 .font(.footnote)
                 .lineLimit(1)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 9)
                 .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.bubbleRadius))
+                .accessibilityLabel(
+                    attachment.kind == .image
+                        ? ChatView.mediaPlaceholder(for: .image)
+                        : attachment.filename
+                )
         }
     }
 }
@@ -925,7 +1122,7 @@ private struct TypingDots: View {
 private struct ToolChip: View {
     let name: String
     let text: String
-    var pending: Bool = false
+    let state: ChatToolVisualState
 
     private var icon: String {
         switch name {
@@ -951,9 +1148,16 @@ private struct ToolChip: View {
                 .font(.caption2.weight(.semibold))
             Text(label)
                 .font(.caption2.weight(.semibold))
-            if pending {
+            if state == .active {
                 ProgressView().controlSize(.mini)
-            } else if !text.isEmpty {
+            } else if state == .completed {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+            } else {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+            }
+            if state != .active, !text.isEmpty {
                 Text(text)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
@@ -964,23 +1168,41 @@ private struct ToolChip: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background(Color.accentColor.opacity(0.08), in: Capsule())
-        .accessibilityLabel("\(label): \(text)")
+        .accessibilityLabel("\(label): \(toolStateLabel), \(text)")
+    }
+
+    private var toolStateLabel: String {
+        switch state {
+        case .active: return String(localized: "Läuft")
+        case .completed: return String(localized: "Abgeschlossen")
+        case .failed: return String(localized: "Fehlgeschlagen")
+        }
     }
 }
 
 private struct GeneratedMediaView: View {
     let mediaId: String
+    let previewRoute: ChatMediaPreviewRoute?
+    let onPreview: (ChatMediaPreviewRoute) -> Void
 
     var body: some View {
         switch MediaStore.kind(of: mediaId) {
         case .image:
             if let data = MediaStore.imageData(for: mediaId), let image = UIImage(data: data) {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: 280)
-                    .clipShape(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
-                    .accessibilityIdentifier("generated-image")
+                Button {
+                    if let previewRoute { onPreview(previewRoute) }
+                } label: {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: 280)
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("generated-image")
+                .accessibilityLabel(String(localized: "Bildvorschau öffnen"))
+            } else {
+                missingMedia(kind: .image)
             }
         case .videoURL:
             if let url = MediaStore.videoURL(for: mediaId) {
@@ -990,9 +1212,73 @@ private struct GeneratedMediaView: View {
                         .padding(.vertical, 10)
                     .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
                 }
+            } else {
+                missingMedia(kind: .videoURL)
             }
         case .file:
-            EmptyView()
+            missingMedia(kind: .file)
+        }
+    }
+
+    private func missingMedia(kind: MediaStore.Kind) -> some View {
+        Label(
+            ChatView.mediaPlaceholder(for: kind),
+            systemImage: "photo.badge.exclamationmark"
+        )
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.cardRadius))
+        .accessibilityIdentifier("media-missing")
+    }
+}
+
+private struct ChatMediaGallery: View {
+    let route: ChatMediaPreviewRoute
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedId: String
+
+    init(route: ChatMediaPreviewRoute) {
+        self.route = route
+        _selectedId = State(initialValue: route.selectedId)
+    }
+
+    var body: some View {
+        NavigationStack {
+            TabView(selection: $selectedId) {
+                ForEach(route.mediaIds, id: \.self) { mediaId in
+                    Group {
+                        if let data = MediaStore.imageData(for: mediaId),
+                           let image = UIImage(data: data) {
+                            ScrollView([.horizontal, .vertical]) {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .padding(Theme.space3)
+                            }
+                        } else {
+                            VStack(spacing: Theme.space2) {
+                                Image(systemName: "photo.badge.exclamationmark")
+                                    .font(.title2)
+                                Text(String(localized: "Bild nicht verfügbar"))
+                            }
+                            .foregroundStyle(.secondary)
+                        }
+                    }
+                    .tag(mediaId)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: route.mediaIds.count > 1 ? .automatic : .never))
+            .accessibilityIdentifier("media-preview")
+            .navigationTitle(String(localized: "Bild"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(String(localized: "Schließen")) { dismiss() }
+                }
+            }
         }
     }
 }
