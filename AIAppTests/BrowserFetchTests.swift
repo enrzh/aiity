@@ -286,6 +286,24 @@ final class OpenTargetValidationTests: XCTestCase {
         let target = WebAppBuilder.openTarget(in: html)!
         XCTAssertTrue(NetworkTargetValidator.isAllowed(target, allowPrivate: false))
     }
+
+    func testMiniAppTargetRejectsEmptyAndExplicitPorts() {
+        for raw in ["https://example.com:/", "https://example.com:443/", "https://example.com:8443/"] {
+            XCTAssertFalse(
+                NetworkTargetValidator.isAllowed(
+                    URL(string: raw)!, allowPrivate: false, allowedHosts: ["example.com"]
+                ),
+                "mini-app target must refuse explicit port syntax in \(raw)"
+            )
+        }
+    }
+
+    func testHostNormalizationRejectsLeadingAndMalformedDots() {
+        XCTAssertEqual(NetworkTargetValidator.normalizeHost("example.com."), "example.com")
+        for raw in [".example.com", "..example.com", "example..com", "example.com.."] {
+            XCTAssertNil(NetworkTargetValidator.normalizeHost(raw), "must reject \(raw)")
+        }
+    }
 }
 
 /// The transport rules the plan pulls into one place.

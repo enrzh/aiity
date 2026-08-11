@@ -47,19 +47,21 @@ enum NetworkTargetValidator {
         if let components = URLComponents(string: value), let scheme = components.scheme {
             guard ["http", "https"].contains(scheme.lowercased()),
                   components.user == nil, components.password == nil,
-                  components.port == nil,
+                  !hasExplicitPort(in: components),
                   let urlHost = components.host else { return nil }
             host = urlHost
         } else {
             guard !value.contains("/"), !value.contains(":"),
                   let components = URLComponents(string: "https://\(value)"),
                   components.user == nil, components.password == nil,
-                  components.port == nil,
+                  !hasExplicitPort(in: components),
                   let urlHost = components.host else { return nil }
             host = urlHost
         }
 
-        let normalized = host.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        let lowercased = host.lowercased()
+        guard !lowercased.hasPrefix(".") else { return nil }
+        let normalized = lowercased.hasSuffix(".") ? String(lowercased.dropLast()) : lowercased
         let labels = normalized.split(separator: ".", omittingEmptySubsequences: false)
         guard !normalized.isEmpty,
               normalized.count <= 253,
@@ -87,9 +89,29 @@ enum NetworkTargetValidator {
         guard isAllowed(url, allowPrivate: false),
               let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
               components.user == nil, components.password == nil,
-              components.port == nil,
+              !hasExplicitPort(in: components),
               !isIPLiteral(url.host ?? "") else { return false }
         return true
+    }
+
+    /// `URLComponents.port` is nil for an authority ending in `:`, so inspect
+    /// the parsed authority as well to reject both empty and numeric ports.
+    private static func hasExplicitPort(in components: URLComponents) -> Bool {
+        if components.port != nil { return true }
+        guard let serialized = components.string,
+              let authorityStart = serialized.range(of: "://")?.upperBound else { return true }
+
+        let authorityEnd = serialized[authorityStart...].firstIndex { character in
+            character == "/" || character == "?" || character == "#"
+        } ?? serialized.endIndex
+        let authority = serialized[authorityStart..<authorityEnd]
+        guard !authority.isEmpty else { return true }
+
+        if authority.first == "[" {
+            guard let closingBracket = authority.firstIndex(of: "]") else { return true }
+            return authority.index(after: closingBracket) < authority.endIndex
+        }
+        return authority.contains(":")
     }
 
     private static func isIPLiteral(_ rawHost: String) -> Bool {

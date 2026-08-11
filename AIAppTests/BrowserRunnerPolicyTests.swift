@@ -72,8 +72,42 @@ final class BrowserNavigationPolicyTests: XCTestCase {
 
     func testHostScopedCSPUsesExplicitOrigins() {
         let csp = MiniAppCapability.network.csp(allowedHosts: ["api.example.com"])
-        XCTAssertTrue(csp.contains("connect-src http://api.example.com https://api.example.com"))
+        XCTAssertTrue(csp.contains("connect-src https://api.example.com"))
+        XCTAssertFalse(csp.contains("http://api.example.com"))
         XCTAssertFalse(csp.contains("connect-src https:;"))
+    }
+
+    func testBrowserCSPScopesEveryNetworkDirectiveToValidHTTPSGrants() {
+        let csp = MiniAppCapability.browser.csp(allowedHosts: [
+            "api.example.com",
+            "https://cdn.example.com/assets",
+            "example.com:",
+            "example.com:443",
+            ".untrusted.example.com",
+            "8.8.8.8"
+        ])
+
+        for directive in ["style-src", "script-src", "img-src", "font-src",
+                          "media-src", "connect-src", "frame-src", "child-src"] {
+            let policy = csp.split(separator: ";").first { $0.trimmingCharacters(in: .whitespaces).hasPrefix(directive) }
+            XCTAssertFalse(policy?.split(separator: " ").contains("https:") == true,
+                           "\(directive) must not use a broad https source")
+        }
+        XCTAssertTrue(csp.contains("https://api.example.com"))
+        XCTAssertTrue(csp.contains("https://cdn.example.com"))
+        XCTAssertFalse(csp.contains("http://"))
+        XCTAssertFalse(csp.contains("https://example.com:"))
+        XCTAssertFalse(csp.contains("untrusted.example.com"))
+        XCTAssertFalse(csp.contains("8.8.8.8"))
+    }
+
+    func testMiniAppNavigationRejectsEmptyAndExplicitPorts() {
+        for raw in ["https://example.com:/", "https://example.com:443/", "https://example.com:8443/"] {
+            XCTAssertEqual(
+                decide(raw, allowedHosts: ["example.com"]), .cancel,
+                "navigation must refuse explicit port syntax in \(raw)"
+            )
+        }
     }
 
     /// The bug: a 302 into an app's own callback scheme arrives as `.other`, so
