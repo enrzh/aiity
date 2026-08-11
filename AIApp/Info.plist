@@ -71,7 +71,7 @@
 	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
 	<string>Damit der Agent auf deine Bestätigung hin Termine eintragen kann. Bestehende Termine kann er damit nicht sehen.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Zum Scannen eines einmaligen sub2api-Einrichtungscodes. Es werden keine Bilder gespeichert oder übertragen.</string>
+	<string>Zum Scannen eines sub2api-Einrichtungscodes oder zum Aufnehmen von Fotos für einen Chat. Chat-Fotos werden nur an den von dir gewählten KI-Anbieter gesendet.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Verbindung zu deinem lokalen Server (sub2api-Gateway, Ollama, LM Studio) im selben WLAN.</string>
 	<key>NSMicrophoneUsageDescription</key>

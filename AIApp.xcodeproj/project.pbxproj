@@ -158,6 +158,7 @@
 		B291791452695566C809675E /* MiniAppSessionStorePurgeQueueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1994A36862E6690F130ABB /* MiniAppSessionStorePurgeQueueTests.swift */; };
 		B2DFE808FB5A276AB941A13E /* StreamingTextBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7219098FBB7E78A0120C471E /* StreamingTextBuffer.swift */; };
 		B3E712C8951A91F7642ED2DC /* ToolCallParsingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 592FAC2E2E94BA2A4E5FD5AF /* ToolCallParsingTests.swift */; };
+		B3E94C48E2026D944421B4E4 /* CameraImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21240C97219E02C4B96B1C72 /* CameraImagePicker.swift */; };
 		B3FE7459265FC7F06DF95975 /* ChatSuggestionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E69A8AEAC6C19636B9C18FB /* ChatSuggestionsTests.swift */; };
 		B4BE292E26EB150B92CF74DB /* CloudSettingsSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = E01B36A1AC5AEAA61AB520F9 /* CloudSettingsSync.swift */; };
 		B868E23E754B579DDDA34019 /* BrowserFetchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 266D94DDD73F14B006FB2D68 /* BrowserFetchTests.swift */; };
@@ -288,6 +289,7 @@
 		1ECF26AD24A8A3ED8DD9E6AA /* WebSearchTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSearchTool.swift; sourceTree = "<group>"; };
 		1F1ABE9698E6EB896BFDD090 /* ContentReportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentReportTests.swift; sourceTree = "<group>"; };
 		20EFAF7053FFF7D489E383CB /* LocalMemoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalMemoryTests.swift; sourceTree = "<group>"; };
+		21240C97219E02C4B96B1C72 /* CameraImagePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraImagePicker.swift; sourceTree = "<group>"; };
 		2173ADC631DA046FFCE1D350 /* BackgroundWorkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundWorkTests.swift; sourceTree = "<group>"; };
 		22FCF2E8FDC1437D7606750E /* AddSkillSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddSkillSheet.swift; sourceTree = "<group>"; };
 		2344F8D4FBCC0A8E56C51947 /* CloudKitErrorDigest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitErrorDigest.swift; sourceTree = "<group>"; };
@@ -585,6 +587,7 @@
 			children = (
 				22FCF2E8FDC1437D7606750E /* AddSkillSheet.swift */,
 				5E9D07F0FA14E5D801DDC06F /* AppScreen.swift */,
+				21240C97219E02C4B96B1C72 /* CameraImagePicker.swift */,
 				D65132944EDD2E70CE9A4190 /* ChatComposer.swift */,
 				E9931F285A45AD02DD78F9BC /* CrashNoticeBanner.swift */,
 				C5F264418E48EC4A1A1AE64F /* EmptyStateView.swift */,
@@ -1062,6 +1065,7 @@
 				96C25F2C93B560D1D74690C6 /* BrowserFetch.swift in Sources */,
 				0EA7F7E28C06274F26E12D37 /* BrowserNavigationPolicy.swift in Sources */,
 				B900206CBC76F2BA36CAF37A /* BrowserPopupViewController.swift in Sources */,
+				B3E94C48E2026D944421B4E4 /* CameraImagePicker.swift in Sources */,
 				828267AEDA51A7EF5CF3574B /* ChatAttachment.swift in Sources */,
 				515516005B0987CDA84B8011 /* ChatComposer.swift in Sources */,
 				FCE07FF0DC972BAFCD86A126 /* ChatListView.swift in Sources */,
@@ -1255,7 +1259,7 @@
 				CODE_SIGN_ENTITLEMENTS = AIApp/AIApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				DEVELOPMENT_TEAM = H8FW6W6K2D;
 				INFOPLIST_FILE = AIApp/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1274,7 +1278,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				DEVELOPMENT_TEAM = H8FW6W6K2D;
 				INFOPLIST_FILE = AIAppLiveActivity/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1374,7 +1378,7 @@
 				CODE_SIGN_ENTITLEMENTS = AIApp/AIApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				DEVELOPMENT_TEAM = H8FW6W6K2D;
 				INFOPLIST_FILE = AIApp/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1393,7 +1397,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				DEVELOPMENT_TEAM = H8FW6W6K2D;
 				INFOPLIST_FILE = AIAppLiveActivity/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

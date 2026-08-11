@@ -79,6 +79,39 @@ final class MiniAppBundleTests: XCTestCase {
         XCTAssertNotEqual(draft?.filesJSON, "{}")
     }
 
+    func testAttachedImagesResolveByCurrentTurnOrder() throws {
+        let firstId = try XCTUnwrap(MediaStore.save(data: Data([1, 2]), filename: "one.jpg", mimeType: "image/jpeg"))
+        let secondId = try XCTUnwrap(MediaStore.save(data: Data([3, 4]), filename: "two.png", mimeType: "image/png"))
+        let attachments = [
+            ChatAttachment(mediaId: firstId, filename: "one.jpg", mimeType: "image/jpeg", kind: .image),
+            ChatAttachment(mediaId: secondId, filename: "two.png", mimeType: "image/png", kind: .image),
+        ]
+
+        let html = #"<img src="aiity-attachment://image/1"><img src="aiity-attachment://image/2">"#
+        let resolved = MiniAppAttachmentAssets.resolve(in: html, attachments: attachments)
+
+        XCTAssertTrue(resolved.contains("data:image/jpeg;base64,AQI="))
+        XCTAssertTrue(resolved.contains("data:image/png;base64,AwQ="))
+    }
+
+    func testUnknownOrNonImageAttachmentPlaceholdersStayUnresolved() throws {
+        let fileId = try XCTUnwrap(MediaStore.save(data: Data("secret".utf8), filename: "secret.txt", mimeType: "text/plain"))
+        let attachments = [
+            ChatAttachment(mediaId: fileId, filename: "secret.txt", mimeType: "text/plain", kind: .file),
+        ]
+        let html = #"<img src="aiity-attachment://image/1"><img src="aiity-attachment://image/99">"#
+
+        XCTAssertEqual(MiniAppAttachmentAssets.resolve(in: html, attachments: attachments), html)
+    }
+
+    func testAttachmentPromptNamesEveryAvailableMiniAppImageSlot() {
+        let prompt = ChatSession.miniAppAttachmentPrompt(imageCount: 2)
+
+        XCTAssertTrue(prompt.contains("aiity-attachment://image/1"))
+        XCTAssertTrue(prompt.contains("aiity-attachment://image/2"))
+        XCTAssertFalse(prompt.contains("aiity-attachment://image/3"))
+    }
+
     func testZipStoreMethodExtractsSkillMd() throws {
         // Minimal ZIP with one stored (method 0) entry SKILL.md
         let payload = Data("# Hello Skill\nDo the thing.\n".utf8)

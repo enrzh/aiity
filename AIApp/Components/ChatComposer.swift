@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import UIKit
 
 struct ChatComposer: View {
     @ObservedObject private var prefs = AppPreferences.shared
@@ -31,6 +32,7 @@ struct ChatComposer: View {
     let canSend: Bool
     let onSend: () -> Void
     let onStop: () -> Void
+    let onTakePhoto: () -> Void
     let onPickFile: () -> Void
     var onTextChange: (String) -> Void = { _ in }
 
@@ -110,6 +112,8 @@ struct ChatComposer: View {
                 PhotosPicker(selection: $photoItems, maxSelectionCount: 4, matching: .images) {
                     Label("Foto", systemImage: "photo")
                 }
+                Button(action: onTakePhoto) { Label("Kamera", systemImage: "camera") }
+                    .disabled(!UIImagePickerController.isSourceTypeAvailable(.camera))
                 Button(action: onPickFile) { Label("Datei", systemImage: "doc") }
             }
         } label: {
@@ -122,7 +126,7 @@ struct ChatComposer: View {
             .disabled(isBusy)
             .accessibilityIdentifier("chat-mode")
             .accessibilityLabel("Hinzufügen und Modus: \(prefs.chatMode.title)")
-            .accessibilityHint("Modus ändern oder Foto und Datei hinzufügen")
+            .accessibilityHint("Modus ändern oder Foto, Kamera und Datei hinzufügen")
     }
 
     private var attachmentStrip: some View {

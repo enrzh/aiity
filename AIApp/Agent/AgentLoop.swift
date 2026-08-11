@@ -271,6 +271,17 @@ final class ChatSession: ObservableObject {
     After a generation tool runs, briefly tell the user what you made; the media is attached to your message automatically — do not paste base64 or URLs.
     """
 
+    nonisolated static func miniAppAttachmentPrompt(imageCount: Int) -> String {
+        guard imageCount > 0 else { return "" }
+        let slots = (1...imageCount).map { "- aiity-attachment://image/\($0)" }.joined(separator: "\n")
+        return """
+        # Attached images
+        You can inspect the attached images. When building a mini-app, reuse them with these exact image src URLs, in attachment order:
+        \(slots)
+        Do not invent other aiity-attachment URLs.
+        """
+    }
+
     /// Whether this turn may promise image generation: the image slot resolves,
     /// tools are being sent at all, and the chat mode allows them.
     nonisolated static func imageToolAvailable(for settings: ProviderSettings) -> Bool {
@@ -442,13 +453,17 @@ final class ChatSession: ObservableObject {
         repairPassesThisTurn = 0
         lastUserTextForRepair = text
         // Always refresh system prompt so provider/skills changes apply immediately.
-        let system = Self.buildSystemPrompt(
+        var system = Self.buildSystemPrompt(
             settings: settings,
             editing: editingContext,
             userText: text,
             imageToolAvailable: Self.imageToolAvailable(for: settings),
             deviceToolNames: Self.deviceToolNames()
         )
+        let attachmentPrompt = Self.miniAppAttachmentPrompt(
+            imageCount: attachments.filter { $0.kind == .image }.count
+        )
+        if !attachmentPrompt.isEmpty { system += "\n\n" + attachmentPrompt }
         // The mode is part of the system prompt, refreshed every turn so a
         // change applies to the next message rather than the next thread.
         let systemWithMode = system + AppPreferences.storedChatMode.instructions
@@ -1220,7 +1235,9 @@ final class ChatSession: ObservableObject {
             return
         }
         let text = messages[assistantIndex].text
-        if let bundle = MiniAppBundleParser.extract(from: text) {
+        if let extracted = MiniAppBundleParser.extract(from: text) {
+            let turnAttachments = turnStartIndex < messages.count ? messages[turnStartIndex].attachments : []
+            let bundle = MiniAppAttachmentAssets.resolve(bundle: extracted, attachments: turnAttachments)
             let runnable = MiniAppValidator.prepareHTML(bundle.bundledHTML())
             let validation = MiniAppValidator.validate(runnable)
             let draft = MiniAppDraft(

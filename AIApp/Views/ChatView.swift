@@ -57,6 +57,7 @@ struct ChatView: View {
     @State private var input = ""
     @State private var attachments: [ChatAttachment] = []
     @State private var photoItems: [PhotosPickerItem] = []
+    @State private var showCamera = false
     @State private var showFileImporter = false
     @State private var attachmentImportState = ChatAttachmentImportState()
     @State private var mediaPreviewRoute: ChatMediaPreviewRoute?
@@ -669,6 +670,10 @@ struct ChatView: View {
         .sheet(item: $mediaPreviewRoute) { route in
             ChatMediaGallery(route: route)
         }
+        .fullScreenCover(isPresented: $showCamera) {
+            CameraImagePicker(isPresented: $showCamera, onCapture: importCameraPhoto)
+                .ignoresSafeArea()
+        }
         .fileImporter(
             isPresented: $showFileImporter,
             allowedContentTypes: [.item],
@@ -772,6 +777,7 @@ struct ChatView: View {
                 Theme.Haptics.send()
                 session.stop()
             },
+            onTakePhoto: { showCamera = true },
             onPickFile: { showFileImporter = true }
         ) { newValue in
             if PlainPasteboard.looksLikePasteboardArtifact(newValue) {
@@ -991,6 +997,14 @@ struct ChatView: View {
                 ))
             }
         }
+    }
+
+    private func importCameraPhoto(_ data: Data) {
+        guard let attachment = CameraAttachmentStore.saveJPEG(data) else {
+            session.errorMessage = String(localized: "Foto konnte nicht gespeichert werden.")
+            return
+        }
+        attachments.append(attachment)
     }
 
     private func importFiles(_ result: Result<[URL], Error>) {

@@ -256,4 +256,14 @@ final class ChatAttachmentTests: XCTestCase {
         XCTAssertNotEqual(oldToken.generation, currentToken.generation)
         XCTAssertTrue(state.accepts(currentToken))
     }
+
+    func testCameraCapturesAppendAsDistinctImageAttachments() throws {
+        let first = try XCTUnwrap(CameraAttachmentStore.saveJPEG(Data([1, 2, 3])))
+        let second = try XCTUnwrap(CameraAttachmentStore.saveJPEG(Data([4, 5, 6])))
+
+        XCTAssertNotEqual(first.mediaId, second.mediaId)
+        XCTAssertEqual([first.kind, second.kind], [.image, .image])
+        XCTAssertEqual(MediaStore.data(for: first.mediaId), Data([1, 2, 3]))
+        XCTAssertEqual(MediaStore.data(for: second.mediaId), Data([4, 5, 6]))
+    }
 }

@@ -85,6 +85,29 @@ struct MiniAppBundle: Equatable {
     }
 }
 
+enum MiniAppAttachmentAssets {
+    static func resolve(in source: String, attachments: [ChatAttachment]) -> String {
+        let images = attachments.filter { $0.kind == .image && $0.mimeType.hasPrefix("image/") }
+        return images.enumerated().reduce(source) { result, entry in
+            let (offset, attachment) = entry
+            guard let data = MediaStore.data(for: attachment.mediaId) else { return result }
+            let placeholder = "aiity-attachment://image/\(offset + 1)"
+            let dataURL = "data:\(attachment.mimeType);base64,\(data.base64EncodedString())"
+            return result.replacingOccurrences(of: placeholder, with: dataURL)
+        }
+    }
+
+    static func resolve(bundle: MiniAppBundle, attachments: [ChatAttachment]) -> MiniAppBundle {
+        MiniAppBundle(
+            name: bundle.name,
+            emoji: bundle.emoji,
+            html: resolve(in: bundle.html, attachments: attachments),
+            files: bundle.files.mapValues { resolve(in: $0, attachments: attachments) },
+            iconSymbol: bundle.iconSymbol
+        )
+    }
+}
+
 enum MiniAppBundleParser {
     static func extract(from text: String) -> MiniAppBundle? {
         guard let html = extractHTMLFence(from: text) else { return nil }
