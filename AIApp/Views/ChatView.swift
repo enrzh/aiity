@@ -127,6 +127,9 @@ struct ChatView: View {
         guard let end = lines[(start + 1)...].firstIndex(where: {
             $0.trimmingCharacters(in: .whitespaces) == "```"
         }) else {
+            guard start > 0 else {
+                return text.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
             return lines[..<start]
                 .joined(separator: "\n")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
