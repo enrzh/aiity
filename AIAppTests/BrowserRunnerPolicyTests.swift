@@ -13,14 +13,16 @@ final class BrowserNavigationPolicyTests: XCTestCase {
                         isMainFrame: Bool = true,
                         isLinkActivated: Bool = false,
                         shouldPerformDownload: Bool = false,
-                        isShowingErrorPage: Bool = false) -> BrowserNavigationDecision {
+                        isShowingErrorPage: Bool = false,
+                        allowedHosts: Set<String> = ["example.com"]) -> BrowserNavigationDecision {
         BrowserNavigationPolicy.decide(
             url: URL(string: raw),
             capability: capability,
             isMainFrame: isMainFrame,
             isLinkActivated: isLinkActivated,
             shouldPerformDownload: shouldPerformDownload,
-            isShowingErrorPage: isShowingErrorPage
+            isShowingErrorPage: isShowingErrorPage,
+            allowedHosts: allowedHosts
         )
     }
 
@@ -36,6 +38,27 @@ final class BrowserNavigationPolicyTests: XCTestCase {
                     "https://nas.local/"] {
             XCTAssertEqual(decide(raw), .cancel, "must refuse \(raw)")
         }
+    }
+
+    func testUnGrantedPublicTargetsAndRedirectHostsAreRefused() {
+        XCTAssertEqual(decide("https://untrusted.example/", allowedHosts: ["example.com"]), .cancel)
+        XCTAssertEqual(decide("https://api.example.com/", allowedHosts: ["example.com"]), .cancel)
+        XCTAssertEqual(decide("https://api.example.com/", allowedHosts: ["api.example.com"]), .allow)
+    }
+
+    func testSandboxedExternalLinksStillRequirePublicHostGrants() {
+        for capability in [MiniAppCapability.offline, .network] {
+            XCTAssertEqual(decide("https://untrusted.example/", capability: capability,
+                                  isLinkActivated: true), .cancel)
+            XCTAssertEqual(decide("http://127.0.0.1/", capability: capability,
+                                  isLinkActivated: true), .cancel)
+        }
+    }
+
+    func testHostScopedCSPUsesExplicitOrigins() {
+        let csp = MiniAppCapability.network.csp(allowedHosts: ["api.example.com"])
+        XCTAssertTrue(csp.contains("connect-src http://api.example.com https://api.example.com"))
+        XCTAssertFalse(csp.contains("connect-src https:;"))
     }
 
     /// The bug: a 302 into an app's own callback scheme arrives as `.other`, so

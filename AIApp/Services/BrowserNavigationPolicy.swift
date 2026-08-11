@@ -57,7 +57,8 @@ enum BrowserNavigationPolicy {
                        isMainFrame: Bool,
                        isLinkActivated: Bool,
                        shouldPerformDownload: Bool,
-                       isShowingErrorPage: Bool) -> BrowserNavigationDecision {
+                       isShowingErrorPage: Bool,
+                       allowedHosts: Set<String> = []) -> BrowserNavigationDecision {
         let scheme = url?.scheme?.lowercased()
 
         if scheme == internalScheme {
@@ -71,6 +72,12 @@ enum BrowserNavigationPolicy {
 
         let isWeb = scheme == "http" || scheme == "https"
 
+        if isWeb, let url,
+           !NetworkTargetValidator.isAllowed(url, allowPrivate: false,
+                                             allowedHosts: Array(allowedHosts)) {
+            return .cancel
+        }
+
         guard capability.allowsTopLevelNavigation else {
             // Offline/network tiers never navigate the sandbox. A user-tapped
             // web link may still leave for Safari — after the same confirmation
@@ -83,7 +90,6 @@ enum BrowserNavigationPolicy {
         if isWeb {
             // Every hop, including the ones inside a popup, goes through the
             // same SSRF gate the initial target does.
-            guard let url, NetworkTargetValidator.isAllowed(url, allowPrivate: false) else { return .cancel }
             return shouldPerformDownload ? .download : .allow
         }
 
@@ -118,14 +124,20 @@ enum BrowserRetryPolicy {
     static func httpFallbackURL(for failedURL: URL,
                                 errorCode: Int,
                                 schemeWasAssumed: Bool,
-                                alreadyRetried: Bool) -> URL? {
+                                alreadyRetried: Bool,
+                                allowedHosts: [String]? = nil) -> URL? {
         guard schemeWasAssumed, !alreadyRetried else { return nil }
         guard failedURL.scheme?.lowercased() == "https" else { return nil }
         guard retriableCodes.contains(errorCode) else { return nil }
         var components = URLComponents(url: failedURL, resolvingAgainstBaseURL: false)
         components?.scheme = "http"
-        guard let http = components?.url,
-              NetworkTargetValidator.isAllowed(http, allowPrivate: false) else { return nil }
+        guard let http = components?.url else { return nil }
+        let allowed = if let allowedHosts {
+            NetworkTargetValidator.isAllowed(http, allowPrivate: false, allowedHosts: allowedHosts)
+        } else {
+            NetworkTargetValidator.isAllowed(http, allowPrivate: false)
+        }
+        guard allowed else { return nil }
         return http
     }
 }

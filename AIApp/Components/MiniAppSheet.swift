@@ -21,6 +21,7 @@ struct MiniAppSheet: View {
     @StateObject private var browserState = MiniAppBrowserState()
     @State private var effectiveCapability: MiniAppCapability = .offline
     @State private var pendingDeclared: MiniAppCapability = .offline
+    @State private var pendingHost: String?
     @State private var showConsent = false
 
     var body: some View {
@@ -59,7 +60,11 @@ struct MiniAppSheet: View {
             .alert("Internetzugriff erlauben?", isPresented: $showConsent) {
                 Button("Nur offline", role: .cancel) { effectiveCapability = .offline }
                 Button("Erlauben") {
-                    MiniAppConsent.allow(appId: appId, capability: pendingDeclared)
+                    MiniAppConsent.allow(
+                        appId: appId,
+                        capability: pendingDeclared,
+                        hosts: pendingHost.map { [$0] } ?? []
+                    )
                     effectiveCapability = pendingDeclared
                 }
             } message: {
@@ -121,11 +126,16 @@ struct MiniAppSheet: View {
     /// the user consents (once per app).
     private func resolveCapability() {
         let declared = MiniAppCapability.from(html: html)
-        if MiniAppConsent.isAllowed(appId: appId, declared: declared) {
+        let host = WebAppBuilder.openTarget(in: html).flatMap {
+            NetworkTargetValidator.normalizeHost($0.host ?? "")
+        }
+        if MiniAppConsent.isAllowed(appId: appId, declared: declared),
+           host == nil || MiniAppConsent.hosts(appId: appId).contains(host!) {
             effectiveCapability = declared
         } else {
             effectiveCapability = .offline
             pendingDeclared = declared
+            pendingHost = host
             showConsent = true
         }
     }
@@ -152,6 +162,118 @@ struct MiniAppSheet: View {
         openChatTab()
         onEditWithAI?()
         dismiss()
+    }
+}
+
+/// Compact host manager for a saved mini-app. Changes use the same consent
+/// record as first-open approval and the same WebKit cleanup as app deletion.
+struct MiniAppPermissionSheet: View {
+    let appId: String
+    let name: String
+    let capability: MiniAppCapability
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var hostDraft = ""
+    @State private var hosts: [String] = []
+    @State private var showHostError = false
+
+    var body: some View {
+        AppSheet(detents: [.medium]) {
+            NavigationStack {
+                List {
+                    Section {
+                        HStack {
+                            TextField("Host oder URL", text: $hostDraft)
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
+                                .keyboardType(.URL)
+                            Button {
+                                addHost()
+                            } label: {
+                                Image(systemName: "plus.circle.fill")
+                            }
+                            .disabled(hostDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            .accessibilityLabel("Host erlauben")
+                        }
+                    } header: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(name)
+                                .lineLimit(1)
+                            Text("Erlaubte Hosts")
+                        }
+                    }
+
+                    Section {
+                        if hosts.isEmpty {
+                            Text("Keine Hosts erlaubt")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ForEach(hosts, id: \.self) { host in
+                                HStack {
+                                    Text(host)
+                                    Spacer()
+                                    Button(role: .destructive) {
+                                        hosts.removeAll { $0 == host }
+                                        _ = MiniAppConsent.revokeHost(appId: appId, host: host)
+                                    } label: {
+                                        Image(systemName: "trash")
+                                    }
+                                    .accessibilityLabel("Host (host) widerrufen")
+                                }
+                            }
+                        }
+                    }
+
+                    if !hosts.isEmpty {
+                        Section {
+                            Button("Alle Hosts widerrufen", role: .destructive) {
+                                MiniAppConsent.revokeAllHosts(appId: appId)
+                                hosts = []
+                            }
+                        }
+                    }
+
+                    Section {
+                        Button("Berechtigung vollständig widerrufen", role: .destructive) {
+                            MiniAppConsent.revoke(appId: appId)
+                            MiniAppRunnerView.removeSessionStore(for: appId)
+                            dismiss()
+                        }
+                    } footer: {
+                        Text("Die App muss beim nächsten Öffnen erneut fragen.")
+                    }
+                }
+                .navigationTitle("Netzwerkzugriff")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Fertig") { dismiss() }
+                    }
+                }
+                .onAppear { hosts = MiniAppConsent.hosts(appId: appId) }
+                .alert("Host nicht erlaubt", isPresented: $showHostError) {
+                    Button("OK", role: .cancel) { }
+                } message: {
+                    Text("Nur öffentliche http(s)-Hosts ohne Pfad oder Port können erlaubt werden.")
+                }
+            }
+        }
+    }
+
+    private func addHost() {
+        guard capability != .offline,
+              let normalized = NetworkTargetValidator.normalizeHost(hostDraft) else {
+            showHostError = true
+            return
+        }
+        // Adding a host is an explicit approval from this saved-app surface.
+        // It also handles apps whose first open was denied, so the add control
+        // does not depend on a prior run just to create the consent record.
+        if !MiniAppConsent.grantHost(appId: appId, host: normalized) {
+            MiniAppConsent.allow(appId: appId, capability: capability, hosts: [normalized])
+        }
+        hosts = MiniAppConsent.hosts(appId: appId)
+        hostDraft = ""
     }
 }
 

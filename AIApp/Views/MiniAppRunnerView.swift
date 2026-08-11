@@ -44,7 +44,10 @@ struct MiniAppRunnerView: UIViewRepresentable {
         // The target comes out of model-authored HTML, so it is validated like
         // any other model-chosen URL: http(s) only, never a private/LAN address.
         if capability == .browser, let target = WebAppBuilder.openTarget(in: html) {
-            guard NetworkTargetValidator.isAllowed(target, allowPrivate: false) else {
+            guard NetworkTargetValidator.isAllowed(
+                target, allowPrivate: false,
+                allowedHosts: MiniAppConsent.hosts(appId: appId)
+            ) else {
                 // Refused. Do NOT fall through to the generated shell: it
                 // contains `location.replace(<target>)` for this exact URL, so
                 // rendering it would perform the navigation just refused.
@@ -58,7 +61,10 @@ struct MiniAppRunnerView: UIViewRepresentable {
             webView.load(URLRequest(url: target))
             return
         }
-        webView.loadHTMLString(Sandbox.harden(html, capability: capability), baseURL: nil)
+        webView.loadHTMLString(
+            Sandbox.harden(html, capability: capability, allowedHosts: MiniAppConsent.hosts(appId: appId)),
+            baseURL: nil
+        )
     }
 
     /// Shown instead of the generated shell when its target is not permitted.
@@ -124,7 +130,10 @@ struct MiniAppRunnerView: UIViewRepresentable {
         load(into: webView)
         if capability == .browser,
            let target = WebAppBuilder.openTarget(in: html),
-           NetworkTargetValidator.isAllowed(target, allowPrivate: false) {
+           NetworkTargetValidator.isAllowed(
+                target, allowPrivate: false,
+                allowedHosts: MiniAppConsent.hosts(appId: appId)
+           ) {
             context.coordinator.initialTarget = target
             context.coordinator.disableBridgeForRemoteDocument()
         }
@@ -142,7 +151,10 @@ struct MiniAppRunnerView: UIViewRepresentable {
             load(into: webView)
             if capability == .browser,
                let target = WebAppBuilder.openTarget(in: html),
-               NetworkTargetValidator.isAllowed(target, allowPrivate: false) {
+               NetworkTargetValidator.isAllowed(
+                    target, allowPrivate: false,
+                    allowedHosts: MiniAppConsent.hosts(appId: appId)
+               ) {
                 context.coordinator.initialTarget = target
                 context.coordinator.disableBridgeForRemoteDocument()
             }
@@ -306,7 +318,8 @@ struct MiniAppRunnerView: UIViewRepresentable {
                 isMainFrame: isMainFrame,
                 isLinkActivated: navigationAction.navigationType == .linkActivated,
                 shouldPerformDownload: navigationAction.shouldPerformDownload,
-                isShowingErrorPage: isParent && isShowingErrorPage
+                isShowingErrorPage: isParent && isShowingErrorPage,
+                allowedHosts: Set(MiniAppConsent.hosts(appId: appId))
             )
 
             switch decision {
@@ -382,7 +395,8 @@ struct MiniAppRunnerView: UIViewRepresentable {
                     for: target,
                     errorCode: nsError.domain == NSURLErrorDomain ? nsError.code : 0,
                     schemeWasAssumed: schemeWasAssumed,
-                    alreadyRetried: didRetryOverHTTP
+                    alreadyRetried: didRetryOverHTTP,
+                    allowedHosts: MiniAppConsent.hosts(appId: appId)
                ) {
                 didRetryOverHTTP = true
                 bridgeActive = false
@@ -428,12 +442,19 @@ struct MiniAppRunnerView: UIViewRepresentable {
             switch action {
             case .retry:
                 guard let webView, let url = failedURL ?? initialTarget,
-                      NetworkTargetValidator.isAllowed(url, allowPrivate: false) else { return }
+                      NetworkTargetValidator.isAllowed(
+                        url, allowPrivate: false,
+                        allowedHosts: MiniAppConsent.hosts(appId: appId)
+                      ) else { return }
                 isShowingErrorPage = false
                 bridgeActive = false
                 webView.load(URLRequest(url: url))
             case .safari:
-                guard let url = failedURL ?? initialTarget else { return }
+                guard let url = failedURL ?? initialTarget,
+                      NetworkTargetValidator.isAllowed(
+                        url, allowPrivate: false,
+                        allowedHosts: MiniAppConsent.hosts(appId: appId)
+                      ) else { return }
                 confirmOpenExternal(url)
             }
         }
@@ -482,17 +503,20 @@ struct MiniAppRunnerView: UIViewRepresentable {
             let scheme = url?.scheme?.lowercased()
             let isWeb = scheme == "http" || scheme == "https"
 
+            if isWeb, let url,
+               !NetworkTargetValidator.isAllowed(
+                    url, allowPrivate: false,
+                    allowedHosts: MiniAppConsent.hosts(appId: appId)
+               ) {
+                return nil
+            }
+
             guard capability.allowsTopLevelNavigation else {
                 // Same rule for `target="_blank"` on the sandboxed tiers:
                 // confirm before leaving.
                 if isWeb, let url, navigationAction.navigationType == .linkActivated {
                     confirmOpenExternal(url)
                 }
-                return nil
-            }
-            if isWeb, let url, !NetworkTargetValidator.isAllowed(url, allowPrivate: false) {
-                // A window.open to a LAN address is refused up front, as well as
-                // by the child's own policy handler.
                 return nil
             }
             if let url, !isWeb, scheme != nil, scheme != "about" {
@@ -756,7 +780,11 @@ struct MiniAppRunnerView: UIViewRepresentable {
                 guard let urlString = payload["url"] as? String,
                       let url = URL(string: urlString),
                       let scheme = url.scheme?.lowercased(),
-                      scheme == "http" || scheme == "https" else {
+                      scheme == "http" || scheme == "https",
+                      NetworkTargetValidator.isAllowed(
+                        url, allowPrivate: false,
+                        allowedHosts: MiniAppConsent.hosts(appId: appId)
+                      ) else {
                     return ["ok": false, "error": "invalid_url"]
                 }
                 let confirmed = await confirmOpenExternal(url)

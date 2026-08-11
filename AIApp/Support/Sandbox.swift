@@ -3,8 +3,9 @@ import Foundation
 /// Hardens generated mini-app HTML before it enters the runner web view.
 /// CSP depends on declared capability (offline / network / browser).
 enum Sandbox {
-    static func harden(_ html: String, capability: MiniAppCapability = .offline) -> String {
-        let csp = capability.csp
+    static func harden(_ html: String, capability: MiniAppCapability = .offline,
+                       allowedHosts: [String] = []) -> String {
+        let csp = capability.csp(allowedHosts: Set(allowedHosts))
         let injection = """
         <meta http-equiv="Content-Security-Policy" content="\(csp)">
         <meta name="aiity-capability" content="\(capability.rawValue)">

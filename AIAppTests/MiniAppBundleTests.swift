@@ -43,6 +43,16 @@ final class MiniAppBundleTests: XCTestCase {
     func testSanitizeBlocksTraversal() {
         XCTAssertEqual(MiniAppBundleParser.sanitizePath("../etc/passwd"), "")
         XCTAssertEqual(MiniAppBundleParser.sanitizePath("app.js"), "app.js")
+        XCTAssertEqual(MiniAppBundleParser.sanitizePath("assets/icons/app.js"), "assets/icons/app.js")
+        XCTAssertEqual(MiniAppBundleParser.sanitizePath("/assets/app.js"), "")
+        XCTAssertEqual(MiniAppBundleParser.sanitizePath("assets\\app.js"), "")
+    }
+
+    func testIconSymbolDefaultsAndPersistsThroughBundle() {
+        let app = MiniApp(name: "Test", emoji: "✨", html: "<html></html>")
+        XCTAssertNil(app.iconSymbol)
+        app.iconSymbol = "checklist"
+        XCTAssertEqual(app.bundle.iconSymbol, "checklist")
     }
 
     func testDraftExtractUsesBundle() {

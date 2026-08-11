@@ -1,68 +1,131 @@
 import Foundation
 
-/// Remembers which mini-apps the user allowed to reach the network. A generated
-/// app can *declare* `network`/`browser` capability, but that only grants a
-/// relaxed CSP after the user consents on first open — the AI can't silently
-/// give an app internet access.
+/// Remembers a mini-app's capability tier and the public hosts it may reach.
+/// The v2 payload is a Codable dictionary so future fields can be added without
+/// changing the UserDefaults key again; v1 capability-only maps still migrate.
 enum MiniAppConsent {
-    private static let key = "miniapp-consent-v1"  // [appId: capabilityRawValue]
+    private static let legacyKey = "miniapp-consent-v1"
+    private static let recordsKey = "miniapp-consent-v2"
+
+    private struct Record: Codable {
+        var version: Int = 2
+        var capability: MiniAppCapability
+        var hosts: [String] = []
+
+        init(capability: MiniAppCapability, hosts: [String] = []) {
+            self.capability = capability
+            self.hosts = hosts
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            version = try container.decodeIfPresent(Int.self, forKey: .version) ?? 1
+            capability = try container.decode(MiniAppCapability.self, forKey: .capability)
+            hosts = try container.decodeIfPresent([String].self, forKey: .hosts) ?? []
+        }
+    }
 
     static func granted(appId: String) -> MiniAppCapability? {
-        guard let map = UserDefaults.standard.dictionary(forKey: key) as? [String: String],
-              let raw = map[appId] else { return nil }
-        return MiniAppCapability(rawValue: raw)
+        record(appId: appId)?.capability
     }
 
-    /// Every grant the user has made, keyed by app id.
-    ///
-    /// Read by `MiniAppSessionStoreSweep`, which needs the COMPLETE list of ids
-    /// that could own a persistent cookie jar: the runner only picks a
-    /// persistent `WKWebsiteDataStore` when the grant here is `.browser`, so an
-    /// id absent from this map can have no store — and chat previews, which
-    /// have no library record at all, appear nowhere else.
+    static func hosts(appId: String) -> [String] {
+        record(appId: appId)?.hosts.compactMap(NetworkTargetValidator.normalizeHost).sorted() ?? []
+    }
+
+    /// Every grant the user has made, keyed by app id. Sweep callers only need
+    /// the capability values, so the host detail stays behind this API.
     static func grants() -> [String: MiniAppCapability] {
-        let map = UserDefaults.standard.dictionary(forKey: key) as? [String: String] ?? [:]
-        return map.compactMapValues(MiniAppCapability.init(rawValue:))
+        records().compactMapValues(\.capability)
     }
 
-    /// Forget a deleted app's grant, so a future app that happens to reuse the
-    /// id does not silently inherit permission the user never gave it.
-    ///
-    /// Two callers, and both are needed. `LibraryView`'s delete alert covers
-    /// the delete the user performs HERE; `MiniAppSessionStoreSweep.run` covers
-    /// every disappearance that alert never sees — above all a mini-app deleted
-    /// on ANOTHER device, whose record vanishes through CloudKit mirroring with
-    /// no alert to run. Without the second caller the grant outlives the record
-    /// and silently re-arms if a record with the same UUID ever returns.
     static func revoke(appId: String) {
-        var map = UserDefaults.standard.dictionary(forKey: key) as? [String: String] ?? [:]
-        map.removeValue(forKey: appId)
-        UserDefaults.standard.set(map, forKey: key)
+        var all = records()
+        all.removeValue(forKey: appId)
+        persist(all)
     }
 
-    /// Stable per-content id for an unsaved chat preview. Previews used to share
-    /// the constant id "preview", so consenting one network app granted network
-    /// to every later preview draft. Deterministic djb2 (NOT String.hashValue,
-    /// which is randomized per process and unstable across launches).
     static func previewId(html: String) -> String {
         var h: UInt64 = 5381
         for b in html.utf8 { h = (h &* 33) &+ UInt64(b) }
         return "preview-" + String(h, radix: 16)
     }
 
-    static func allow(appId: String, capability: MiniAppCapability) {
-        var map = (UserDefaults.standard.dictionary(forKey: key) as? [String: String]) ?? [:]
-        map[appId] = capability.rawValue
-        UserDefaults.standard.set(map, forKey: key)
+    static func allow(appId: String, capability: MiniAppCapability, hosts: [String] = []) {
+        var all = records()
+        let existingHosts = all[appId]?.hosts ?? []
+        all[appId] = Record(
+            capability: capability,
+            hosts: Set((hosts.isEmpty ? existingHosts : hosts)
+                .compactMap(NetworkTargetValidator.normalizeHost)).sorted()
+        )
+        persist(all)
     }
 
-    /// Offline apps always run; a non-offline app is allowed only if the user
-    /// previously granted it a capability at least as privileged as the one
-    /// declared. A `network` grant does NOT satisfy a `browser` app (an edit that
-    /// escalates the tier must re-prompt), closing silent capability escalation.
+    @discardableResult
+    static func grantHost(appId: String, host: String) -> Bool {
+        guard let normalized = NetworkTargetValidator.normalizeHost(host),
+              var record = record(appId: appId) else { return false }
+        guard !record.hosts.contains(normalized) else { return true }
+        record.hosts.append(normalized)
+        var all = records()
+        all[appId] = record
+        persist(all)
+        return true
+    }
+
+    @discardableResult
+    static func revokeHost(appId: String, host: String) -> Bool {
+        guard let normalized = NetworkTargetValidator.normalizeHost(host),
+              var record = record(appId: appId),
+              let index = record.hosts.firstIndex(of: normalized) else { return false }
+        record.hosts.remove(at: index)
+        var all = records()
+        all[appId] = record
+        persist(all)
+        return true
+    }
+
+    static func revokeAllHosts(appId: String) {
+        guard var record = record(appId: appId) else { return }
+        record.hosts = []
+        var all = records()
+        all[appId] = record
+        persist(all)
+    }
+
     static func isAllowed(appId: String, declared: MiniAppCapability) -> Bool {
         if declared == .offline { return true }
         guard let granted = granted(appId: appId) else { return false }
         return granted.rank >= declared.rank
+    }
+
+    private static func record(appId: String) -> Record? {
+        records()[appId]
+    }
+
+    private static func records() -> [String: Record] {
+        if let data = UserDefaults.standard.data(forKey: recordsKey),
+           let decoded = try? JSONDecoder().decode([String: Record].self, from: data) {
+            return decoded.mapValues { record in
+                var record = record
+                record.hosts = Set(record.hosts.compactMap(NetworkTargetValidator.normalizeHost)).sorted()
+                return record
+            }
+        }
+
+        guard let legacy = UserDefaults.standard.dictionary(forKey: legacyKey) as? [String: String] else {
+            return [:]
+        }
+        let migrated = legacy.compactMapValues { raw in
+            MiniAppCapability(rawValue: raw).map { Record(capability: $0) }
+        }
+        if !migrated.isEmpty { persist(migrated) }
+        return migrated
+    }
+
+    private static func persist(_ records: [String: Record]) {
+        guard let data = try? JSONEncoder().encode(records) else { return }
+        UserDefaults.standard.set(data, forKey: recordsKey)
     }
 }

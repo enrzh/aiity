@@ -35,6 +35,48 @@ enum NetworkTargetValidator {
         return !isBlocked(host: url.host ?? "")
     }
 
+    /// Returns a canonical public host suitable for a persisted app grant.
+    /// URLs may include a path when entered in the permission sheet; bare host
+    /// input must remain a single host, never a path or backslash payload.
+    static func normalizeHost(_ raw: String) -> String? {
+        let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty, !value.contains("\\"),
+              value.rangeOfCharacter(from: .whitespacesAndNewlines) == nil else { return nil }
+
+        let host: String
+        if let url = URL(string: value), let scheme = url.scheme {
+            guard ["http", "https"].contains(scheme.lowercased()),
+                  url.user == nil, url.password == nil,
+                  let urlHost = url.host, url.port == nil else { return nil }
+            host = urlHost
+        } else {
+            guard !value.contains("/"), !value.contains(":"),
+                  let url = URL(string: "https://\(value)"),
+                  let urlHost = url.host, url.port == nil else { return nil }
+            host = urlHost
+        }
+
+        let normalized = host.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        let labels = normalized.split(separator: ".", omittingEmptySubsequences: false)
+        guard !normalized.isEmpty,
+              normalized.count <= 253,
+              labels.allSatisfy { label in
+                  let value = String(label)
+                  return !value.isEmpty && value.count <= 63
+                      && !value.hasPrefix("-") && !value.hasSuffix("-")
+                      && value.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-") }
+              },
+              !isBlocked(host: normalized) else { return nil }
+        return normalized
+    }
+
+    /// Public-target validation plus this app's persisted host grant.
+    static func isAllowed(_ url: URL, allowPrivate: Bool, allowedHosts: [String]) -> Bool {
+        guard isAllowed(url, allowPrivate: false),
+              let host = normalizeHost(url.host ?? "") else { return false }
+        return allowedHosts.contains(host)
+    }
+
     /// Reason a target was refused, for surfacing to the model rather than
     /// failing opaquely — a tool result that explains itself stops the model
     /// retrying the same blocked URL.

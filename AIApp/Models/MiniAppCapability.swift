@@ -19,16 +19,20 @@ enum MiniAppCapability: String, Codable, Equatable, CaseIterable {
     }
 
     /// CSP string injected into the mini-app document.
-    var csp: String {
+    var csp: String { csp(allowedHosts: []) }
+
+    /// A host grant is deliberately host-scoped and allows both web schemes;
+    /// public-target validation remains a separate native gate on every hop.
+    func csp(allowedHosts: Set<String>) -> String {
+        let origins = allowedHosts.sorted().flatMap { ["http://\($0)", "https://\($0)"] }
+        let connect = origins.isEmpty ? "'none'" : origins.joined(separator: " ")
         switch self {
         case .offline:
             return "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; font-src data:; media-src data:;"
         case .network:
-            // Allow XHR/fetch + images over https only (no cleartext MITM); no frames.
-            return "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data: https:; font-src data: https:; media-src data: https:; connect-src https:; worker-src 'none'; object-src 'none';"
+            return "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data: https:; font-src data: https:; media-src data: https:; connect-src \(connect); worker-src 'none'; object-src 'none';"
         case .browser:
-            // Research-style apps: frames + navigation + fetch, https only.
-            return "default-src 'none'; style-src 'unsafe-inline' https:; script-src 'unsafe-inline' https:; img-src data: https:; font-src data: https:; media-src data: https:; connect-src https:; frame-src https:; child-src https:; worker-src 'none'; object-src 'none';"
+            return "default-src 'none'; style-src 'unsafe-inline' https:; script-src 'unsafe-inline' https:; img-src data: https:; font-src data: https:; media-src data: https:; connect-src \(connect); frame-src https:; child-src https:; worker-src 'none'; object-src 'none';"
         }
     }
 

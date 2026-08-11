@@ -10,6 +10,7 @@ struct LibraryView: View {
     @ObservedObject private var sync = SyncStatus.shared
     @State private var openApp: MiniApp?
     @State private var iconEditApp: MiniApp?
+    @State private var permissionApp: MiniApp?
     @State private var showAddWebApp = false
     @State private var deleteCandidate: MiniApp?
 
@@ -67,6 +68,13 @@ struct LibraryView: View {
             }
             .sheet(item: $iconEditApp) { app in
                 IconPickerSheet(app: app)
+            }
+            .sheet(item: $permissionApp) { app in
+                MiniAppPermissionSheet(
+                    appId: app.id.uuidString,
+                    name: app.name,
+                    capability: app.capability
+                )
             }
             .sheet(isPresented: $showAddWebApp) {
                 AddWebAppSheet { url, name in
@@ -162,6 +170,11 @@ struct LibraryView: View {
                 iconEditApp = app
             } label: {
                 Label("Icon ändern", systemImage: "paintbrush")
+            }
+            Button {
+                permissionApp = app
+            } label: {
+                Label("Netzwerkzugriff", systemImage: "network")
             }
             Button(role: .destructive) {
                 deleteCandidate = app

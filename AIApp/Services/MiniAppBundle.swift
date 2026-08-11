@@ -78,7 +78,10 @@ struct MiniAppBundle: Equatable {
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: String] else {
             return [:]
         }
-        return obj
+        return obj.reduce(into: [String: String]()) { result, entry in
+            let path = MiniAppBundleParser.sanitizePath(entry.key)
+            if !path.isEmpty { result[path] = entry.value }
+        }
     }
 }
 
@@ -186,7 +189,7 @@ enum MiniAppBundleParser {
         var iconSymbol: String?
         if let match = html.range(of: #"<!--\s*icon:\s*([a-z0-9._-]+)\s*-->"#, options: [.regularExpression, .caseInsensitive]) {
             let comment = String(html[match])
-            if let value = comment.components(separatedBy: "icon:").last?
+            if let value = comment.lowercased().components(separatedBy: "icon:").last?
                 .replacingOccurrences(of: "-->", with: "")
                 .trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty {
                 iconSymbol = String(value.prefix(64))
