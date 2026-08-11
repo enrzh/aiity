@@ -117,6 +117,15 @@ struct OnboardingModal: View {
                             title: String(localized: "Lokal"),
                             presetIds: ["mlx", "ollama"]
                         ) { connectRoute = .preset($0) }
+                    case .modalityPicker(let modality):
+                        ProviderPickerList(
+                            title: modality.sectionTitle,
+                            presetIds: ProviderPreset.catalog
+                                .filter { MediaCapability.supports(modality, presetId: $0.id) }
+                                .map(\.id)
+                        ) { connectRoute = .modalityPreset($0, modality) }
+                    case .modalityPreset(let presetId, let modality):
+                        ProviderConnectionView(presetId: presetId, modality: modality, promptsOnExit: false)
                     }
                 }
                 .environmentObject(settingsStore)
@@ -224,16 +233,20 @@ struct OnboardingModal: View {
     }
 }
 
-private enum OnboardingConnectRoute: Identifiable {
+enum OnboardingConnectRoute: Identifiable {
     case preset(String)
     case apiKeyPicker
     case localPicker
+    case modalityPicker(ModelModality)
+    case modalityPreset(String, ModelModality)
 
     var id: String {
         switch self {
         case .preset(let id): return "preset-\(id)"
         case .apiKeyPicker: return "picker-apikey"
         case .localPicker: return "picker-local"
+        case .modalityPicker(let modality): return "picker-\(modality.rawValue)"
+        case .modalityPreset(let presetId, let modality): return "preset-\(presetId)-\(modality.rawValue)"
         }
     }
 }
@@ -242,7 +255,7 @@ private enum OnboardingConnectRoute: Identifiable {
 /// the "API-Key" and "Lokal" onboarding buttons, each with a different,
 /// small `presetIds` set, so tapping either always ends in an actual choice
 /// instead of one hard-coded preset with no way out.
-private struct ProviderPickerList: View {
+struct ProviderPickerList: View {
     let title: String
     let presetIds: [String]
     let onPick: (String) -> Void

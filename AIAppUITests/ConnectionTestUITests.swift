@@ -77,9 +77,8 @@ final class ConnectionTestUITests: XCTestCase {
 
     // `tapDialogButton(_:)` also moved to UITestSupport.swift.
 
-    /// Probe succeeds against the stub — and commits NOTHING: the exit-prompt
-    /// back button still intercepts, and leaving still raises the question.
-    func testProbeSucceedsAndCommitsNoModel() {
+    /// A successful probe commits the candidate, including the suggested model.
+    func testProbeSucceedsAndCommitsCandidate() {
         app.launch()
         openOllamaProvider()
 
@@ -91,21 +90,15 @@ final class ConnectionTestUITests: XCTestCase {
             .matching(NSPredicate(format: "label CONTAINS 'Verbunden'")).firstMatch
         XCTAssertTrue(success.waitForExistence(timeout: 20), "probe against the stub should succeed")
 
-        // A green probe must NOT have committed the auto-picked model.
+        // A green probe commits the auto-picked model and releases the exit
+        // prompt because the candidate has now been validated.
         let back = app.buttons["provider-back"]
-        XCTAssertTrue(back.exists, "no model committed → exit prompt must still intercept")
-        back.tap()
-        XCTAssertTrue(app.staticTexts["Kein Modell gewählt"].waitForExistence(timeout: 5),
-                      "leaving without a model should ask first")
-        tapDialogButton(app.buttons["Ohne Modell verlassen"])
-        XCTAssertTrue(app.navigationBars["Anbieter"].waitForExistence(timeout: 10),
-                      "leaving without a model stays allowed")
+        XCTAssertFalse(back.exists, "successful probe should commit its candidate")
     }
 
-    /// "Modelle laden" also only SUGGESTS; the explicit choice (here: the
-    /// one-tap suggestion in the exit dialog) is what commits — after which
-    /// the system back button is restored.
-    func testExplicitPickCommitsAndReleasesTheExitPrompt() {
+    /// Model discovery only drafts a suggestion. Without a successful probe,
+    /// leaving the form must not commit it.
+    func testModelDiscoveryLeavesCandidateDraftUntilProbe() {
         app.launch()
         openOllamaProvider()
 
@@ -120,24 +113,117 @@ final class ConnectionTestUITests: XCTestCase {
         let back = app.buttons["provider-back"]
         XCTAssertTrue(back.exists, "a fetched suggestion alone must not commit a model")
 
-        // Exit dialog offers the highlighted suggestion; taking it commits.
+        // Exit dialog still offers the highlighted suggestion, but leaving is
+        // allowed without a probe and therefore does not commit it.
         back.tap()
-        let useSuggestion = app.buttons
-            .matching(NSPredicate(format: "label CONTAINS 'stub-' AND label ENDSWITH 'verwenden'"))
-            .firstMatch
-        XCTAssertTrue(useSuggestion.waitForExistence(timeout: 5),
-                      "dialog should offer the suggested model")
-        tapDialogButton(useSuggestion)
+        XCTAssertTrue(app.staticTexts["Kein Modell gewählt"].waitForExistence(timeout: 5))
+        tapDialogButton(app.buttons["Ohne Modell verlassen"])
         XCTAssertTrue(app.navigationBars["Anbieter"].waitForExistence(timeout: 10))
+    }
 
-        // Re-enter: with a committed model the system back button is back.
-        let row = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Ollama'")).firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 10))
-        XCTAssertTrue(tap(row, until: providerForm), "Ollama row should re-open the provider form")
-        // Same below-the-fold reality on re-entry: scroll the Diagnose
-        // section into existence before asserting on it.
+    private func openConnections() {
+        let mehr = app.tabBars.buttons["Mehr"].firstMatch
+        XCTAssertTrue(mehr.waitForExistence(timeout: 15))
+        let connections = app.buttons["open-connections"]
+        XCTAssertTrue(tap(mehr, until: connections))
+        XCTAssertTrue(tap(connections, until: app.navigationBars["Anbieter"]))
+    }
+
+    func testEmptyImageSlotOpensSharedProviderPicker() {
+        app.launchEnvironment["PROVIDER_SETTINGS_JSON"] = """
+        {"presetId":"ollama","baseURL":"http://127.0.0.1:8555/v1","model":"stub","imagePresetId":""}
+        """
+        app.launch()
+        openConnections()
+
+        let connect = app.buttons["connect-image"]
+        XCTAssertTrue(connect.waitForExistence(timeout: 10))
+        XCTAssertTrue(tap(connect, until: app.navigationBars["Bildgenerierung"]))
+        XCTAssertTrue(app.buttons["OpenAI (ChatGPT)"].waitForExistence(timeout: 5))
+    }
+
+    func testFailedProbeKeepsEditableDraftRetryable() {
+        app.launchEnvironment["PROVIDER_SETTINGS_JSON"] = """
+        {"presetId":"openrouter","model":"existing-model"}
+        """
+        app.launchArguments += ["-accounts-v1", "test-reset"]
+        app.launch()
+        openConnections()
+
+        let custom = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Eigene API'")).firstMatch
+        let form = app.navigationBars.matching(NSPredicate(format: "identifier BEGINSWITH 'Beliebige OpenAI'"))
+            .firstMatch
+        XCTAssertTrue(tap(custom, until: form))
+        typeText("http://127.0.0.1:1/v1", into: "provider-base-url", in: app)
+        typeText("manual-model", into: "provider-model", in: app)
+        typeText("staged-key", into: "provider-api-key", in: app)
         XCTAssertTrue(revealByScrolling(app.buttons["test-connection"]))
-        XCTAssertFalse(app.buttons["provider-back"].exists,
-                       "committed model → no exit interception any more")
+        app.buttons["test-connection"].tap()
+
+        XCTAssertTrue(app.staticTexts["Verbindung fehlgeschlagen"].waitForExistence(timeout: 15)
+                      || app.staticTexts["Test-Chat fehlgeschlagen"].waitForExistence(timeout: 15))
+        XCTAssertTrue((app.textFields["provider-base-url"].value as? String)?.contains("127.0.0.1") == true)
+        XCTAssertTrue((app.textFields["provider-model"].value as? String)?.contains("manual-model") == true)
+        XCTAssertTrue(app.staticTexts["Noch kein Konto"].exists || app.secureTextFields["provider-api-key"].exists)
+    }
+
+    func testNormalizedCustomEndpointCommitsAfterSuccessfulProbe() {
+        app.launchEnvironment["AIITY_TEST_API_KEY"] = "unused-fixture-key"
+        app.launchArguments += ["-accounts-v1", "test-reset"]
+        app.launch()
+        openConnections()
+
+        let custom = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Eigene API'")).firstMatch
+        let form = app.navigationBars.matching(NSPredicate(format: "identifier BEGINSWITH 'Beliebige OpenAI'"))
+            .firstMatch
+        XCTAssertTrue(tap(custom, until: form))
+        typeText("127.0.0.1:8555/v1/chat/completions", into: "provider-base-url", in: app)
+        typeText("stub", into: "provider-model", in: app)
+        typeText("staged-key", into: "provider-api-key", in: app)
+        XCTAssertTrue(revealByScrolling(app.buttons["test-connection"]))
+        app.buttons["test-connection"].tap()
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Verbunden'")).firstMatch
+            .waitForExistence(timeout: 20))
+        XCTAssertTrue(app.navigationBars["Anbieter"].waitForExistence(timeout: 10)
+                      || app.buttons["provider-back"].exists == false)
+    }
+
+    func testManualModelFallbackStaysVisibleWhenDiscoveryFails() {
+        app.launchArguments += ["-accounts-v1", "test-reset"]
+        app.launch()
+        openConnections()
+        let custom = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Eigene API'")).firstMatch
+        let form = app.navigationBars.matching(NSPredicate(format: "identifier BEGINSWITH 'Beliebige OpenAI'"))
+            .firstMatch
+        XCTAssertTrue(tap(custom, until: form))
+        typeText("http://127.0.0.1:1/v1", into: "provider-base-url", in: app)
+        let model = app.textFields["provider-model"]
+        XCTAssertTrue(model.waitForExistence(timeout: 10))
+        typeText("manual-model", into: "provider-model", in: app)
+        XCTAssertTrue((model.value as? String)?.contains("manual-model") == true)
+    }
+
+    func testStagedKeyIsNotPersistedAfterFailedProbe() {
+        app.launchEnvironment["PROVIDER_SETTINGS_JSON"] = """
+        {"presetId":"openrouter","model":"existing-model"}
+        """
+        app.launchArguments += ["-accounts-v1", "test-reset"]
+        app.launch()
+        openConnections()
+        let custom = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Eigene API'")).firstMatch
+        let form = app.navigationBars.matching(NSPredicate(format: "identifier BEGINSWITH 'Beliebige OpenAI'"))
+            .firstMatch
+        XCTAssertTrue(tap(custom, until: form))
+        typeText("http://127.0.0.1:1/v1", into: "provider-base-url", in: app)
+        typeText("manual-model", into: "provider-model", in: app)
+        typeText("staged-key", into: "provider-api-key", in: app)
+        XCTAssertTrue(revealByScrolling(app.buttons["test-connection"]))
+        app.buttons["test-connection"].tap()
+        XCTAssertTrue(app.staticTexts["Noch kein Konto"].waitForExistence(timeout: 15)
+                      || app.staticTexts["Verbindung fehlgeschlagen"].waitForExistence(timeout: 15))
+        form.buttons.firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["Anbieter"].waitForExistence(timeout: 10))
+        XCTAssertTrue(tap(custom, until: form))
+        XCTAssertTrue(app.staticTexts["Noch kein Konto"].waitForExistence(timeout: 5))
     }
 }

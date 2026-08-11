@@ -26,6 +26,7 @@ struct ProviderConnectionView: View {
 
     @State private var newKey = ""
     @State private var newLabel = ""
+    @State private var pendingOAuthCredential: OAuthCredential?
     @State private var authError: String?
     @State private var pendingPaste: OAuthService.PendingPaste?
     @State private var catalogModels: [CatalogModel] = []
@@ -33,6 +34,7 @@ struct ProviderConnectionView: View {
     @State private var fetchingModels = false
     @State private var probing = false
     @State private var probeResult: ConnectionProbeResult?
+    @State private var validationError: ProviderConnectionValidationError?
     @State private var hostDraft = ""
     /// Local draft for model when this provider is not yet the active slot.
     /// For chat this may hold an UNCOMMITTED suggestion (a highlighted
@@ -219,7 +221,7 @@ struct ProviderConnectionView: View {
                     .foregroundStyle(Color.accentColor)
             } else {
                 Button {
-                    applyAsActive()
+                    runProbe()
                 } label: {
                     Label(modality.useButtonTitle, systemImage: modality.systemImage)
                 }
@@ -251,25 +253,6 @@ struct ProviderConnectionView: View {
         }
     }
 
-    private func applyAsActive() {
-        let model = modelDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-        // Persist base URL into profile (and chat settings if chat-active).
-        persistBaseURLIfNeeded()
-        settingsStore.use(for: modality, presetId: presetId, model: model.isEmpty ? nil : model)
-        if modality == .chat, isLocalWizard, !hostDraft.isEmpty {
-            settingsStore.settings.baseURL = hostDraft
-        }
-    }
-
-    private func persistBaseURLIfNeeded() {
-        guard preset.editableBaseURL else { return }
-        let url = hostDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-        ProviderProfiles.update(presetId: presetId) { $0.baseURL = url }
-        if isChatActive {
-            settingsStore.settings.baseURL = url
-        }
-    }
-
     // MARK: Base URL
 
     private var baseURLSection: some View {
@@ -283,12 +266,7 @@ struct ProviderConnectionView: View {
             .autocorrectionDisabled()
             .textInputAutocapitalization(.never)
             .keyboardType(.URL)
-            .onChange(of: hostDraft) { _, newValue in
-                ProviderProfiles.update(presetId: presetId) { $0.baseURL = newValue }
-                if isChatActive {
-                    settingsStore.settings.baseURL = newValue
-                }
-            }
+            .accessibilityIdentifier("provider-base-url")
             let effective = connectionSettings.effectiveBaseURL
             if !hostDraft.isEmpty, effective != hostDraft {
                 Text("→ \(effective)")
@@ -306,12 +284,7 @@ struct ProviderConnectionView: View {
             .autocorrectionDisabled()
             .textInputAutocapitalization(.never)
             .keyboardType(.URL)
-            .onChange(of: hostDraft) { _, newValue in
-                ProviderProfiles.update(presetId: presetId) { $0.baseURL = newValue }
-                if isChatActive {
-                    settingsStore.settings.baseURL = newValue
-                }
-            }
+            .accessibilityIdentifier("provider-base-url")
             if !hostDraft.isEmpty {
                 Text("→ \(connectionSettings.effectiveBaseURL)")
                     .font(.caption)
@@ -421,6 +394,12 @@ struct ProviderConnectionView: View {
                     }
                 }
             }
+            if let validationError {
+                Text(validationError.localizedDescription)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                    .accessibilityIdentifier("provider-validation-error")
+            }
         } header: {
             Text("Diagnose")
         } footer: {
@@ -457,15 +436,18 @@ struct ProviderConnectionView: View {
 
             if preset.needsKey || preset.editableBaseURL {
                 SecureField("Neuer API-Key", text: $newKey)
+                    .accessibilityIdentifier("provider-api-key")
                 if !newKey.isEmpty {
                     TextField("Bezeichnung (optional, z. B. „Privat“)", text: $newLabel)
                         .autocorrectionDisabled()
                     Button {
-                        accountStore.addKeyAccount(presetId: presetId, label: newLabel, key: newKey)
-                        newKey = ""; newLabel = ""
+                        validationError = nil
+                        // Keep the credential in the draft until its probe
+                        // succeeds; this button never touches the Keychain.
                     } label: {
-                        Label("Key als Konto hinzufügen", systemImage: "plus.circle")
+                        Label("Key für Test vormerken", systemImage: "checkmark.circle")
                     }
+                    .accessibilityIdentifier("stage-api-key")
                 }
             }
             if showsOAuthButton {
@@ -623,18 +605,17 @@ struct ProviderConnectionView: View {
                         get: { modelDraft },
                         set: { newValue in
                             modelDraft = newValue
-                            commitModel(newValue)
                         }
                     )
                 )
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
+                .accessibilityIdentifier("provider-model")
             } else {
                 Picker(modality.modelSectionTitle, selection: Binding(
                     get: { modelDraft },
                     set: { newValue in
                         modelDraft = newValue
-                        commitModel(newValue)
                     }
                 )) {
                     if !modelDraft.isEmpty && !availableModelIds.contains(modelDraft) {
@@ -652,6 +633,7 @@ struct ProviderConnectionView: View {
                     }
                 }
                 .pickerStyle(.navigationLink)
+                .accessibilityIdentifier("provider-model")
             }
             Button {
                 fetchModels()
@@ -796,19 +778,7 @@ struct ProviderConnectionView: View {
     }
 
     private func commitModel(_ value: String) {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        switch modality {
-        case .chat:
-            ProviderProfiles.update(presetId: presetId) { $0.model = trimmed }
-            if isChatActive {
-                settingsStore.settings.model = trimmed
-            }
-        case .image:
-            ProviderProfiles.update(presetId: presetId) { $0.lastImageModel = trimmed }
-            if isActiveForModality {
-                settingsStore.settings.imageModel = trimmed
-            }
-        }
+        modelDraft = value.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: On-device (MLX)
@@ -909,7 +879,8 @@ struct ProviderConnectionView: View {
             Task {
                 do {
                     if case .apiKey(let key) = try await oauth.signInOpenRouter(preset: preset) {
-                        accountStore.addKeyAccount(presetId: presetId, label: "OpenRouter", key: key)
+                        newKey = key
+                        newLabel = "OpenRouter"
                     }
                 } catch {
                     authError = error.localizedDescription
@@ -928,9 +899,9 @@ struct ProviderConnectionView: View {
         Task {
             do {
                 if case .credential(let credential) = try await oauth.completePasteFlow(pending, pasted: code) {
-                    accountStore.addOAuthAccount(presetId: presetId, label: label, credential: credential)
+                    pendingOAuthCredential = credential
+                    newLabel = label
                     pendingPaste = nil
-                    bootstrapModels()
                 }
             } catch {
                 authError = NetworkErrorFriendly.message(for: error)
@@ -939,7 +910,6 @@ struct ProviderConnectionView: View {
     }
 
     private func probeSnapshot() -> ProviderSettings {
-        persistBaseURLIfNeeded()
         var snap = connectionSettings
         if isLocalWizard || preset.editableBaseURL, !hostDraft.isEmpty {
             snap.baseURL = hostDraft
@@ -956,9 +926,14 @@ struct ProviderConnectionView: View {
         fetchingModels = true
         modelsError = nil
         var snapshot = probeSnapshot()
+        let draftKey = newKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let oauthKey = pendingOAuthCredential.map { AuthStore.oauthMarker + $0.accessToken } ?? ""
         Task {
             do {
-                let key = await AuthStore.effectiveKey(for: snapshot)
+                let storedKey = await AuthStore.effectiveKey(for: snapshot)
+                let key = draftKey.isEmpty
+                    ? (oauthKey.isEmpty ? storedKey : oauthKey)
+                    : draftKey
                 // Ensure OAuth OpenAI snapshot still uses openai presetId for curated path.
                 snapshot.presetId = presetId
                 let models = try await ModelCatalogService.fetchModels(settings: snapshot, apiKey: key)
@@ -999,14 +974,36 @@ struct ProviderConnectionView: View {
     private func runProbe() {
         probing = true
         probeResult = nil
-        // Testing the connection neither activates the provider nor commits a
-        // model — ConnectionProbe auto-picks a model TRANSIENTLY for its test
-        // chat; here the result only refreshes the catalog and the suggestion.
-        let snapshot = probeSnapshot()
+        validationError = nil
+        // Testing uses an isolated candidate. A successful probe commits the complete candidate exactly
+        // once; validation and network failures leave every persisted value
+        // untouched.
+        let draftKey = newKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let oauthKey = pendingOAuthCredential.map { AuthStore.oauthMarker + $0.accessToken } ?? ""
+        let draftSnapshot = probeSnapshot()
         Task {
-            let key = await AuthStore.effectiveKey(for: snapshot)
-            let result = await ConnectionProbe.test(settings: snapshot, apiKey: key)
+            let storedKey = await AuthStore.effectiveKey(for: draftSnapshot)
+            let key = draftKey.isEmpty
+                ? (oauthKey.isEmpty ? storedKey : oauthKey)
+                : draftKey
+            let candidateResult = ProviderConnectionModel.makeCandidate(
+                preset: preset,
+                baseURL: hostDraft,
+                model: modelDraft,
+                apiKey: key
+            )
+            guard case .success(let candidate) = candidateResult else {
+                if case .failure(let error) = candidateResult { validationError = error }
+                probing = false
+                return
+            }
+
+            let snapshot = settings(for: candidate)
+            let result = await ConnectionProbe.test(settings: snapshot, apiKey: candidate.apiKey)
             probeResult = result
+            if ProviderConnectionModel.shouldCommit(candidate: candidate, probe: result) {
+                commit(candidate)
+            }
             if result.ok, !result.models.isEmpty {
                 if let rich = try? await ModelCatalogService.fetchModels(settings: snapshot, apiKey: key) {
                     catalogModels = rich
@@ -1017,6 +1014,56 @@ struct ProviderConnectionView: View {
                 }
             }
             probing = false
+        }
+    }
+
+    private func settings(for candidate: ProviderConnectionCandidate) -> ProviderSettings {
+        var snapshot = connectionSettings
+        snapshot.presetId = candidate.presetId
+        snapshot.baseURL = candidate.baseURL
+        snapshot.setModel(candidate.model, for: modality)
+        return snapshot
+    }
+
+    /// The only persistence boundary for the provider form. Callers must have
+    /// already validated and probed the candidate before entering this method.
+    private func commit(_ candidate: ProviderConnectionCandidate) {
+        ProviderProfiles.update(presetId: presetId) { profile in
+            if preset.editableBaseURL {
+                profile.baseURL = candidate.baseURL
+            }
+            switch modality {
+            case .chat:
+                profile.model = candidate.model
+            case .image:
+                profile.lastImageModel = candidate.model
+            }
+        }
+
+        switch modality {
+        case .chat:
+            var updated = settingsStore.settings
+            updated.presetId = presetId
+            updated.baseURL = candidate.baseURL
+            updated.model = candidate.model
+            settingsStore.settings = updated
+        case .image:
+            var updated = settingsStore.settings
+            updated.imagePresetId = presetId
+            updated.imageModel = candidate.model
+            updated.baseURL = presetId == updated.presetId ? candidate.baseURL : updated.baseURL
+            settingsStore.settings = updated
+        }
+
+        let stagedKey = newKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let credential = pendingOAuthCredential {
+            accountStore.addOAuthAccount(presetId: presetId, label: newLabel, credential: credential)
+            pendingOAuthCredential = nil
+            newLabel = ""
+        } else if !stagedKey.isEmpty {
+            accountStore.addKeyAccount(presetId: presetId, label: newLabel, key: stagedKey)
+            newKey = ""
+            newLabel = ""
         }
     }
 

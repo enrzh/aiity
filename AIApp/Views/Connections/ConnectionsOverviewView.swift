@@ -4,6 +4,7 @@ import SwiftUI
 struct ConnectionsView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     @EnvironmentObject private var accountStore: AccountStore
+    @State private var connectRoute: OnboardingConnectRoute?
 
     var body: some View {
         List {
@@ -23,6 +24,29 @@ struct ConnectionsView: View {
         }
         .navigationTitle("Anbieter")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $connectRoute) { route in
+            NavigationStack {
+                switch route {
+                case .preset(let presetId):
+                    ProviderConnectionView(presetId: presetId, modality: .chat)
+                case .modalityPreset(let presetId, let modality):
+                    ProviderConnectionView(presetId: presetId, modality: modality)
+                case .modalityPicker(let modality):
+                    ProviderPickerList(
+                        title: modality.sectionTitle,
+                        presetIds: ProviderPreset.catalog
+                            .filter { MediaCapability.supports(modality, presetId: $0.id) }
+                            .map(\.id)
+                    ) { presetId in
+                        connectRoute = .modalityPreset(presetId, modality)
+                    }
+                case .apiKeyPicker, .localPicker:
+                    EmptyView()
+                }
+            }
+            .environmentObject(settingsStore)
+            .environmentObject(accountStore)
+        }
     }
 
     private func quickLink(
@@ -44,9 +68,12 @@ struct ConnectionsView: View {
 
         Section {
             if activeId.isEmpty {
-                Text(emptySlotText(modality))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                Button {
+                    connectRoute = .modalityPicker(modality)
+                } label: {
+                    Label(emptySlotText(modality), systemImage: "plus.circle")
+                }
+                .accessibilityIdentifier("connect-\(modality.rawValue)")
             } else {
                 NavigationLink {
                     ProviderConnectionView(presetId: activeId, modality: modality)
