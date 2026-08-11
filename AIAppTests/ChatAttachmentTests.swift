@@ -204,4 +204,56 @@ final class ChatAttachmentTests: XCTestCase {
 
         XCTAssertEqual(decoded.attachments, [attachment])
     }
+
+    @MainActor
+    func testDeterministicOpenURLShortcutRequiresAnAttachmentFreeTurn() {
+        let attachment = ChatAttachment(
+            mediaId: "photo.attachment",
+            filename: "photo.png",
+            mimeType: "image/png",
+            kind: .image
+        )
+
+        XCTAssertTrue(
+            ChatSession.shouldUseDeterministicOpenURLShortcut(
+                text: "öffne example.com", attachments: [], isEditing: false
+            )
+        )
+        XCTAssertFalse(
+            ChatSession.shouldUseDeterministicOpenURLShortcut(
+                text: "öffne example.com", attachments: [attachment], isEditing: false
+            )
+        )
+        XCTAssertFalse(
+            ChatSession.shouldUseDeterministicOpenURLShortcut(
+                text: "öffne example.com", attachments: [], isEditing: true
+            )
+        )
+    }
+
+    func testAttachmentImportStateTracksPendingBatches() {
+        var state = ChatAttachmentImportState()
+        let token = state.beginBatch()
+
+        XCTAssertTrue(state.isImporting)
+        XCTAssertTrue(state.accepts(token))
+        XCTAssertTrue(state.finish(token))
+        XCTAssertFalse(state.isImporting)
+        XCTAssertFalse(state.accepts(token))
+    }
+
+    func testAttachmentImportStateRejectsStaleCompletionAfterInvalidation() {
+        var state = ChatAttachmentImportState()
+        let oldToken = state.beginBatch()
+
+        state.invalidate()
+
+        XCTAssertFalse(state.isImporting)
+        XCTAssertFalse(state.accepts(oldToken))
+        XCTAssertFalse(state.finish(oldToken))
+
+        let currentToken = state.beginBatch()
+        XCTAssertNotEqual(oldToken.generation, currentToken.generation)
+        XCTAssertTrue(state.accepts(currentToken))
+    }
 }

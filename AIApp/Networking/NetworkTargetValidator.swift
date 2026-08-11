@@ -45,7 +45,7 @@ enum NetworkTargetValidator {
 
         let host: String
         if let components = URLComponents(string: value), let scheme = components.scheme {
-            guard ["http", "https"].contains(scheme.lowercased()),
+            guard scheme.lowercased() == "https",
                   components.user == nil, components.password == nil,
                   !hasExplicitPort(in: components),
                   let urlHost = components.host else { return nil }
@@ -86,7 +86,8 @@ enum NetworkTargetValidator {
     }
 
     private static func isMiniAppTarget(_ url: URL) -> Bool {
-        guard isAllowed(url, allowPrivate: false),
+        guard url.scheme?.lowercased() == "https",
+              isAllowed(url, allowPrivate: false),
               let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
               components.user == nil, components.password == nil,
               !hasExplicitPort(in: components),

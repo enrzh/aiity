@@ -33,6 +33,8 @@ struct ProviderConnectionView: View {
     @State private var modelsError: String?
     @State private var fetchingModels = false
     @State private var probing = false
+    @State private var probeGeneration = 0
+    @State private var probeTask: Task<Void, Never>?
     @State private var probeResult: ConnectionProbeResult?
     @State private var validationError: ProviderConnectionValidationError?
     @State private var hostDraft = ""
@@ -117,6 +119,12 @@ struct ProviderConnectionView: View {
             }
         }
         .disabled(probing)
+        .onDisappear {
+            probeGeneration += 1
+            probeTask?.cancel()
+            probeTask = nil
+            probing = false
+        }
         .navigationTitle(preset.label)
         .navigationBarTitleDisplayMode(.inline)
         // Exit prompt: an active chat provider without a chosen model asks on
@@ -990,21 +998,26 @@ struct ProviderConnectionView: View {
             if case .failure(let error) = candidateResult { validationError = error }
             return
         }
+        probeTask?.cancel()
+        probeGeneration += 1
+        let generation = probeGeneration
         probing = true
         let label = newLabel
-        Task {
+        probeTask = Task { @MainActor in
             let snapshot = ProviderConnectionModel.probeSettings(
                 candidate: candidate,
                 current: connectionSettings,
                 modality: probeModality
             )
             let result = await ConnectionProbe.test(settings: snapshot, apiKey: candidate.apiKey)
+            guard !Task.isCancelled, generation == probeGeneration else { return }
             probeResult = result
             if ProviderConnectionModel.shouldCommit(candidate: candidate, probe: result) {
                 commit(candidate, label: label, modality: probeModality)
             }
             if probeModality == .chat, modality == .chat, result.ok, !result.models.isEmpty {
                 if let rich = try? await ModelCatalogService.fetchModels(settings: snapshot, apiKey: candidate.apiKey) {
+                    guard !Task.isCancelled, generation == probeGeneration else { return }
                     catalogModels = rich
                     suggestChatModel(from: rich, settings: snapshot)
                 } else {
@@ -1013,6 +1026,7 @@ struct ProviderConnectionView: View {
                 }
             }
             probing = false
+            probeTask = nil
         }
     }
 

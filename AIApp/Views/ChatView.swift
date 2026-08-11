@@ -3,6 +3,37 @@ import SwiftData
 import UIKit
 import PhotosUI
 import UniformTypeIdentifiers
+
+struct ChatAttachmentImportState {
+    struct Token: Equatable { let generation: Int }
+
+    private(set) var generation = 0
+    private(set) var pending = 0
+    var isImporting: Bool { pending > 0 }
+
+    mutating func beginBatch(count: Int = 1) -> Token {
+        generation += 1
+        pending = count
+        return Token(generation: generation)
+    }
+
+    func accepts(_ token: Token) -> Bool {
+        token.generation == generation && pending > 0
+    }
+
+    @discardableResult
+    mutating func finish(_ token: Token) -> Bool {
+        guard accepts(token) else { return false }
+        pending -= 1
+        if pending == 0 { generation += 1 }
+        return true
+    }
+
+    mutating func invalidate() {
+        generation += 1
+        pending = 0
+    }
+}
 import Foundation
 
 enum ChatToolVisualState: Equatable {
@@ -27,6 +58,7 @@ struct ChatView: View {
     @State private var attachments: [ChatAttachment] = []
     @State private var photoItems: [PhotosPickerItem] = []
     @State private var showFileImporter = false
+    @State private var attachmentImportState = ChatAttachmentImportState()
     @State private var mediaPreviewRoute: ChatMediaPreviewRoute?
     @State private var previewDraft: MiniAppDraft?
     @State private var showQuickProvider = false
@@ -728,7 +760,8 @@ struct ChatView: View {
             focus: $composerFocused,
             placeholder: isEditingApp ? String(localized: "Änderung beschreiben…") : String(localized: "Nachricht"),
             isBusy: session.busy,
-            canSend: !sanitizedInput.isEmpty || !attachments.isEmpty,
+            canSend: !attachmentImportState.isImporting
+                && (!sanitizedInput.isEmpty || !attachments.isEmpty),
             onSend: send,
             onStop: {
                 Theme.Haptics.send()
@@ -763,6 +796,7 @@ struct ChatView: View {
     private func send() {
         let text = sanitizedInput
         let pendingAttachments = attachments
+        guard !attachmentImportState.isImporting else { return }
         guard !text.isEmpty || !pendingAttachments.isEmpty else {
             if PlainPasteboard.looksLikePasteboardArtifact(input) {
                 session.errorMessage = String(localized: "Zwischenablage war RTF/RTFD (kein Klartext). Nochmal als Text kopieren.")
@@ -784,6 +818,7 @@ struct ChatView: View {
         input = ""
         attachments = []
         photoItems = []
+        attachmentImportState.invalidate()
         scrollToLatestRequest += 1
         Analytics.track("chat_send")
     }
@@ -927,13 +962,16 @@ struct ChatView: View {
     private func importPhotos(_ items: [PhotosPickerItem]) {
         guard !items.isEmpty else { return }
         photoItems = []
+        let token = attachmentImportState.beginBatch(count: items.count)
         for item in items {
             Task { @MainActor in
+                defer { attachmentImportState.finish(token) }
                 guard let data = try? await item.loadTransferable(type: Data.self),
                       let type = item.supportedContentTypes.first else {
                     session.errorMessage = String(localized: "Foto konnte nicht geladen werden.")
                     return
                 }
+                guard attachmentImportState.accepts(token) else { return }
                 let mimeType = type.preferredMIMEType ?? "image/jpeg"
                 guard let mediaId = MediaStore.save(data: data, filename: "photo", mimeType: mimeType) else {
                     session.errorMessage = String(localized: "Foto konnte nicht gespeichert werden.")
@@ -955,8 +993,10 @@ struct ChatView: View {
             session.errorMessage = String(localized: "Datei konnte nicht geladen werden.")
             return
         }
+        let token = attachmentImportState.beginBatch(count: urls.count)
         for url in urls {
             Task { @MainActor in
+                defer { attachmentImportState.finish(token) }
                 let scoped = url.startAccessingSecurityScopedResource()
                 defer { if scoped { url.stopAccessingSecurityScopedResource() } }
                 guard let data = try? Data(contentsOf: url) else {
@@ -973,6 +1013,7 @@ struct ChatView: View {
                     session.errorMessage = String(localized: "Datei konnte nicht gespeichert werden.")
                     return
                 }
+                guard attachmentImportState.accepts(token) else { return }
                 attachments.append(ChatAttachment(
                     mediaId: mediaId,
                     filename: url.lastPathComponent,

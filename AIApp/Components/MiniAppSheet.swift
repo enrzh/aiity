@@ -22,6 +22,7 @@ struct MiniAppSheet: View {
     @State private var effectiveCapability: MiniAppCapability = .offline
     @State private var pendingDeclared: MiniAppCapability = .offline
     @State private var pendingHost: String?
+    @State private var pendingHostDraft = ""
     @State private var showConsent = false
 
     var body: some View {
@@ -58,15 +59,26 @@ struct MiniAppSheet: View {
             .ignoresSafeArea(edges: .bottom)
             .onAppear { resolveCapability() }
             .alert("Internetzugriff erlauben?", isPresented: $showConsent) {
+                if pendingDeclared != .offline, pendingHost == nil {
+                    TextField("HTTPS-Host", text: $pendingHostDraft)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                }
                 Button("Nur offline", role: .cancel) { effectiveCapability = .offline }
                 Button("Erlauben") {
+                    let approvedHost = pendingHost
+                        ?? NetworkTargetValidator.normalizeHost(pendingHostDraft)
+                    guard pendingDeclared == .offline || approvedHost != nil else { return }
                     MiniAppConsent.allow(
                         appId: appId,
                         capability: pendingDeclared,
-                        hosts: pendingHost.map { [$0] } ?? []
+                        hosts: approvedHost.map { [$0] } ?? []
                     )
                     effectiveCapability = pendingDeclared
                 }
+                .disabled(pendingDeclared != .offline
+                    && pendingHost == nil
+                    && NetworkTargetValidator.normalizeHost(pendingHostDraft) == nil)
             } message: {
                 // Be explicit that access is two-way: these tiers can also SEND
                 // whatever the app holds to a server, not just load data.
@@ -136,6 +148,7 @@ struct MiniAppSheet: View {
             effectiveCapability = .offline
             pendingDeclared = declared
             pendingHost = host
+            pendingHostDraft = ""
             showConsent = true
         }
     }
@@ -215,6 +228,7 @@ struct MiniAppPermissionSheet: View {
                                     Button(role: .destructive) {
                                         hosts.removeAll { $0 == host }
                                         _ = MiniAppConsent.revokeHost(appId: appId, host: host)
+                                        MiniAppRunnerView.removeSessionStore(for: appId)
                                     } label: {
                                         Image(systemName: "trash")
                                     }
@@ -228,6 +242,7 @@ struct MiniAppPermissionSheet: View {
                         Section {
                             Button("Alle Hosts widerrufen", role: .destructive) {
                                 MiniAppConsent.revokeAllHosts(appId: appId)
+                                MiniAppRunnerView.removeSessionStore(for: appId)
                                 hosts = []
                             }
                         }
@@ -254,7 +269,7 @@ struct MiniAppPermissionSheet: View {
                 .alert("Host nicht erlaubt", isPresented: $showHostError) {
                     Button("OK", role: .cancel) { }
                 } message: {
-                    Text("Nur öffentliche http(s)-Hosts ohne Pfad oder Port können erlaubt werden.")
+                    Text("Nur öffentliche HTTPS-Hosts ohne Pfad oder Port können erlaubt werden.")
                 }
             }
         }

@@ -165,10 +165,15 @@ enum ConnectionProbe {
                 }
             }
 
-            let modelId = ModelCatalogService.autoPickModel(
-                from: models.map { CatalogModel(id: $0) },
-                settings: settings
-            ) ?? models.first ?? manualModel
+            // A transactional probe must test the exact model that will be
+            // committed. Discovery only chooses a model when no candidate was
+            // supplied by the caller.
+            let modelId = manualModel.isEmpty
+                ? (ModelCatalogService.autoPickModel(
+                    from: models.map { CatalogModel(id: $0) },
+                    settings: settings
+                ) ?? models.first ?? "")
+                : manualModel
             guard !modelId.isEmpty else {
                 return ConnectionProbeResult(
                     ok: false,

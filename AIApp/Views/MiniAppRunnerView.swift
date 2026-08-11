@@ -520,8 +520,20 @@ struct MiniAppRunnerView: UIViewRepresentable {
                 return nil
             }
             if let url, !isWeb, scheme != nil, scheme != "about" {
-                // A popup straight into a custom scheme is a handoff, not a page.
-                confirmOpenExternal(url)
+                // Use the same scheme policy as main-frame navigation. Inert
+                // and local schemes must never reach the system handoff.
+                let decision = BrowserNavigationPolicy.decide(
+                    url: url,
+                    capability: capability,
+                    isMainFrame: true,
+                    isLinkActivated: navigationAction.navigationType == .linkActivated,
+                    shouldPerformDownload: false,
+                    isShowingErrorPage: false,
+                    allowedHosts: Set(MiniAppConsent.hosts(appId: appId))
+                )
+                if case .openExternally(let target) = decision {
+                    confirmOpenExternal(target)
+                }
                 return nil
             }
             // Everything else — including `window.open('')` / about:blank, which

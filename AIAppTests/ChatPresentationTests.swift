@@ -109,6 +109,19 @@ final class ChatPresentationTests: XCTestCase {
             String(localized: "Bild nicht verfügbar")
         )
     }
+
+    func testComposerGatesSendAndExposesImportingState() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let chatView = try String(
+            contentsOf: root.appendingPathComponent("AIApp/Views/ChatView.swift"),
+            encoding: .utf8
+        )
+        XCTAssertTrue(chatView.contains("canSend: !attachmentImportState.isImporting"))
+        XCTAssertTrue(chatView.contains("attachmentImportState.invalidate()"))
+        XCTAssertTrue(chatView.contains("guard !attachmentImportState.isImporting else { return }"))
+    }
 }
 
 private enum MarkdownParserTestError: Error {

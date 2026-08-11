@@ -107,8 +107,13 @@ enum MiniAppConsent {
     }
 
     private static func records() -> [String: Record] {
-        if let data = UserDefaults.standard.data(forKey: recordsKey),
-           let decoded = try? JSONDecoder().decode([String: Record].self, from: data) {
+        if let data = UserDefaults.standard.data(forKey: recordsKey) {
+            guard let decoded = try? JSONDecoder().decode([String: Record].self, from: data) else {
+                // A present v2 store is authoritative even when corrupt. Never
+                // resurrect older grants from v1 after a revoke or downgrade.
+                UserDefaults.standard.removeObject(forKey: legacyKey)
+                return [:]
+            }
             UserDefaults.standard.removeObject(forKey: legacyKey)
             return decoded.mapValues { record in
                 var record = record

@@ -433,7 +433,9 @@ final class ChatSession: ObservableObject {
         }
         // "Öffne <url>" builds a browser mini-app deterministically — the model
         // tends to over-refuse "accessing" a site, so don't route it through one.
-        if editingContext == nil, let openURL = WebAppBuilder.detectOpenRequest(text) {
+        if Self.shouldUseDeterministicOpenURLShortcut(
+            text: text, attachments: attachments, isEditing: editingContext != nil
+        ), let openURL = WebAppBuilder.detectOpenRequest(text) {
             buildWebApp(url: openURL, userText: text)
             return
         }
@@ -534,6 +536,14 @@ final class ChatSession: ObservableObject {
             if turnInterruptedBySuspension { return }
             finishLiveActivityAfterTurn()
         }
+    }
+
+    static func shouldUseDeterministicOpenURLShortcut(
+        text: String,
+        attachments: [ChatAttachment],
+        isEditing: Bool
+    ) -> Bool {
+        !isEditing && attachments.isEmpty && WebAppBuilder.detectOpenRequest(text) != nil
     }
 
     /// Only hard-fail the Live Activity when the turn produced no usable answer.
