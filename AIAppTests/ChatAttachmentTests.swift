@@ -135,6 +135,22 @@ final class ChatAttachmentTests: XCTestCase {
         }
     }
 
+    func testAnthropicUnsupportedFileReturnsLocalizedError() throws {
+        let mediaId = try XCTUnwrap(
+            MediaStore.save(data: Data("document".utf8), filename: "document.pdf", mimeType: "application/pdf")
+        )
+        let attachment = ChatAttachment(
+            mediaId: mediaId, filename: "document.pdf", mimeType: "application/pdf", kind: .file
+        )
+
+        XCTAssertThrowsError(try AnthropicProvider.encodeMessages([
+            ChatMessage(role: .user, text: "", attachments: [attachment])
+        ])) { error in
+            XCTAssertFalse((error as? LocalizedError)?.errorDescription?.isEmpty ?? true)
+            XCTAssertTrue((error as? LocalizedError)?.errorDescription?.contains("document.pdf") ?? false)
+        }
+    }
+
     func testPendingTurnRoundTripPreservesAttachments() throws {
         let attachment = ChatAttachment(
             mediaId: "photo.attachment",
