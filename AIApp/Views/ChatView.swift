@@ -223,13 +223,6 @@ struct ChatView: View {
             ScrollViewReader { proxy in
                     ScrollView {
                         VStack(spacing: 0) {
-                        GeometryReader { geometry in
-                            Color.clear.preference(
-                                key: ChatContentTopKey.self,
-                                value: geometry.frame(in: .named("chat-scroll")).minY
-                            )
-                        }
-                        .frame(height: 0)
                         LazyVStack(alignment: .leading, spacing: Theme.space2) {
                         if needsSetup {
                             setupBanner

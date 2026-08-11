@@ -54,11 +54,15 @@ final class ChatWorkflowUITests: XCTestCase {
 
         let scroll = app.scrollViews["chat-transcript"]
         XCTAssertTrue(scroll.waitForExistence(timeout: 5))
+        scroll.swipeUp()
+        XCTAssertTrue(waitFor(timeout: 5) { latestFixtureIsFullyVisible(in: scroll) })
         scroll.swipeDown()
         let jump = app.buttons["jump-to-latest"]
         XCTAssertTrue(jump.waitForExistence(timeout: 5))
         jump.tap()
-        XCTAssertTrue(waitFor(timeout: 5) { !jump.exists })
+        XCTAssertTrue(waitFor(timeout: 5) {
+            !jump.exists && latestFixtureIsFullyVisible(in: scroll)
+        })
     }
 
     func testScrollStaysPutWhenNewContentArrivesAwayFromLatest() {
@@ -69,6 +73,8 @@ final class ChatWorkflowUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["fixture-latest"].waitForExistence(timeout: 10))
         let scroll = app.scrollViews["chat-transcript"]
         XCTAssertTrue(scroll.waitForExistence(timeout: 5))
+        scroll.swipeUp()
+        XCTAssertTrue(waitFor(timeout: 5) { latestFixtureIsFullyVisible(in: scroll) })
         scroll.swipeDown()
 
         let anchor = app.staticTexts["fixture-anchor"]
@@ -126,5 +132,15 @@ final class ChatWorkflowUITests: XCTestCase {
         XCTAssertTrue(field.waitForExistence(timeout: 10))
         field.tap()
         field.typeText(text)
+    }
+
+    private func latestFixtureIsFullyVisible(in scroll: XCUIElement) -> Bool {
+        let latest = app.staticTexts["fixture-latest"]
+        guard latest.exists else { return false }
+        let scrollFrame = scroll.frame
+        let latestFrame = latest.frame
+        return latestFrame.height > 0
+            && latestFrame.minY >= scrollFrame.minY
+            && latestFrame.maxY <= scrollFrame.maxY
     }
 }
