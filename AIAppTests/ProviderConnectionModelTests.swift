@@ -370,8 +370,8 @@ final class ProviderConnectionModelTests: XCTestCase {
         )
         let candidate = try XCTUnwrap(
             ProviderConnectionModel.makeCandidate(
-                preset: ProviderPreset.preset(for: "custom-openai"),
-                baseURL: "api.example.com",
+                preset: ProviderPreset.preset(for: "anthropic"),
+                baseURL: "",
                 model: "replacement-model",
                 apiKey: " sk-replacement ",
                 credentialSnapshot: snapshot
@@ -387,6 +387,27 @@ final class ProviderConnectionModelTests: XCTestCase {
 
         XCTAssertEqual(snapshot, .apiKey("sk-replacement"))
         XCTAssertEqual(state.credentialSnapshot, .apiKey("sk-replacement"))
+        XCTAssertNil(
+            ProviderConnectionModel.pendingOAuthCredentialAfterCommit(
+                current: oauth,
+                credentialSnapshot: state.credentialSnapshot
+            )
+        )
+    }
+
+    func testProviderFormDisablesDraftControlsAtTheFormBoundaryWhileProbing() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let sourceURL = root.appendingPathComponent(
+            "AIApp/Views/Connections/ProviderConnectionView.swift"
+        )
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("        .disabled(probing)\n        .navigationTitle"),
+            "the form content should gate draft controls without disabling navigation dismissal"
+        )
     }
 }
 

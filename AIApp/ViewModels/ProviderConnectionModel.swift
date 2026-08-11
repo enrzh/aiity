@@ -50,6 +50,13 @@ enum ProviderConnectionModel {
         return pendingOAuthCredential.map { .oauth($0) }
     }
 
+    static func pendingOAuthCredentialAfterCommit(
+        current: OAuthCredential?,
+        credentialSnapshot: ProviderConnectionCredentialSnapshot?
+    ) -> OAuthCredential? {
+        credentialSnapshot == nil ? current : nil
+    }
+
     /// Builds an isolated connection attempt. Nothing in this method reads or
     /// writes persistence, which keeps invalid drafts and failed probes safe to
     /// retry.

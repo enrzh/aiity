@@ -116,6 +116,7 @@ struct ProviderConnectionView: View {
                 }
             }
         }
+        .disabled(probing)
         .navigationTitle(preset.label)
         .navigationBarTitleDisplayMode(.inline)
         // Exit prompt: an active chat provider without a chosen model asks on
@@ -1035,13 +1036,15 @@ struct ProviderConnectionView: View {
         switch state.credentialSnapshot {
         case .oauth(let credential):
             accountStore.addOAuthAccount(presetId: presetId, label: label, credential: credential)
-            pendingOAuthCredential = nil
         case .apiKey(let key):
             accountStore.addKeyAccount(presetId: presetId, label: label, key: key)
-            pendingOAuthCredential = nil
         case nil:
             break
         }
+        pendingOAuthCredential = ProviderConnectionModel.pendingOAuthCredentialAfterCommit(
+            current: pendingOAuthCredential,
+            credentialSnapshot: state.credentialSnapshot
+        )
 
         let needsNonActiveImageProfile = modality == .image
             && preset.editableBaseURL
