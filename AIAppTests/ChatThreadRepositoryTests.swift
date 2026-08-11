@@ -245,6 +245,30 @@ final class ChatThreadRepositoryTests: XCTestCase {
         XCTAssertEqual(ChatThreadRepository.mediaIds(inArchive: oldData), ["a.png", "b.mov"])
     }
 
+    func testPersistedMediaIdsIncludesAttachmentMediaIds() throws {
+        let attachmentMediaId = UUID().uuidString
+        let message = ChatMessage(
+            role: .user,
+            text: "attachment",
+            attachments: [ChatAttachment(
+                mediaId: attachmentMediaId,
+                filename: "photo.png",
+                mimeType: "image/png",
+                kind: .image
+            )]
+        )
+        let thread = ChatThread(messages: [message])
+        let snapshot = ChatThreadRepository.Snapshot(
+            threads: [thread],
+            activeThreadId: thread.id
+        )
+
+        XCTAssertEqual(
+            ChatThreadRepository.mediaIds(inArchive: try ChatThreadRepository.encode(snapshot)),
+            [attachmentMediaId]
+        )
+    }
+
     func testPersistedMediaIdsReturnsNilForUnreadableDataNeverEmpty() {
         XCTAssertNil(ChatThreadRepository.mediaIds(inArchive: Data("garbage".utf8)))
         XCTAssertNil(ChatThreadRepository.mediaIds(inArchive: Data()))

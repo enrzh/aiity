@@ -48452,6 +48452,216 @@
           }
         }
       }
+    },
+    "Foto": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": { "stringUnit": { "state": "translated", "value": "صورة" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Photo" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Foto" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Photo" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Foto" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "写真" } },
+        "pt": { "stringUnit": { "state": "translated", "value": "Foto" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Фото" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "照片" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "फ़ोटो" } },
+        "bn": { "stringUnit": { "state": "translated", "value": "ছবি" } },
+        "ur": { "stringUnit": { "state": "translated", "value": "تصویر" } },
+        "id": { "stringUnit": { "state": "translated", "value": "Foto" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Fotoğraf" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Ảnh" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "사진" } }
+      }
+    },
+    "Datei": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": { "stringUnit": { "state": "translated", "value": "ملف" } },
+        "en": { "stringUnit": { "state": "translated", "value": "File" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Archivo" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Fichier" } },
+        "it": { "stringUnit": { "state": "translated", "value": "File" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "ファイル" } },
+        "pt": { "stringUnit": { "state": "translated", "value": "Ficheiro" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Файл" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "文件" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "फ़ाइल" } },
+        "bn": { "stringUnit": { "state": "translated", "value": "ফাইল" } },
+        "ur": { "stringUnit": { "state": "translated", "value": "فائل" } },
+        "id": { "stringUnit": { "state": "translated", "value": "File" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Dosya" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Tệp" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "파일" } }
+      }
+    },
+    "Anhänge": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": { "stringUnit": { "state": "translated", "value": "المرفقات" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Attachments" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Adjuntos" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Pièces jointes" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Allegati" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "添付ファイル" } },
+        "pt": { "stringUnit": { "state": "translated", "value": "Anexos" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Вложения" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "附件" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "अटैचमेंट" } },
+        "bn": { "stringUnit": { "state": "translated", "value": "সংযুক্তি" } },
+        "ur": { "stringUnit": { "state": "translated", "value": "منسلکات" } },
+        "id": { "stringUnit": { "state": "translated", "value": "Lampiran" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Ekler" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Tệp đính kèm" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "첨부 파일" } }
+      }
+    },
+    "Anhang entfernen": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": { "stringUnit": { "state": "translated", "value": "إزالة المرفق" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Remove attachment" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Eliminar adjunto" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Supprimer la pièce jointe" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Rimuovi allegato" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "添付ファイルを削除" } },
+        "pt": { "stringUnit": { "state": "translated", "value": "Remover anexo" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Удалить вложение" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "移除附件" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "अटैचमेंट हटाएँ" } },
+        "bn": { "stringUnit": { "state": "translated", "value": "সংযুক্তি সরান" } },
+        "ur": { "stringUnit": { "state": "translated", "value": "منسلکہ ہٹائیں" } },
+        "id": { "stringUnit": { "state": "translated", "value": "Hapus lampiran" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Eki kaldır" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Xóa tệp đính kèm" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "첨부 파일 제거" } }
+      }
+    },
+    "Foto konnte nicht geladen werden.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": { "stringUnit": { "state": "translated", "value": "تعذر تحميل الصورة." } },
+        "en": { "stringUnit": { "state": "translated", "value": "Could not load photo." } },
+        "es": { "stringUnit": { "state": "translated", "value": "No se pudo cargar la foto." } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Impossible de charger la photo." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Impossibile caricare la foto." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "写真を読み込めませんでした。" } },
+        "pt": { "stringUnit": { "state": "translated", "value": "Não foi possível carregar a foto." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Не удалось загрузить фото." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法加载照片。" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "फ़ोटो लोड नहीं हो सकी।" } },
+        "bn": { "stringUnit": { "state": "translated", "value": "ছবি লোড করা যায়নি।" } },
+        "ur": { "stringUnit": { "state": "translated", "value": "تصویر لوڈ نہیں ہو سکی۔" } },
+        "id": { "stringUnit": { "state": "translated", "value": "Foto tidak dapat dimuat." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Fotoğraf yüklenemedi." } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Không thể tải ảnh." } },
+        "ko": { "stringUnit": { "state": "translated", "value": "사진을 불러올 수 없습니다." } }
+      }
+    },
+    "Foto konnte nicht gespeichert werden.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": { "stringUnit": { "state": "translated", "value": "تعذر حفظ الصورة." } },
+        "en": { "stringUnit": { "state": "translated", "value": "Could not save photo." } },
+        "es": { "stringUnit": { "state": "translated", "value": "No se pudo guardar la foto." } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Impossible d’enregistrer la photo." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Impossibile salvare la foto." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "写真を保存できませんでした。" } },
+        "pt": { "stringUnit": { "state": "translated", "value": "Não foi possível guardar a foto." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Не удалось сохранить фото." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法保存照片。" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "फ़ोटो सेव नहीं हो सकी।" } },
+        "bn": { "stringUnit": { "state": "translated", "value": "ছবি সংরক্ষণ করা যায়নি।" } },
+        "ur": { "stringUnit": { "state": "translated", "value": "تصویر محفوظ نہیں ہو سکی۔" } },
+        "id": { "stringUnit": { "state": "translated", "value": "Foto tidak dapat disimpan." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Fotoğraf kaydedilemedi." } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Không thể lưu ảnh." } },
+        "ko": { "stringUnit": { "state": "translated", "value": "사진을 저장할 수 없습니다." } }
+      }
+    },
+    "Der Anhang %@ wird von diesem Modell nicht unterstützt.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": { "stringUnit": { "state": "translated", "value": "هذا النموذج لا يدعم المرفق %@." } },
+        "en": { "stringUnit": { "state": "translated", "value": "This model does not support the %@ attachment." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Este modelo no admite el adjunto %@." } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Ce modèle ne prend pas en charge la pièce jointe %@." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Questo modello non supporta l’allegato %@." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "このモデルは添付ファイル %@ に対応していません。" } },
+        "pt": { "stringUnit": { "state": "translated", "value": "Este modelo não suporta o anexo %@." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Эта модель не поддерживает вложение %@." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "此模型不支持附件 %@。" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "यह मॉडल %@ अटैचमेंट को सपोर्ट नहीं करता।" } },
+        "bn": { "stringUnit": { "state": "translated", "value": "এই মডেলটি %@ সংযুক্তি সমর্থন করে না।" } },
+        "ur": { "stringUnit": { "state": "translated", "value": "یہ ماڈل %@ منسلکے کو سپورٹ نہیں کرتا۔" } },
+        "id": { "stringUnit": { "state": "translated", "value": "Model ini tidak mendukung lampiran %@." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Bu model %@ ekini desteklemiyor." } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Mô hình này không hỗ trợ tệp đính kèm %@." } },
+        "ko": { "stringUnit": { "state": "translated", "value": "이 모델은 %@ 첨부 파일을 지원하지 않습니다." } }
+      }
+    },
+    "Datei konnte nicht geladen werden.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": { "stringUnit": { "state": "translated", "value": "تعذر تحميل الملف." } },
+        "en": { "stringUnit": { "state": "translated", "value": "Could not load file." } },
+        "es": { "stringUnit": { "state": "translated", "value": "No se pudo cargar el archivo." } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Impossible de charger le fichier." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Impossibile caricare il file." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "ファイルを読み込めませんでした。" } },
+        "pt": { "stringUnit": { "state": "translated", "value": "Não foi possível carregar o ficheiro." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Не удалось загрузить файл." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法加载文件。" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "फ़ाइल लोड नहीं हो सकी।" } },
+        "bn": { "stringUnit": { "state": "translated", "value": "ফাইল লোড করা যায়নি।" } },
+        "ur": { "stringUnit": { "state": "translated", "value": "فائل لوڈ نہیں ہو سکی۔" } },
+        "id": { "stringUnit": { "state": "translated", "value": "File tidak dapat dimuat." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Dosya yüklenemedi." } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Không thể tải tệp." } },
+        "ko": { "stringUnit": { "state": "translated", "value": "파일을 불러올 수 없습니다." } }
+      }
+    },
+    "Datei konnte nicht gelesen werden.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": { "stringUnit": { "state": "translated", "value": "تعذر قراءة الملف." } },
+        "en": { "stringUnit": { "state": "translated", "value": "Could not read file." } },
+        "es": { "stringUnit": { "state": "translated", "value": "No se pudo leer el archivo." } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Impossible de lire le fichier." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Impossibile leggere il file." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "ファイルを読み込めませんでした。" } },
+        "pt": { "stringUnit": { "state": "translated", "value": "Não foi possível ler o ficheiro." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Не удалось прочитать файл." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法读取文件。" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "फ़ाइल पढ़ी नहीं जा सकी।" } },
+        "bn": { "stringUnit": { "state": "translated", "value": "ফাইল পড়া যায়নি।" } },
+        "ur": { "stringUnit": { "state": "translated", "value": "فائل پڑھی نہیں جا سکی۔" } },
+        "id": { "stringUnit": { "state": "translated", "value": "File tidak dapat dibaca." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Dosya okunamadı." } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Không thể đọc tệp." } },
+        "ko": { "stringUnit": { "state": "translated", "value": "파일을 읽을 수 없습니다." } }
+      }
+    },
+    "Datei konnte nicht gespeichert werden.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": { "stringUnit": { "state": "translated", "value": "تعذر حفظ الملف." } },
+        "en": { "stringUnit": { "state": "translated", "value": "Could not save file." } },
+        "es": { "stringUnit": { "state": "translated", "value": "No se pudo guardar el archivo." } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Impossible d’enregistrer le fichier." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Impossibile salvare il file." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "ファイルを保存できませんでした。" } },
+        "pt": { "stringUnit": { "state": "translated", "value": "Não foi possível guardar o ficheiro." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Не удалось сохранить файл." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法保存文件。" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "फ़ाइल सेव नहीं हो सकी।" } },
+        "bn": { "stringUnit": { "state": "translated", "value": "ফাইল সংরক্ষণ করা যায়নি।" } },
+        "ur": { "stringUnit": { "state": "translated", "value": "فائل محفوظ نہیں ہو سکی۔" } },
+        "id": { "stringUnit": { "state": "translated", "value": "File tidak dapat disimpan." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Dosya kaydedilemedi." } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Không thể lưu tệp." } },
+        "ko": { "stringUnit": { "state": "translated", "value": "파일을 저장할 수 없습니다." } }
+      }
     }
   },
   "version": "1.0"
