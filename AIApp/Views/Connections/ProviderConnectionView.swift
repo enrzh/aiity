@@ -232,7 +232,7 @@ struct ProviderConnectionView: View {
             // Cross-links: allow assigning the same connected provider to other slots.
             if modality != .chat, MediaCapability.supports(.chat, presetId: presetId), !isChatActive {
                 Button {
-                    settingsStore.useForChat(presetId)
+                    runProbe(for: .chat, model: ProviderProfiles.profile(for: presetId).model)
                 } label: {
                     Label(ModelModality.chat.useButtonTitle, systemImage: ModelModality.chat.systemImage)
                 }
@@ -241,7 +241,8 @@ struct ProviderConnectionView: View {
                 if MediaCapability.supportsImageGeneration(presetId: presetId),
                    settingsStore.settings.imagePresetId != presetId {
                     Button {
-                        settingsStore.useForImage(presetId)
+                        let imageModel = ProviderProfiles.profile(for: presetId).lastImageModel
+                        runProbe(for: .image, model: imageModel.isEmpty ? ModelModality.image.defaultModel : imageModel)
                     } label: {
                         Label(ModelModality.image.useButtonTitle, systemImage: ModelModality.image.systemImage)
                     }
@@ -960,7 +961,9 @@ struct ProviderConnectionView: View {
         }
     }
 
-    private func runProbe() {
+    private func runProbe(for targetModality: ModelModality? = nil, model targetModel: String? = nil) {
+        let probeModality = targetModality ?? modality
+        let probeModel = targetModel ?? modelDraft
         probeResult = nil
         validationError = nil
         // The synchronous credential peek is intentionally non-refreshing. It
@@ -978,7 +981,7 @@ struct ProviderConnectionView: View {
         let candidateResult = ProviderConnectionModel.makeCandidate(
             preset: preset,
             baseURL: hostDraft,
-            model: modelDraft,
+            model: probeModel,
             apiKey: key,
             localModelId: localModelDraft,
             credentialSnapshot: credentialSnapshot
@@ -993,14 +996,14 @@ struct ProviderConnectionView: View {
             let snapshot = ProviderConnectionModel.probeSettings(
                 candidate: candidate,
                 current: connectionSettings,
-                modality: modality
+                modality: probeModality
             )
             let result = await ConnectionProbe.test(settings: snapshot, apiKey: candidate.apiKey)
             probeResult = result
             if ProviderConnectionModel.shouldCommit(candidate: candidate, probe: result) {
-                commit(candidate, label: label)
+                commit(candidate, label: label, modality: probeModality)
             }
-            if result.ok, !result.models.isEmpty {
+            if probeModality == .chat, modality == .chat, result.ok, !result.models.isEmpty {
                 if let rich = try? await ModelCatalogService.fetchModels(settings: snapshot, apiKey: candidate.apiKey) {
                     catalogModels = rich
                     suggestChatModel(from: rich, settings: snapshot)
@@ -1024,7 +1027,11 @@ struct ProviderConnectionView: View {
 
     /// The only persistence boundary for the provider form. Callers must have
     /// already validated and probed the candidate before entering this method.
-    private func commit(_ candidate: ProviderConnectionCandidate, label: String) {
+    private func commit(
+        _ candidate: ProviderConnectionCandidate,
+        label: String,
+        modality: ModelModality
+    ) {
         let state = ProviderConnectionModel.commitState(
             candidate: candidate,
             currentSettings: settingsStore.settings,

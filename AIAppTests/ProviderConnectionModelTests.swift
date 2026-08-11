@@ -208,6 +208,30 @@ final class ProviderConnectionModelTests: XCTestCase {
         XCTAssertEqual(probeSettings.imageModel, "new-image-model")
     }
 
+    func testCrossLinksUseTransactionalProbeWithTheTargetModalityAndModel() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let sourceURL = root.appendingPathComponent(
+            "AIApp/Views/Connections/ProviderConnectionView.swift"
+        )
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+
+        XCTAssertFalse(source.contains("settingsStore.useForChat(presetId)"))
+        XCTAssertFalse(source.contains("settingsStore.useForImage(presetId)"))
+        XCTAssertTrue(
+            source.contains(
+                "runProbe(for: .chat, model: ProviderProfiles.profile(for: presetId).model)"
+            )
+        )
+        XCTAssertTrue(
+            source.contains(
+                "runProbe(for: .image, model: imageModel.isEmpty ? ModelModality.image.defaultModel : imageModel)"
+            )
+        )
+        XCTAssertTrue(source.contains("commit(candidate, label: label, modality: probeModality)"))
+    }
+
     func testValidationFailureLeavesStatefulStoreUntouched() throws {
         var existingSettings = ProviderSettings()
         existingSettings.presetId = "openrouter"
