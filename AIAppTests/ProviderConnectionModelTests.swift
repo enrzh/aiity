@@ -302,6 +302,27 @@ final class ProviderConnectionModelTests: XCTestCase {
         XCTAssertEqual(store.profile.model, "manual-model")
         XCTAssertEqual(store.key, "sk-new")
     }
+
+    func testCommitStateUsesTheCredentialSnapshotCapturedForTheProbe() throws {
+        let candidate = try XCTUnwrap(
+            ProviderConnectionModel.makeCandidate(
+                preset: ProviderPreset.preset(for: "custom-openai"),
+                baseURL: "api.example.com",
+                model: "probed-model",
+                apiKey: "sk-probed",
+                credentialSnapshot: .apiKey("sk-probed")
+            ).successValue
+        )
+
+        let state = ProviderConnectionModel.commitState(
+            candidate: candidate,
+            currentSettings: ProviderSettings(),
+            currentProfile: ProviderProfile(),
+            modality: .chat
+        )
+
+        XCTAssertEqual(state.credentialSnapshot, .apiKey("sk-probed"))
+    }
 }
 
 private struct ProviderConnectionStateSpy: Equatable {
@@ -324,13 +345,15 @@ private struct ProviderConnectionStateSpy: Equatable {
             preset: preset,
             baseURL: baseURL,
             model: model,
-            apiKey: apiKey
+            apiKey: apiKey,
+            credentialSnapshot: stagedKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                ? nil
+                : .apiKey(stagedKey.trimmingCharacters(in: .whitespacesAndNewlines))
         )
         if case .success(let candidate) = result {
             commit(
                 candidate: candidate,
                 probe: probe,
-                stagedKey: stagedKey,
                 modality: modality
             )
         }
@@ -340,7 +363,6 @@ private struct ProviderConnectionStateSpy: Equatable {
     private mutating func commit(
         candidate: ProviderConnectionCandidate,
         probe: ConnectionProbeResult,
-        stagedKey: String,
         modality: ModelModality
     ) {
         guard ProviderConnectionModel.shouldCommit(candidate: candidate, probe: probe) else { return }
@@ -348,12 +370,11 @@ private struct ProviderConnectionStateSpy: Equatable {
             candidate: candidate,
             currentSettings: settings,
             currentProfile: profile,
-            modality: modality,
-            stagedKey: stagedKey
+            modality: modality
         )
         settings = state.settings
         profile = state.profile
-        if let key = state.stagedKey { self.key = key }
+        if case .apiKey(let key) = state.credentialSnapshot { self.key = key }
         commitCount += 1
     }
 }

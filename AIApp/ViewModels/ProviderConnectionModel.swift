@@ -1,17 +1,23 @@
 import Foundation
 
+enum ProviderConnectionCredentialSnapshot: Equatable {
+    case apiKey(String)
+    case oauth(OAuthCredential)
+}
+
 struct ProviderConnectionCandidate: Equatable {
     let presetId: String
     let baseURL: String
     let model: String
     let apiKey: String
     let localModelId: String
+    let credentialSnapshot: ProviderConnectionCredentialSnapshot?
 }
 
 struct ProviderConnectionCommitState: Equatable {
     let settings: ProviderSettings
     let profile: ProviderProfile
-    let stagedKey: String?
+    let credentialSnapshot: ProviderConnectionCredentialSnapshot?
 }
 
 enum ProviderConnectionValidationError: Error, Equatable, LocalizedError {
@@ -43,7 +49,8 @@ enum ProviderConnectionModel {
         baseURL: String,
         model: String,
         apiKey: String,
-        localModelId: String = ""
+        localModelId: String = "",
+        credentialSnapshot: ProviderConnectionCredentialSnapshot? = nil
     ) -> Result<ProviderConnectionCandidate, ProviderConnectionValidationError> {
         let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !preset.needsKey || !key.isEmpty else {
@@ -83,7 +90,8 @@ enum ProviderConnectionModel {
             localModelId: preset.dialect == .mlx
                 ? (localModelId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                     ? LocalModel.defaultId : localModelId.trimmingCharacters(in: .whitespacesAndNewlines))
-                : ""
+                : "",
+            credentialSnapshot: credentialSnapshot
         ))
     }
 
@@ -112,12 +120,10 @@ enum ProviderConnectionModel {
         candidate: ProviderConnectionCandidate,
         currentSettings: ProviderSettings,
         currentProfile: ProviderProfile,
-        modality: ModelModality,
-        stagedKey: String?
+        modality: ModelModality
     ) -> ProviderConnectionCommitState {
         var settings = currentSettings
         var profile = currentProfile
-        let normalizedStagedKey = stagedKey?.trimmingCharacters(in: .whitespacesAndNewlines)
 
         switch modality {
         case .chat:
@@ -144,7 +150,7 @@ enum ProviderConnectionModel {
         return ProviderConnectionCommitState(
             settings: settings,
             profile: profile,
-            stagedKey: normalizedStagedKey?.isEmpty == false ? normalizedStagedKey : nil
+            credentialSnapshot: candidate.credentialSnapshot
         )
     }
 

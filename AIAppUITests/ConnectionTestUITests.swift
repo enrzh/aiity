@@ -225,6 +225,7 @@ final class ConnectionTestUITests: XCTestCase {
         let model = app.textFields["provider-model"]
         XCTAssertTrue(model.waitForExistence(timeout: 10))
         typeText("manual-model", into: "provider-model", in: app)
+        typeText("manual-key", into: "provider-api-key", in: app)
         XCTAssertTrue((model.value as? String)?.contains("manual-model") == true)
         XCTAssertTrue(revealByScrolling(app.buttons["test-connection"]))
         app.buttons["test-connection"].tap()

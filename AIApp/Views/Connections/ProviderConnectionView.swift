@@ -964,18 +964,34 @@ struct ProviderConnectionView: View {
         validationError = nil
         // The synchronous credential peek is intentionally non-refreshing. It
         // lets validation finish before any OAuth or Keychain mutation.
+        let draftKey = newKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let oauthCredential = pendingOAuthCredential
+        let key = !draftKey.isEmpty
+            ? draftKey
+            : (oauthCredential.map { AuthStore.oauthMarker + $0.accessToken }
+                ?? AuthStore.storedKeySynchronously(presetId: presetId))
+        let credentialSnapshot: ProviderConnectionCredentialSnapshot?
+        if !draftKey.isEmpty {
+            credentialSnapshot = .apiKey(draftKey)
+        } else if let oauthCredential {
+            credentialSnapshot = .oauth(oauthCredential)
+        } else {
+            credentialSnapshot = nil
+        }
         let candidateResult = ProviderConnectionModel.makeCandidate(
             preset: preset,
             baseURL: hostDraft,
             model: modelDraft,
-            apiKey: candidateKey(),
-            localModelId: localModelDraft
+            apiKey: key,
+            localModelId: localModelDraft,
+            credentialSnapshot: credentialSnapshot
         )
         guard case .success(let candidate) = candidateResult else {
             if case .failure(let error) = candidateResult { validationError = error }
             return
         }
         probing = true
+        let label = newLabel
         Task {
             let snapshot = ProviderConnectionModel.probeSettings(
                 candidate: candidate,
@@ -985,7 +1001,7 @@ struct ProviderConnectionView: View {
             let result = await ConnectionProbe.test(settings: snapshot, apiKey: candidate.apiKey)
             probeResult = result
             if ProviderConnectionModel.shouldCommit(candidate: candidate, probe: result) {
-                commit(candidate)
+                commit(candidate, label: label)
             }
             if result.ok, !result.models.isEmpty {
                 if let rich = try? await ModelCatalogService.fetchModels(settings: snapshot, apiKey: candidate.apiKey) {
@@ -1011,22 +1027,23 @@ struct ProviderConnectionView: View {
 
     /// The only persistence boundary for the provider form. Callers must have
     /// already validated and probed the candidate before entering this method.
-    private func commit(_ candidate: ProviderConnectionCandidate) {
-        let stagedKey = newKey.trimmingCharacters(in: .whitespacesAndNewlines)
+    private func commit(_ candidate: ProviderConnectionCandidate, label: String) {
         let state = ProviderConnectionModel.commitState(
             candidate: candidate,
             currentSettings: settingsStore.settings,
             currentProfile: ProviderProfiles.profile(for: presetId),
-            modality: modality,
-            stagedKey: stagedKey
+            modality: modality
         )
 
         // Credentials are durable before the active settings point at them.
-        if let credential = pendingOAuthCredential {
-            accountStore.addOAuthAccount(presetId: presetId, label: newLabel, credential: credential)
+        switch state.credentialSnapshot {
+        case .oauth(let credential):
+            accountStore.addOAuthAccount(presetId: presetId, label: label, credential: credential)
             pendingOAuthCredential = nil
-        } else if !stagedKey.isEmpty {
-            accountStore.addKeyAccount(presetId: presetId, label: newLabel, key: stagedKey)
+        case .apiKey(let key):
+            accountStore.addKeyAccount(presetId: presetId, label: label, key: key)
+        case nil:
+            break
         }
 
         let needsNonActiveImageProfile = modality == .image
