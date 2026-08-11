@@ -13,12 +13,40 @@ struct MCPServerProfile: Codable, Equatable, Identifiable {
     var url: String
     var enabled = true
     var tools: [MCPToolDefinition] = []
+}
 
-    static let templates = [
-        MCPServerProfile(name: "Google Workspace", url: ""),
-        MCPServerProfile(name: "Google Drive", url: ""),
-        MCPServerProfile(name: "Google Calendar", url: ""),
-        MCPServerProfile(name: "Gmail", url: ""),
+/// A hosted MCP service the user can configure in a browser. Recommendations
+/// never contain a connection URL or credential: those belong to one user and
+/// are only issued after that provider's setup flow.
+struct MCPRecommendation: Identifiable, Equatable {
+    let id: String
+    let name: String
+    let summary: String
+    let systemImage: String
+    let setupURL: URL
+    let googleServices: [String]
+
+    func makeProfileDraft() -> MCPServerProfile {
+        MCPServerProfile(name: name, url: "", enabled: false)
+    }
+
+    static let catalog: [MCPRecommendation] = [
+        MCPRecommendation(
+            id: "zapier",
+            name: "Zapier MCP",
+            summary: "Einfacher Einstieg für Google-Dienste und tausende weitere Apps.",
+            systemImage: "bolt.fill",
+            setupURL: URL(string: "https://mcp.zapier.com")!,
+            googleServices: ["Google Drive", "Google Calendar", "Gmail"]
+        ),
+        MCPRecommendation(
+            id: "pipedream",
+            name: "Pipedream MCP",
+            summary: "Viele APIs und Automationen, mit Remote-MCP für eigene Konten.",
+            systemImage: "point.3.connected.trianglepath.dotted",
+            setupURL: URL(string: "https://pipedream.com/docs/connect/mcp/users")!,
+            googleServices: ["Google Drive", "Google Calendar", "Gmail"]
+        ),
     ]
 }
 
