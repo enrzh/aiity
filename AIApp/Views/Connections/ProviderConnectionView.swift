@@ -38,9 +38,10 @@ struct ProviderConnectionView: View {
     @State private var hostDraft = ""
     /// Local draft for model when this provider is not yet the active slot.
     /// For chat this may hold an UNCOMMITTED suggestion (a highlighted
-    /// recommendation in the picker) — only the Picker/TextField bindings
-    /// commit it.
+    /// recommendation in the picker). It is committed only after a successful
+    /// probe.
     @State private var modelDraft = ""
+    @State private var localModelDraft = ""
     @State private var showLeaveWithoutModelDialog = false
     /// Per-provider tool policy, mirrored from `LocalRuntimePolicy` on appear.
     @State private var toolPolicy: LocalRuntimePolicy.ToolPolicy = .auto
@@ -96,9 +97,8 @@ struct ProviderConnectionView: View {
                     }
                 }
             } else {
-                // Show the address field during setup too — editing persists to
-                // the provider profile, so activation is not a prerequisite for
-                // typing the gateway address (was hidden until chat-active).
+                // Show the address field during setup too — the draft can be
+                // validated before activation and is persisted only on success.
                 if preset.editableBaseURL {
                     if isLocalWizard { localRuntimeWizardSection } else { baseURLSection }
                 }
@@ -141,11 +141,8 @@ struct ProviderConnectionView: View {
             titleVisibility: .visible
         ) {
             if !modelDraft.isEmpty {
-                // The highlighted suggestion, one tap to make it real.
-                Button(String(localized: "\(modelDraft) verwenden")) {
-                    commitModel(modelDraft)
-                    dismiss()
-                }
+                // The highlighted suggestion still needs a successful probe.
+                Button(String(localized: "\(modelDraft) prüfen")) { runProbe() }
             }
             Button("Ohne Modell verlassen") { dismiss() }
             Button("Modell wählen", role: .cancel) {}
@@ -209,6 +206,11 @@ struct ProviderConnectionView: View {
                 modelDraft = profile.lastImageModel.isEmpty
                     ? ModelModality.image.defaultModel : profile.lastImageModel
             }
+        }
+        if preset.dialect == .mlx {
+            localModelDraft = isChatActive
+                ? settingsStore.settings.localModelId
+                : ProviderProfiles.profile(for: presetId).localModelId
         }
     }
 
@@ -713,18 +715,15 @@ struct ProviderConnectionView: View {
             case .chat:
                 suggestChatModel(from: seed, settings: connectionSettings)
             case .image:
-                // Image keeps its established auto-pick + commit (its own
-                // modality slot; deliberately outside the choose-on-exit
-                // semantics of the chat model).
+                // Image gets a local recommendation; the probe commits the
+                // modality slot after the candidate succeeds.
                 if modelDraft.isEmpty || !seed.map(\.id).contains(modelDraft) {
                     if let pick = ModelCatalogService.autoPickModel(
                         from: seed,
                         settings: connectionSettings
                     ) {
                         modelDraft = pick
-                        if isActiveForModality || isChatActive {
-                            commitModel(pick)
-                        }
+                        stageModel(pick)
                     }
                 }
             }
@@ -739,7 +738,7 @@ struct ProviderConnectionView: View {
     private func silentRefreshModels() {
         let snapshot = probeSnapshot()
         Task {
-            let key = await AuthStore.effectiveKey(for: snapshot)
+            let key = candidateKey()
             // Skip network noise if cloud needs key and none present.
             if snapshot.preset.needsKey && key.isEmpty && snapshot.preset.dialect != .mlx {
                 return
@@ -753,11 +752,9 @@ struct ProviderConnectionView: View {
                         suggestChatModel(from: models, settings: snapshot)
                     case .image:
                         if modelDraft.isEmpty,
-                           let pick = ModelCatalogService.autoPickModel(from: models, settings: snapshot) {
+                            let pick = ModelCatalogService.autoPickModel(from: models, settings: snapshot) {
                             modelDraft = pick
-                            if isActiveForModality || isChatActive {
-                                commitModel(pick)
-                            }
+                            stageModel(pick)
                         }
                     }
                 }
@@ -766,9 +763,8 @@ struct ProviderConnectionView: View {
     }
 
     /// UI suggestion only — highlight a recommended CHAT model in the picker
-    /// when nothing is chosen yet. Never persists anything: `commitModel` runs
-    /// solely from the Picker/TextField bindings (genuine user actions) so a
-    /// catalog load can never silently decide the model for the user.
+    /// when nothing is chosen yet. Never persists anything: catalog loads only
+    /// stage a value, and the successful probe is the persistence boundary.
     private func suggestChatModel(from models: [CatalogModel], settings: ProviderSettings) {
         guard modality == .chat, modelDraft.isEmpty,
               let pick = ModelCatalogService.autoPickModel(from: models, settings: settings) else {
@@ -777,7 +773,7 @@ struct ProviderConnectionView: View {
         modelDraft = pick
     }
 
-    private func commitModel(_ value: String) {
+    private func stageModel(_ value: String) {
         modelDraft = value.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
@@ -806,13 +802,13 @@ struct ProviderConnectionView: View {
             let shortage = modelStore.shortage(model.id)
             HStack(spacing: 12) {
                 Button {
-                    settingsStore.settings.localModelId = model.id
+                    localModelDraft = model.id
                 } label: {
                     HStack {
                         Image(systemName: selectionSymbol(for: model.id, blocked: shortage != nil))
                             .foregroundStyle(
                                 shortage != nil ? Color.secondary
-                                    : (settingsStore.settings.localModelId == model.id ? Color.accentColor : Color.secondary)
+                                    : (localModelDraft == model.id ? Color.accentColor : Color.secondary)
                             )
                         VStack(alignment: .leading, spacing: 2) {
                             Text(model.displayName)
@@ -867,7 +863,7 @@ struct ProviderConnectionView: View {
 
     private func selectionSymbol(for modelId: String, blocked: Bool) -> String {
         if blocked { return "slash.circle" }
-        return settingsStore.settings.localModelId == modelId ? "checkmark.circle.fill" : "circle"
+        return localModelDraft == modelId ? "checkmark.circle.fill" : "circle"
     }
 
     // MARK: Actions
@@ -916,7 +912,7 @@ struct ProviderConnectionView: View {
         }
         // Ensure probe uses this preset even when not chat-active.
         snap.presetId = presetId
-        if modality == .chat, !modelDraft.isEmpty {
+        if !modelDraft.isEmpty {
             snap.model = modelDraft
         }
         return snap
@@ -926,14 +922,9 @@ struct ProviderConnectionView: View {
         fetchingModels = true
         modelsError = nil
         var snapshot = probeSnapshot()
-        let draftKey = newKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        let oauthKey = pendingOAuthCredential.map { AuthStore.oauthMarker + $0.accessToken } ?? ""
         Task {
             do {
-                let storedKey = await AuthStore.effectiveKey(for: snapshot)
-                let key = draftKey.isEmpty
-                    ? (oauthKey.isEmpty ? storedKey : oauthKey)
-                    : draftKey
+                let key = candidateKey()
                 // Ensure OAuth OpenAI snapshot still uses openai presetId for curated path.
                 snapshot.presetId = presetId
                 let models = try await ModelCatalogService.fetchModels(settings: snapshot, apiKey: key)
@@ -948,15 +939,12 @@ struct ProviderConnectionView: View {
                         // the picker until the user actually taps it.
                         suggestChatModel(from: pickPool, settings: snapshot)
                     } else {
-                        // Image keeps its established behavior: first usable
-                        // model is committed and the slot is activated.
+                        // Discovery only stages a recommendation. The probe is
+                        // the transaction boundary for the image slot too.
                         if modelDraft.isEmpty || !pickPool.map(\.id).contains(modelDraft),
                            let first = pickPool.first {
                             modelDraft = first.id
-                            commitModel(first.id)
-                        }
-                        if !isActiveForModality {
-                            applyAsActive()
+                            stageModel(first.id)
                         }
                     }
                 }
@@ -972,40 +960,35 @@ struct ProviderConnectionView: View {
     }
 
     private func runProbe() {
-        probing = true
         probeResult = nil
         validationError = nil
-        // Testing uses an isolated candidate. A successful probe commits the complete candidate exactly
-        // once; validation and network failures leave every persisted value
-        // untouched.
-        let draftKey = newKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        let oauthKey = pendingOAuthCredential.map { AuthStore.oauthMarker + $0.accessToken } ?? ""
-        let draftSnapshot = probeSnapshot()
+        // The synchronous credential peek is intentionally non-refreshing. It
+        // lets validation finish before any OAuth or Keychain mutation.
+        let candidateResult = ProviderConnectionModel.makeCandidate(
+            preset: preset,
+            baseURL: hostDraft,
+            model: modelDraft,
+            apiKey: candidateKey(),
+            localModelId: localModelDraft
+        )
+        guard case .success(let candidate) = candidateResult else {
+            if case .failure(let error) = candidateResult { validationError = error }
+            return
+        }
+        probing = true
         Task {
-            let storedKey = await AuthStore.effectiveKey(for: draftSnapshot)
-            let key = draftKey.isEmpty
-                ? (oauthKey.isEmpty ? storedKey : oauthKey)
-                : draftKey
-            let candidateResult = ProviderConnectionModel.makeCandidate(
-                preset: preset,
-                baseURL: hostDraft,
-                model: modelDraft,
-                apiKey: key
+            let snapshot = ProviderConnectionModel.probeSettings(
+                candidate: candidate,
+                current: connectionSettings,
+                modality: modality
             )
-            guard case .success(let candidate) = candidateResult else {
-                if case .failure(let error) = candidateResult { validationError = error }
-                probing = false
-                return
-            }
-
-            let snapshot = settings(for: candidate)
             let result = await ConnectionProbe.test(settings: snapshot, apiKey: candidate.apiKey)
             probeResult = result
             if ProviderConnectionModel.shouldCommit(candidate: candidate, probe: result) {
                 commit(candidate)
             }
             if result.ok, !result.models.isEmpty {
-                if let rich = try? await ModelCatalogService.fetchModels(settings: snapshot, apiKey: key) {
+                if let rich = try? await ModelCatalogService.fetchModels(settings: snapshot, apiKey: candidate.apiKey) {
                     catalogModels = rich
                     suggestChatModel(from: rich, settings: snapshot)
                 } else {
@@ -1017,54 +1000,49 @@ struct ProviderConnectionView: View {
         }
     }
 
-    private func settings(for candidate: ProviderConnectionCandidate) -> ProviderSettings {
-        var snapshot = connectionSettings
-        snapshot.presetId = candidate.presetId
-        snapshot.baseURL = candidate.baseURL
-        snapshot.setModel(candidate.model, for: modality)
-        return snapshot
+    private func candidateKey() -> String {
+        let draft = newKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !draft.isEmpty { return draft }
+        if let credential = pendingOAuthCredential {
+            return AuthStore.oauthMarker + credential.accessToken
+        }
+        return AuthStore.storedKeySynchronously(presetId: presetId)
     }
 
     /// The only persistence boundary for the provider form. Callers must have
     /// already validated and probed the candidate before entering this method.
     private func commit(_ candidate: ProviderConnectionCandidate) {
-        ProviderProfiles.update(presetId: presetId) { profile in
-            if preset.editableBaseURL {
-                profile.baseURL = candidate.baseURL
-            }
-            switch modality {
-            case .chat:
-                profile.model = candidate.model
-            case .image:
-                profile.lastImageModel = candidate.model
-            }
-        }
-
-        switch modality {
-        case .chat:
-            var updated = settingsStore.settings
-            updated.presetId = presetId
-            updated.baseURL = candidate.baseURL
-            updated.model = candidate.model
-            settingsStore.settings = updated
-        case .image:
-            var updated = settingsStore.settings
-            updated.imagePresetId = presetId
-            updated.imageModel = candidate.model
-            updated.baseURL = presetId == updated.presetId ? candidate.baseURL : updated.baseURL
-            settingsStore.settings = updated
-        }
-
         let stagedKey = newKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let state = ProviderConnectionModel.commitState(
+            candidate: candidate,
+            currentSettings: settingsStore.settings,
+            currentProfile: ProviderProfiles.profile(for: presetId),
+            modality: modality,
+            stagedKey: stagedKey
+        )
+
+        // Credentials are durable before the active settings point at them.
         if let credential = pendingOAuthCredential {
             accountStore.addOAuthAccount(presetId: presetId, label: newLabel, credential: credential)
             pendingOAuthCredential = nil
-            newLabel = ""
         } else if !stagedKey.isEmpty {
             accountStore.addKeyAccount(presetId: presetId, label: newLabel, key: stagedKey)
-            newKey = ""
-            newLabel = ""
         }
+
+        let needsNonActiveImageProfile = modality == .image
+            && preset.editableBaseURL
+            && settingsStore.settings.presetId != presetId
+
+        // SettingsStore.didSet captures the active chat/image profile once.
+        settingsStore.settings = state.settings
+        // An image provider can be non-active for chat, so its endpoint cannot
+        // ride in the global baseURL. Apply that profile after didSet capture,
+        // which would otherwise overwrite the normalized endpoint.
+        if needsNonActiveImageProfile {
+            ProviderProfiles.update(presetId: presetId) { $0 = state.profile }
+        }
+        newKey = ""
+        newLabel = ""
     }
 
 }

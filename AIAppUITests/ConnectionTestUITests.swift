@@ -5,11 +5,9 @@ import XCTest
 /// instance FullFlowUITests uses; default STUB_MODE serves GET /v1/models and
 /// the non-stream probe chat).
 ///
-/// Contract under test (model-autoselect rework): a green probe is a
-/// DIAGNOSIS, not a configuration. The probe and "Modelle laden" only SUGGEST
-/// a model (a highlighted picker recommendation); nothing is committed until
-/// the user picks explicitly — so the exit prompt ("Kein Modell gewählt")
-/// must still intercept back navigation after a successful probe.
+/// Contract under test: model discovery only stages a recommendation, while a
+/// successful explicit probe commits the candidate and its credential. A
+/// failed probe leaves the form and persisted provider state retryable.
 final class ConnectionTestUITests: XCTestCase {
 
     private var app: XCUIApplication!
@@ -77,7 +75,8 @@ final class ConnectionTestUITests: XCTestCase {
 
     // `tapDialogButton(_:)` also moved to UITestSupport.swift.
 
-    /// A successful probe commits the candidate, including the suggested model.
+    /// A successful probe commits the candidate, including the suggested model,
+    /// and the next screen observes that persisted model.
     func testProbeSucceedsAndCommitsCandidate() {
         app.launch()
         openOllamaProvider()
@@ -90,10 +89,18 @@ final class ConnectionTestUITests: XCTestCase {
             .matching(NSPredicate(format: "label CONTAINS 'Verbunden'")).firstMatch
         XCTAssertTrue(success.waitForExistence(timeout: 20), "probe against the stub should succeed")
 
-        // A green probe commits the auto-picked model and releases the exit
-        // prompt because the candidate has now been validated.
-        let back = app.buttons["provider-back"]
-        XCTAssertFalse(back.exists, "successful probe should commit its candidate")
+        let providerNav = app.navigationBars.matching(
+            NSPredicate(format: "identifier BEGINSWITH 'Ollama'")
+        ).firstMatch
+        let back = providerNav.buttons["Anbieter"]
+        XCTAssertTrue(back.waitForExistence(timeout: 5), "successful probe should expose normal navigation")
+        back.tap()
+        XCTAssertTrue(app.navigationBars["Anbieter"].waitForExistence(timeout: 10))
+        XCTAssertTrue(
+            app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'stub-large'"))
+                .firstMatch.waitForExistence(timeout: 5),
+            "the committed model should be visible in the provider row"
+        )
     }
 
     /// Model discovery only drafts a suggestion. Without a successful probe,
@@ -165,6 +172,16 @@ final class ConnectionTestUITests: XCTestCase {
         XCTAssertTrue((app.textFields["provider-base-url"].value as? String)?.contains("127.0.0.1") == true)
         XCTAssertTrue((app.textFields["provider-model"].value as? String)?.contains("manual-model") == true)
         XCTAssertTrue(app.staticTexts["Noch kein Konto"].exists || app.secureTextFields["provider-api-key"].exists)
+
+        let providerNav = app.navigationBars.matching(
+            NSPredicate(format: "identifier BEGINSWITH 'Beliebige OpenAI'")
+        ).firstMatch
+        XCTAssertTrue(providerNav.buttons["Anbieter"].waitForExistence(timeout: 5))
+        providerNav.buttons["Anbieter"].tap()
+        XCTAssertTrue(app.navigationBars["Anbieter"].waitForExistence(timeout: 10))
+        XCTAssertTrue(tap(custom, until: form))
+        XCTAssertFalse((app.textFields["provider-base-url"].value as? String)?.contains("127.0.0.1") == true)
+        XCTAssertFalse((app.textFields["provider-model"].value as? String)?.contains("manual-model") == true)
     }
 
     func testNormalizedCustomEndpointCommitsAfterSuccessfulProbe() {
@@ -184,8 +201,16 @@ final class ConnectionTestUITests: XCTestCase {
         app.buttons["test-connection"].tap()
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Verbunden'")).firstMatch
             .waitForExistence(timeout: 20))
-        XCTAssertTrue(app.navigationBars["Anbieter"].waitForExistence(timeout: 10)
-                      || app.buttons["provider-back"].exists == false)
+        let providerNav = app.navigationBars.matching(
+            NSPredicate(format: "identifier BEGINSWITH 'Beliebige OpenAI'")
+        ).firstMatch
+        XCTAssertTrue(providerNav.buttons["Anbieter"].waitForExistence(timeout: 5))
+        providerNav.buttons["Anbieter"].tap()
+        XCTAssertTrue(app.navigationBars["Anbieter"].waitForExistence(timeout: 10))
+        XCTAssertTrue(tap(custom, until: form))
+        XCTAssertEqual(app.textFields["provider-base-url"].value as? String, "http://127.0.0.1:8555/v1")
+        XCTAssertEqual(app.textFields["provider-model"].value as? String, "stub")
+        XCTAssertFalse(app.staticTexts["Noch kein Konto"].exists, "successful commit should persist the account")
     }
 
     func testManualModelFallbackStaysVisibleWhenDiscoveryFails() {
@@ -200,6 +225,11 @@ final class ConnectionTestUITests: XCTestCase {
         let model = app.textFields["provider-model"]
         XCTAssertTrue(model.waitForExistence(timeout: 10))
         typeText("manual-model", into: "provider-model", in: app)
+        XCTAssertTrue((model.value as? String)?.contains("manual-model") == true)
+        XCTAssertTrue(revealByScrolling(app.buttons["test-connection"]))
+        app.buttons["test-connection"].tap()
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Test-Chat fehlgeschlagen'"))
+            .firstMatch.waitForExistence(timeout: 15))
         XCTAssertTrue((model.value as? String)?.contains("manual-model") == true)
     }
 
@@ -221,7 +251,11 @@ final class ConnectionTestUITests: XCTestCase {
         app.buttons["test-connection"].tap()
         XCTAssertTrue(app.staticTexts["Noch kein Konto"].waitForExistence(timeout: 15)
                       || app.staticTexts["Verbindung fehlgeschlagen"].waitForExistence(timeout: 15))
-        form.buttons.firstMatch.tap()
+        let providerNav = app.navigationBars.matching(
+            NSPredicate(format: "identifier BEGINSWITH 'Beliebige OpenAI'")
+        ).firstMatch
+        XCTAssertTrue(providerNav.buttons["Anbieter"].waitForExistence(timeout: 5))
+        providerNav.buttons["Anbieter"].tap()
         XCTAssertTrue(app.navigationBars["Anbieter"].waitForExistence(timeout: 10))
         XCTAssertTrue(tap(custom, until: form))
         XCTAssertTrue(app.staticTexts["Noch kein Konto"].waitForExistence(timeout: 5))

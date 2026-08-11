@@ -144,23 +144,31 @@ enum ConnectionProbe {
         do {
             // Prefer unified catalog (same auth/headers as chat); fall back to legacy list.
             let models: [String]
+            let manualModel = settings.model.trimmingCharacters(in: .whitespacesAndNewlines)
             do {
                 let catalog = try await ModelCatalogService.fetchModels(settings: settings, apiKey: apiKey)
                 models = catalog.map(\.id)
             } catch {
-                models = (try? await legacyListModels(
-                    modelsURL: modelsURL,
-                    base: base,
-                    dialect: dialect,
-                    apiKey: apiKey,
-                    allowPrivate: LocalRuntimePolicy.isSelfHosted(settings)
-                )) ?? []
+                // A manually entered model is an explicit fallback. Without
+                // one, retain the models-list error instead of disguising it
+                // as an empty catalog.
+                if manualModel.isEmpty {
+                    models = try await legacyListModels(
+                        modelsURL: modelsURL,
+                        base: base,
+                        dialect: dialect,
+                        apiKey: apiKey,
+                        allowPrivate: LocalRuntimePolicy.isSelfHosted(settings)
+                    )
+                } else {
+                    models = []
+                }
             }
 
             let modelId = ModelCatalogService.autoPickModel(
                 from: models.map { CatalogModel(id: $0) },
                 settings: settings
-            ) ?? models.first ?? settings.model.trimmingCharacters(in: .whitespacesAndNewlines)
+            ) ?? models.first ?? manualModel
             guard !modelId.isEmpty else {
                 return ConnectionProbeResult(
                     ok: false,

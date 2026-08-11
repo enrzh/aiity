@@ -178,6 +178,20 @@ final class ConnectionProbeTests: XCTestCase {
         XCTAssertTrue(result.reason.contains("HTTP 401"), result.reason)
     }
 
+    /// A manually entered model is an intentional fallback when discovery is
+    /// unavailable; the failed list request must not be silently swallowed.
+    func testManualModelFallbackProbesTheEnteredModelAfterListFailure() async throws {
+        let server = try ProbeStubServer(mode: .unauthorized)
+        defer { server.stop() }
+        var settings = ProviderSettings()
+        settings.presetId = "custom-openai"
+        settings.baseURL = server.baseURL
+        settings.model = "manual-model"
+        let result = await ConnectionProbe.test(settings: settings, apiKey: "bad-key")
+        XCTAssertFalse(result.ok)
+        XCTAssertTrue(result.reason.contains("Test-Chat fehlgeschlagen (HTTP 401)"), result.reason)
+    }
+
     /// Same for a 404 (wrong path / server without the API).
     func testProbe404SurfacesUserFacingReason() async throws {
         let server = try ProbeStubServer(mode: .notFound)

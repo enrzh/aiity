@@ -169,35 +169,192 @@ final class ProviderConnectionModelTests: XCTestCase {
         XCTAssertEqual(candidate.apiKey, "sk-test")
     }
 
-    func testValidationFailurePreservesExistingSettings() {
-        var existing = ProviderSettings()
-        existing.presetId = "openrouter"
-        existing.baseURL = "https://working.example/v1"
-        existing.model = "working-model"
-        let before = existing
-
-        let result = ProviderConnectionModel.makeCandidate(
-            preset: ProviderPreset.preset(for: "custom-openai"),
-            baseURL: "",
-            model: "new-model",
-            apiKey: "sk-new"
-        )
-
-        XCTAssertEqual(result.failureValue, .baseURLRequired)
-        XCTAssertEqual(existing, before)
-    }
-
-    func testProbeFailureDoesNotProduceCommit() {
-        let candidate = try! XCTUnwrap(
+    func testMLXCandidateAllowsEmptyRemoteModelAndKeepsLocalModelPath() throws {
+        let candidate = try XCTUnwrap(
             ProviderConnectionModel.makeCandidate(
-                preset: ProviderPreset.preset(for: "custom-openai"),
-                baseURL: "api.example.com",
-                model: "manual-model",
-                apiKey: "sk-new"
+                preset: ProviderPreset.preset(for: "mlx"),
+                baseURL: "",
+                model: "",
+                apiKey: ""
             ).successValue
         )
 
-        XCTAssertFalse(ProviderConnectionModel.shouldCommit(candidate: candidate, probe: .failure("offline")))
+        XCTAssertTrue(candidate.model.isEmpty)
+        XCTAssertEqual(candidate.localModelId, LocalModel.defaultId)
+    }
+
+    func testImageProbeUsesCandidateImageModelInsteadOfChatModel() throws {
+        var existing = ProviderSettings()
+        existing.presetId = "openrouter"
+        existing.model = "chat-model"
+        existing.imagePresetId = "openrouter"
+        existing.imageModel = "old-image-model"
+        let candidate = try XCTUnwrap(
+            ProviderConnectionModel.makeCandidate(
+                preset: ProviderPreset.preset(for: "custom-openai"),
+                baseURL: "api.example.com",
+                model: "new-image-model",
+                apiKey: "sk-test"
+            ).successValue
+        )
+
+        let probeSettings = ProviderConnectionModel.probeSettings(
+            candidate: candidate,
+            current: existing,
+            modality: .image
+        )
+
+        XCTAssertEqual(probeSettings.model, "new-image-model")
+        XCTAssertEqual(probeSettings.imageModel, "new-image-model")
+    }
+
+    func testValidationFailureLeavesStatefulStoreUntouched() throws {
+        var existingSettings = ProviderSettings()
+        existingSettings.presetId = "openrouter"
+        existingSettings.baseURL = "https://working.example/v1"
+        existingSettings.model = "working-model"
+        var existingProfile = ProviderProfile()
+        existingProfile.baseURL = "https://working.example/v1"
+        existingProfile.model = "working-model"
+        var store = ProviderConnectionStateSpy(
+            settings: existingSettings,
+            profile: existingProfile,
+            key: "sk-existing"
+        )
+        let before = store
+        let result = store.attempt(
+            preset: ProviderPreset.preset(for: "custom-openai"),
+            baseURL: "",
+            model: "new-model",
+            apiKey: "sk-new",
+            probe: ConnectionProbeResult(ok: true, models: [], reason: "should not run", toolsLikely: false, chatOnly: false),
+            stagedKey: "sk-new",
+            modality: .chat
+        )
+
+        guard case .failure = result else {
+            return XCTFail("invalid candidate should fail before the store is touched")
+        }
+        XCTAssertEqual(store, before)
+        XCTAssertEqual(store.commitCount, 0)
+    }
+
+    func testProbeFailureLeavesStatefulStoreUntouched() throws {
+        var existingSettings = ProviderSettings()
+        existingSettings.presetId = "openrouter"
+        existingSettings.baseURL = "https://working.example/v1"
+        existingSettings.model = "working-model"
+        var existingProfile = ProviderProfile()
+        existingProfile.baseURL = "https://working.example/v1"
+        existingProfile.model = "working-model"
+        var store = ProviderConnectionStateSpy(
+            settings: existingSettings,
+            profile: existingProfile,
+            key: "sk-existing"
+        )
+        let before = store
+
+        let result = store.attempt(
+            preset: ProviderPreset.preset(for: "custom-openai"),
+            baseURL: "api.example.com",
+            model: "manual-model",
+            apiKey: "sk-new",
+            probe: .failure("offline"),
+            stagedKey: "sk-new",
+            modality: .chat
+        )
+
+        XCTAssertNotNil(result.successValue)
+        XCTAssertEqual(store, before)
+        XCTAssertEqual(store.commitCount, 0)
+    }
+
+    func testSuccessfulCommitStoresNormalizedURLModelAndKeyExactlyOnce() throws {
+        var existingSettings = ProviderSettings()
+        existingSettings.presetId = "openrouter"
+        existingSettings.baseURL = "https://working.example/v1"
+        existingSettings.model = "working-model"
+        var existingProfile = ProviderProfile()
+        existingProfile.baseURL = "https://working.example/v1"
+        existingProfile.model = "working-model"
+        var store = ProviderConnectionStateSpy(
+            settings: existingSettings,
+            profile: existingProfile,
+            key: "sk-existing"
+        )
+
+        let result = store.attempt(
+            preset: ProviderPreset.preset(for: "custom-openai"),
+            baseURL: " api.example.com/chat/completions?debug=true/ ",
+            model: "  manual-model  ",
+            apiKey: " sk-new ",
+            probe: ConnectionProbeResult(ok: true, models: ["manual-model"], reason: "ok", toolsLikely: true, chatOnly: false),
+            stagedKey: " sk-new ",
+            modality: .chat
+        )
+
+        XCTAssertNotNil(result.successValue)
+        XCTAssertEqual(store.commitCount, 1)
+        XCTAssertEqual(store.settings.presetId, "custom-openai")
+        XCTAssertEqual(store.settings.baseURL, "https://api.example.com/v1")
+        XCTAssertEqual(store.settings.model, "manual-model")
+        XCTAssertEqual(store.profile.baseURL, "https://api.example.com/v1")
+        XCTAssertEqual(store.profile.model, "manual-model")
+        XCTAssertEqual(store.key, "sk-new")
+    }
+}
+
+private struct ProviderConnectionStateSpy: Equatable {
+    var settings: ProviderSettings
+    var profile: ProviderProfile
+    var key: String
+    var commitCount = 0
+
+    @discardableResult
+    mutating func attempt(
+        preset: ProviderPreset,
+        baseURL: String,
+        model: String,
+        apiKey: String,
+        probe: ConnectionProbeResult,
+        stagedKey: String,
+        modality: ModelModality
+    ) -> Result<ProviderConnectionCandidate, ProviderConnectionValidationError> {
+        let result = ProviderConnectionModel.makeCandidate(
+            preset: preset,
+            baseURL: baseURL,
+            model: model,
+            apiKey: apiKey
+        )
+        if case .success(let candidate) = result {
+            commit(
+                candidate: candidate,
+                probe: probe,
+                stagedKey: stagedKey,
+                modality: modality
+            )
+        }
+        return result
+    }
+
+    private mutating func commit(
+        candidate: ProviderConnectionCandidate,
+        probe: ConnectionProbeResult,
+        stagedKey: String,
+        modality: ModelModality
+    ) {
+        guard ProviderConnectionModel.shouldCommit(candidate: candidate, probe: probe) else { return }
+        let state = ProviderConnectionModel.commitState(
+            candidate: candidate,
+            currentSettings: settings,
+            currentProfile: profile,
+            modality: modality,
+            stagedKey: stagedKey
+        )
+        settings = state.settings
+        profile = state.profile
+        if let key = state.stagedKey { self.key = key }
+        commitCount += 1
     }
 }
 

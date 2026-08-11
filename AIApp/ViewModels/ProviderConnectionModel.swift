@@ -5,6 +5,13 @@ struct ProviderConnectionCandidate: Equatable {
     let baseURL: String
     let model: String
     let apiKey: String
+    let localModelId: String
+}
+
+struct ProviderConnectionCommitState: Equatable {
+    let settings: ProviderSettings
+    let profile: ProviderProfile
+    let stagedKey: String?
 }
 
 enum ProviderConnectionValidationError: Error, Equatable, LocalizedError {
@@ -35,7 +42,8 @@ enum ProviderConnectionModel {
         preset: ProviderPreset,
         baseURL: String,
         model: String,
-        apiKey: String
+        apiKey: String,
+        localModelId: String = ""
     ) -> Result<ProviderConnectionCandidate, ProviderConnectionValidationError> {
         let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !preset.needsKey || !key.isEmpty else {
@@ -43,8 +51,10 @@ enum ProviderConnectionModel {
         }
 
         let chosenModel = model.trimmingCharacters(in: .whitespacesAndNewlines)
-        let normalizedModel = chosenModel.isEmpty ? preset.defaultModel : chosenModel
-        guard !normalizedModel.isEmpty else {
+        let normalizedModel = preset.dialect == .mlx
+            ? ""
+            : (chosenModel.isEmpty ? preset.defaultModel : chosenModel)
+        guard preset.dialect == .mlx || !normalizedModel.isEmpty else {
             return .failure(.modelRequired)
         }
 
@@ -69,8 +79,73 @@ enum ProviderConnectionModel {
             presetId: preset.id,
             baseURL: normalizedURL,
             model: normalizedModel,
-            apiKey: key
+            apiKey: key,
+            localModelId: preset.dialect == .mlx
+                ? (localModelId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    ? LocalModel.defaultId : localModelId.trimmingCharacters(in: .whitespacesAndNewlines))
+                : ""
         ))
+    }
+
+    static func probeSettings(
+        candidate: ProviderConnectionCandidate,
+        current: ProviderSettings,
+        modality: ModelModality
+    ) -> ProviderSettings {
+        var settings = current
+        settings.presetId = candidate.presetId
+        settings.baseURL = candidate.baseURL
+        switch modality {
+        case .chat:
+            settings.model = candidate.model
+            if candidate.localModelId != "" { settings.localModelId = candidate.localModelId }
+        case .image:
+            settings.imagePresetId = candidate.presetId
+            settings.imageModel = candidate.model
+            // ConnectionProbe is modality-agnostic and selects `model`.
+            settings.model = candidate.model
+        }
+        return settings
+    }
+
+    static func commitState(
+        candidate: ProviderConnectionCandidate,
+        currentSettings: ProviderSettings,
+        currentProfile: ProviderProfile,
+        modality: ModelModality,
+        stagedKey: String?
+    ) -> ProviderConnectionCommitState {
+        var settings = currentSettings
+        var profile = currentProfile
+        let normalizedStagedKey = stagedKey?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        switch modality {
+        case .chat:
+            settings.presetId = candidate.presetId
+            settings.baseURL = candidate.baseURL
+            settings.model = candidate.model
+            profile.model = candidate.model
+            if candidate.localModelId != "" {
+                settings.localModelId = candidate.localModelId
+                profile.localModelId = candidate.localModelId
+            }
+        case .image:
+            settings.imagePresetId = candidate.presetId
+            settings.imageModel = candidate.model
+            if settings.presetId == candidate.presetId {
+                settings.baseURL = candidate.baseURL
+            }
+            profile.lastImageModel = candidate.model
+        }
+        if ProviderPreset.preset(for: candidate.presetId).editableBaseURL {
+            profile.baseURL = candidate.baseURL
+        }
+
+        return ProviderConnectionCommitState(
+            settings: settings,
+            profile: profile,
+            stagedKey: normalizedStagedKey?.isEmpty == false ? normalizedStagedKey : nil
+        )
     }
 
     static func shouldCommit(
@@ -95,7 +170,7 @@ enum ProviderConnectionModel {
 
     /// Whether leaving a provider screen should first ask the user to choose a
     /// model. True only when all of these hold:
-    /// - chat modality (image keeps its own auto-pick behavior),
+    /// - chat modality (image uses its independent slot),
     /// - the preset actually reads `model` (MLX reads `localModelId` instead),
     /// - this provider IS the active chat provider (browsing a non-active
     ///   provider and leaving is always fine),
