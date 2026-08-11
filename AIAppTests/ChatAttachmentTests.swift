@@ -151,6 +151,34 @@ final class ChatAttachmentTests: XCTestCase {
         }
     }
 
+    func testMLXRejectsAttachmentsWithLocalizedError() async {
+        let message = ChatMessage(
+            role: .user,
+            text: "Beschreibe den Anhang",
+            attachments: [ChatAttachment(
+                mediaId: "document.attachment",
+                filename: "document.pdf",
+                mimeType: "application/pdf",
+                kind: .file
+            )]
+        )
+
+        do {
+            for try await _ in MLXProvider(modelId: "test").streamChat(messages: [message], tools: []) {
+                XCTFail("MLX must reject attachments before streaming")
+            }
+            XCTFail("MLX must reject attachments")
+        } catch let error as ProviderError {
+            guard case .unsupportedAttachment(let filename) = error else {
+                return XCTFail("Expected unsupportedAttachment, got \(error)")
+            }
+            XCTAssertEqual(filename, "document.pdf")
+            XCTAssertTrue(error.localizedDescription.contains("document.pdf"))
+        } catch {
+            XCTFail("Expected ProviderError.unsupportedAttachment, got \(error)")
+        }
+    }
+
     func testPendingTurnRoundTripPreservesAttachments() throws {
         let attachment = ChatAttachment(
             mediaId: "photo.attachment",

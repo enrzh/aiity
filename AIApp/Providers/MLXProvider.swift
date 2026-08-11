@@ -224,6 +224,10 @@ struct MLXProvider: LLMProvider {
     func streamChat(messages: [ChatMessage], tools: [ToolSpec]) -> AsyncThrowingStream<ChatEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
+                if let attachment = messages.lazy.flatMap({ $0.attachments }).first {
+                    continuation.finish(throwing: ProviderError.unsupportedAttachment(attachment.filename))
+                    return
+                }
                 #if targetEnvironment(simulator)
                 continuation.finish(throwing: ProviderError.badResponse(0, String(localized: "Lokale Modelle brauchen ein echtes Gerät (MLX läuft nicht im Simulator).")))
                 return
