@@ -192,6 +192,7 @@ struct ChatComposer: View {
                                 .font(.caption)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityIdentifier("chat-attachment-remove-\(attachment.mediaId)")
                         .accessibilityLabel("Anhang entfernen")
                     }
                     .padding(.horizontal, 8)
@@ -201,6 +202,7 @@ struct ChatComposer: View {
             }
             .padding(.horizontal, Theme.space2)
         }
+        .accessibilityIdentifier("chat-attachment-strip")
     }
 
     // MARK: - Dictation

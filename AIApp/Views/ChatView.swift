@@ -49,6 +49,8 @@ struct ChatView: View {
     @State private var composerRestingBottom: CGFloat = 0
     @State private var scrollViewportHeight: CGFloat = 0
     @State private var bottomSentinelBottom: CGFloat = 0
+    @State private var scrollContentTop: CGFloat = 0
+    @State private var scrollContentHeight: CGFloat = 0
     @State private var isNearBottom = true
     @State private var showJumpToLatest = false
     @State private var scrollToLatestRequest = 0
@@ -81,14 +83,19 @@ struct ChatView: View {
     }
 
     static func strippingHTMLFence(from text: String) -> String {
-        guard let fenceStart = text.range(of: "```html") else {
+        var lines = text.components(separatedBy: .newlines)
+        guard let start = lines.firstIndex(where: {
+            $0.trimmingCharacters(in: .whitespaces).lowercased() == "```html"
+        }) else {
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        var result = String(text[..<fenceStart.lowerBound])
-        if let fenceEnd = text.range(of: "```", range: fenceStart.upperBound..<text.endIndex) {
-            result += text[fenceEnd.upperBound...]
+        guard let end = lines[(start + 1)...].firstIndex(where: {
+            $0.trimmingCharacters(in: .whitespaces) == "```"
+        }) else {
+            return text.trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        return result.trimmingCharacters(in: .whitespacesAndNewlines)
+        lines.replaceSubrange(start...end, with: [""])
+        return lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     static func isNearBottom(
@@ -97,6 +104,14 @@ struct ChatView: View {
         threshold: CGFloat = 72
     ) -> Bool {
         contentBottom <= viewportBottom + threshold
+    }
+
+    static func trueContentBottom(
+        contentTop: CGFloat,
+        contentHeight: CGFloat,
+        sentinelBottom: CGFloat
+    ) -> CGFloat {
+        contentHeight > 0 ? contentTop + contentHeight : sentinelBottom
     }
 
     static func markdownAttributedString(_ text: String) -> AttributedString {
@@ -129,11 +144,26 @@ struct ChatView: View {
 
     static func toolResultState(_ text: String) -> ChatToolVisualState {
         let value = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let failureMarkers = [
-            "error:", "fehler", "failed", "fehlgeschlagen", "blocked:",
-            "abgelehnt", "nicht unterstützt"
+        let failurePrefixes = [
+            "error:",
+            "blocked:",
+            "search failed:",
+            "fetch failed:",
+            "bildgenerierung fehlgeschlagen",
+            "bildgenerierung:",
+            "bildgenerierung ist",
+            "bildgenerierung abgelehnt",
+            "kein bild-anbieter",
+            "das bild konnte nicht gespeichert",
+            "das erzeugte bild ließ sich nicht laden",
+            "das bild-modell",
+            "der anbieter hat",
+            "dieser anbieter bietet",
+            "bilddaten des anbieters",
+            "unter der bild-url",
+            "die adresse des bild-anbieters"
         ]
-        return failureMarkers.contains(where: value.contains) ? .failed : .completed
+        return failurePrefixes.contains(where: value.hasPrefix) ? .failed : .completed
     }
 
     /// Short label for the toolbar pill — model name only when possible.
@@ -184,8 +214,16 @@ struct ChatView: View {
 
 
             ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: Theme.space2) {
+                    ScrollView {
+                        VStack(spacing: 0) {
+                        GeometryReader { geometry in
+                            Color.clear.preference(
+                                key: ChatContentTopKey.self,
+                                value: geometry.frame(in: .named("chat-scroll")).minY
+                            )
+                        }
+                        .frame(height: 0)
+                        LazyVStack(alignment: .leading, spacing: Theme.space2) {
                         if needsSetup {
                             setupBanner
                         }
@@ -304,32 +342,36 @@ struct ChatView: View {
                             }
                             .id("error-banner")
                         }
+                        }
+                        // The clearance is part of the scroll content. The
+                        // final marker therefore measures and targets the true
+                        // bottom, including the space below the composer.
+                        Color.clear
+                            .frame(height: inputBarHeight + composerLift + 16)
                         Color.clear
                             .frame(height: 1)
                             .id("chat-bottom-sentinel")
-                            .background(
-                                GeometryReader { geometry in
-                                    Color.clear.preference(
-                                        key: ChatBottomSentinelKey.self,
-                                        value: geometry.frame(in: .named("chat-scroll")).maxY
-                                    )
-                                }
-                            )
                     }
                     .padding(.horizontal, Theme.space3)
                     .padding(.top, Theme.space2)
-                    // Clearance so the last message can scroll clear of the
-                    // floating input bubble (which overlays the content). Tracks
-                    // the measured bubble height so a 6-line input never overlaps.
-                    // composerLift keeps the clearance correct while the keyboard
-                    // is up: the view no longer shrinks with the implicit keyboard
-                    // inset, so the raised bar's travel must be padded explicitly.
-                    .padding(.bottom, inputBarHeight + composerLift + 16)
+                    .background(
+                        GeometryReader { geometry in
+                            Color.clear.preference(
+                                key: ChatBottomSentinelKey.self,
+                                value: geometry.frame(in: .named("chat-scroll")).maxY
+                            )
+                            .preference(
+                                key: ChatContentHeightKey.self,
+                                value: geometry.size.height
+                            )
+                        }
+                    )
                     .animation(
                         Theme.Motion.preferSpring(Theme.Motion.soft, reduceMotion: reduceMotion),
                         value: visibleMessages.count
                     )
                 }
+                .accessibilityIdentifier("chat-transcript")
                 .coordinateSpace(name: "chat-scroll")
                 .background(
                     GeometryReader { geometry in
@@ -384,8 +426,16 @@ struct ChatView: View {
                 .onChange(of: scrollToLatestRequest) {
                     scrollToLatest(proxy)
                 }
-                .onPreferenceChange(ChatBottomSentinelKey.self) { value in
-                    bottomSentinelBottom = value
+                    .onPreferenceChange(ChatBottomSentinelKey.self) { value in
+                        bottomSentinelBottom = value
+                        updateScrollPosition()
+                    }
+                .onPreferenceChange(ChatContentTopKey.self) { value in
+                    scrollContentTop = value
+                    updateScrollPosition()
+                }
+                .onPreferenceChange(ChatContentHeightKey.self) { value in
+                    scrollContentHeight = value
                     updateScrollPosition()
                 }
                 .onPreferenceChange(ChatViewportHeightKey.self) { value in
@@ -469,7 +519,10 @@ struct ChatView: View {
         // A Shortcut that opened a NEW conversation pushes this view, so the
         // text is usually already waiting by the time onAppear runs; onChange
         // covers the case where this view was already on screen.
-        .onAppear { stageIntentTextIfNeeded() }
+        .onAppear {
+            stageIntentTextIfNeeded()
+            loadUITestAttachmentFixtureIfNeeded()
+        }
         .onChange(of: intents.stagedComposerText) { _, _ in stageIntentTextIfNeeded() }
         .navigationTitle(session.activeThreadTitle.isEmpty ? "Chat" : session.activeThreadTitle)
         .navigationBarTitleDisplayMode(.inline)
@@ -696,13 +749,31 @@ struct ChatView: View {
         Analytics.track("chat_send")
     }
 
+    private func loadUITestAttachmentFixtureIfNeeded() {
+        #if DEBUG
+        guard ProcessInfo.processInfo.environment["AIITY_UI_TEST_ATTACHMENTS"] == "1",
+              attachments.isEmpty else { return }
+        attachments = [ChatAttachment(
+            mediaId: "ui-test-attachment",
+            filename: "fixture.png",
+            mimeType: "image/png",
+            kind: .image
+        )]
+        #endif
+    }
+
     private func updateScrollPosition() {
-        guard scrollViewportHeight > 0, bottomSentinelBottom > 0 else { return }
+        let contentBottom = Self.trueContentBottom(
+            contentTop: scrollContentTop,
+            contentHeight: scrollContentHeight,
+            sentinelBottom: bottomSentinelBottom
+        )
+        guard scrollViewportHeight > 0, contentBottom > 0 else { return }
         isNearBottom = Self.isNearBottom(
-            contentBottom: bottomSentinelBottom,
+            contentBottom: contentBottom,
             viewportBottom: scrollViewportHeight
         )
-        if isNearBottom { showJumpToLatest = false }
+        showJumpToLatest = !isNearBottom
     }
 
     private func requestScrollToLatestIfNeeded(_ proxy: ScrollViewProxy) {
@@ -838,6 +909,20 @@ private struct InputBarHeightKey: PreferenceKey {
 }
 
 private struct ChatBottomSentinelKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+private struct ChatContentTopKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+private struct ChatContentHeightKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = nextValue()
@@ -1063,6 +1148,7 @@ private struct ChatAttachmentBubble: View {
                     .clipShape(RoundedRectangle(cornerRadius: Theme.bubbleRadius))
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("chat-attachment-preview-\(attachment.mediaId)")
             .accessibilityLabel(String(localized: "Bildvorschau öffnen"))
         } else {
             Label(
@@ -1168,6 +1254,8 @@ private struct ToolChip: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background(Color.accentColor.opacity(0.08), in: Capsule())
+        .accessibilityIdentifier("chat-tool-\(name)")
+        .accessibilityValue(toolStateLabel)
         .accessibilityLabel("\(label): \(toolStateLabel), \(text)")
     }
 
@@ -1277,6 +1365,7 @@ private struct ChatMediaGallery: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(String(localized: "Schließen")) { dismiss() }
+                        .accessibilityIdentifier("media-preview-close")
                 }
             }
         }
