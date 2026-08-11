@@ -21,6 +21,7 @@ struct LocalModel: Identifiable, Equatable {
     /// footprint understates a 4B model by about 60 %. Ask
     /// `LocalModelFootprint.peakBytes(modelId:)` for memory.
     var sizeHint: String = ""
+    var recommended: Bool = false
 
     /// Everything this app knows how to run, before device filtering.
     /// `catalog` is the part worth offering; see there.
@@ -48,7 +49,8 @@ struct LocalModel: Identifiable, Equatable {
             id: "mlx-community/Qwen2.5-1.5B-Instruct-4bit",
             displayName: "Qwen2.5 1.5B",
             details: "Sehr leicht, ~1,0 GB",
-            sizeHint: "1.0 GB"
+            sizeHint: "1.0 GB",
+            recommended: true
         ),
         LocalModel(
             id: "mlx-community/SmolLM2-1.7B-Instruct-4bit",
@@ -79,7 +81,8 @@ struct LocalModel: Identifiable, Equatable {
             id: "mlx-community/Qwen3-4B-Instruct-2507-4bit",
             displayName: "Qwen3 4B",
             details: "Gutes Allround, ~2,3 GB",
-            sizeHint: "2.3 GB"
+            sizeHint: "2.3 GB",
+            recommended: true
         ),
         LocalModel(
             id: "mlx-community/Qwen2.5-3B-Instruct-4bit",
@@ -110,7 +113,8 @@ struct LocalModel: Identifiable, Equatable {
             id: "mlx-community/Qwen2.5-Coder-3B-Instruct-4bit",
             displayName: "Qwen2.5 Coder 3B",
             details: "Code, leichter, ~1,9 GB",
-            sizeHint: "1.9 GB"
+            sizeHint: "1.9 GB",
+            recommended: true
         ),
         LocalModel(
             id: "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",

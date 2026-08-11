@@ -39,6 +39,17 @@ struct SettingsView: View {
                     .accessibilityIdentifier("open-skills")
 
                     NavigationLink {
+                        MCPServersView()
+                    } label: {
+                        AppSettingsRow(
+                            title: "MCP Server",
+                            subtitle: "Externe Werkzeuge verbinden",
+                            systemImage: "shippingbox"
+                        )
+                    }
+                    .accessibilityIdentifier("open-mcp-servers")
+
+                    NavigationLink {
                         AgentToolsSettingsView()
                     } label: {
                         AppSettingsRow(

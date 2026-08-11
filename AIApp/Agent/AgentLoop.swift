@@ -508,7 +508,7 @@ final class ChatSession: ObservableObject {
             let runSettings = settings
             let apiKey = await AuthStore.effectiveKey(for: runSettings)
             if Task.isCancelled { return }
-            if runSettings.preset.dialect != .mlx,
+            if ![.mlx, .foundation].contains(runSettings.preset.dialect),
                runSettings.effectiveModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 errorMessage = String(localized: "Kein Modell gewählt — Mehr → KI-Anbieter → Modell aus der Liste wählen.")
                 busy = false

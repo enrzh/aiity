@@ -122,6 +122,20 @@ final class ChatPresentationTests: XCTestCase {
         XCTAssertTrue(chatView.contains("attachmentImportState.invalidate()"))
         XCTAssertTrue(chatView.contains("guard !attachmentImportState.isImporting else { return }"))
     }
+
+    func testComposerUsesUnifiedPlusMenuAndInlineDictation() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+        let source = try String(
+            contentsOf: root.appendingPathComponent("AIApp/Components/ChatComposer.swift"),
+            encoding: .utf8
+        )
+        XCTAssertTrue(source.contains("Image(systemName: \"plus\")"))
+        XCTAssertTrue(source.contains("private var composerMenu"))
+        XCTAssertTrue(source.contains("PhotosPicker(selection: $photoItems"))
+        XCTAssertFalse(source.contains("Image(systemName: \"paperclip\")"))
+        XCTAssertTrue(source.contains("TextField(placeholder, text: $text, axis: .vertical)"))
+        XCTAssertTrue(source.contains("dictateButton\n            }"))
+    }
 }
 
 private enum MarkdownParserTestError: Error {

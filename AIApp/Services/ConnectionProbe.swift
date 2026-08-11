@@ -9,10 +9,47 @@ struct ConnectionProbeResult: Equatable {
     var toolsLikely: Bool
     /// Models that are fine for chat/skills but not free-form Pro mini-apps.
     var chatOnly: Bool
+    var stages: [ConnectionProbeStage] = []
+    var serverVersion: String? = nil
+    var latencyMilliseconds: Int? = nil
+    var recommendedChatModel: String? = nil
+    var recommendedImageModel: String? = nil
+
+    init(
+        ok: Bool,
+        models: [String],
+        reason: String,
+        toolsLikely: Bool,
+        chatOnly: Bool,
+        stages: [ConnectionProbeStage] = [],
+        serverVersion: String? = nil,
+        latencyMilliseconds: Int? = nil,
+        recommendedChatModel: String? = nil,
+        recommendedImageModel: String? = nil
+    ) {
+        self.ok = ok
+        self.models = models
+        self.reason = reason
+        self.toolsLikely = toolsLikely
+        self.chatOnly = chatOnly
+        self.stages = stages
+        self.serverVersion = serverVersion
+        self.latencyMilliseconds = latencyMilliseconds
+        self.recommendedChatModel = recommendedChatModel
+        self.recommendedImageModel = recommendedImageModel
+    }
 
     static func failure(_ reason: String) -> ConnectionProbeResult {
         ConnectionProbeResult(ok: false, models: [], reason: reason, toolsLikely: false, chatOnly: true)
     }
+}
+
+struct ConnectionProbeStage: Equatable, Identifiable {
+    enum State: Equatable { case passed, failed, unavailable }
+    var id: String { name }
+    var name: String
+    var state: State
+    var detail: String?
 }
 
 /// Message-carrying failure for probe parsers (`String` is not `Error` in Swift).
@@ -47,6 +84,8 @@ enum ConnectionProbe {
         switch settings.preset.dialect {
         case .mlx:
             return (tools: true, miniAppPro: false)
+        case .foundation:
+            return (tools: false, miniAppPro: false)
         case .anthropic:
             return (tools: true, miniAppPro: true)
         case .openai:
@@ -123,8 +162,10 @@ enum ConnectionProbe {
     /// Full test: normalize base URL → list models → short completion with first/default model.
     static func test(
         settings: ProviderSettings,
-        apiKey: String
+        apiKey: String,
+        testMessage: String = "Reply with exactly: ok"
     ) async -> ConnectionProbeResult {
+        let started = Date()
         let dialect = settings.preset.dialect
         if dialect == .mlx {
             return ConnectionProbeResult(
@@ -135,6 +176,28 @@ enum ConnectionProbe {
                 chatOnly: true
             )
         }
+        if dialect == .foundation {
+            switch AppleFoundationProvider.availability() {
+            case .available:
+                return ConnectionProbeResult(
+                    ok: true,
+                    models: [settings.preset.defaultModel],
+                    reason: String(localized: "Apple Foundation Models sind bereit."),
+                    toolsLikely: false,
+                    chatOnly: true,
+                    stages: [ConnectionProbeStage(name: "Apple Intelligence", state: .passed)]
+                )
+            case .unavailable(let reason):
+                return ConnectionProbeResult(
+                    ok: false,
+                    models: [],
+                    reason: reason,
+                    toolsLikely: false,
+                    chatOnly: true,
+                    stages: [ConnectionProbeStage(name: "Apple Intelligence", state: .failed, detail: reason)]
+                )
+            }
+        }
 
         let base = settings.effectiveBaseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         guard !base.isEmpty, let modelsURL = modelsListURL(base: base, dialect: dialect) else {
@@ -142,6 +205,23 @@ enum ConnectionProbe {
         }
 
         do {
+            let manifest = settings.presetId == "sub2api"
+                ? await Sub2APIIntegration.discover(baseURL: base, apiKey: apiKey)
+                : nil
+            var stages = [ConnectionProbeStage(
+                name: String(localized: "Server"),
+                state: .passed,
+                detail: manifest?.serverVersion
+            )]
+            if settings.presetId == "sub2api" {
+                stages.append(ConnectionProbeStage(
+                    name: String(localized: "Funktionen"),
+                    state: manifest == nil ? .unavailable : .passed,
+                    detail: manifest == nil
+                        ? String(localized: "Standard OpenAI-kompatibel")
+                        : manifest?.features.map(\.rawValue).sorted().joined(separator: ", ")
+                ))
+            }
             // Prefer unified catalog (same auth/headers as chat); fall back to legacy list.
             let models: [String]
             let manualModel = settings.model.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -169,23 +249,38 @@ enum ConnectionProbe {
             // committed. Discovery only chooses a model when no candidate was
             // supplied by the caller.
             let modelId = manualModel.isEmpty
-                ? (ModelCatalogService.autoPickModel(
+                ? (Sub2APIIntegration.mapModels(models, manifest: manifest).chat
+                    ?? ModelCatalogService.autoPickModel(
                     from: models.map { CatalogModel(id: $0) },
                     settings: settings
                 ) ?? models.first ?? "")
                 : manualModel
+            stages.append(ConnectionProbeStage(
+                name: String(localized: "Authentifizierung & Modelle"),
+                state: .passed,
+                detail: String(localized: "\(models.count) Modelle")
+            ))
+            let mapping = Sub2APIIntegration.mapModels(models, manifest: manifest)
             guard !modelId.isEmpty else {
+                stages.append(ConnectionProbeStage(
+                    name: String(localized: "Modell-Auswahl"),
+                    state: .failed,
+                    detail: String(localized: "Keine Modell-ID verfügbar")
+                ))
                 return ConnectionProbeResult(
                     ok: false,
                     models: models,
                     reason: String(localized: "Modelle gefunden (\(models.count)), aber keine Modell-ID zum Testen."),
                     toolsLikely: false,
-                    chatOnly: isSelfHostedEndpoint(settings.presetId)
+                    chatOnly: isSelfHostedEndpoint(settings.presetId),
+                    stages: stages,
+                    serverVersion: manifest?.serverVersion,
+                    latencyMilliseconds: Int(Date().timeIntervalSince(started) * 1_000)
                 )
             }
 
             guard let completionReq = completionRequest(
-                base: base, dialect: dialect, model: modelId, apiKey: apiKey
+                base: base, dialect: dialect, model: modelId, apiKey: apiKey, testMessage: testMessage
             ) else {
                 return .failure(String(localized: "Konnte Test-Request nicht bauen."))
             }
@@ -196,15 +291,32 @@ enum ConnectionProbe {
             let compCode = (compResponse as? HTTPURLResponse)?.statusCode ?? 0
             switch parseCompletionProbe(data: compData, statusCode: compCode) {
             case .failure(let fail):
+                stages.append(ConnectionProbeStage(name: String(localized: "Test-Chat"), state: .failed, detail: fail.message))
                 return ConnectionProbeResult(
                     ok: false,
                     models: models,
                     reason: "Modelle ok (\(models.count)), aber Chat-Test: \(fail.message)",
                     toolsLikely: false,
-                    chatOnly: true
+                    chatOnly: true,
+                    stages: stages,
+                    serverVersion: manifest?.serverVersion,
+                    latencyMilliseconds: Int(Date().timeIntervalSince(started) * 1_000),
+                    recommendedChatModel: mapping.chat,
+                    recommendedImageModel: mapping.image
                 )
             case .success:
                 let local = isSelfHostedEndpoint(settings.presetId)
+                stages.append(ConnectionProbeStage(name: String(localized: "Test-Chat"), state: .passed))
+                if settings.presetId == "sub2api" {
+                    stages.append(ConnectionProbeStage(
+                        name: String(localized: "Werkzeuge"),
+                        state: manifest == nil ? .unavailable : (manifest!.features.contains(.tools) ? .passed : .failed)
+                    ))
+                    stages.append(ConnectionProbeStage(
+                        name: String(localized: "Bildgenerierung"),
+                        state: manifest == nil ? .unavailable : (manifest!.features.contains(.images) ? .passed : .unavailable)
+                    ))
+                }
                 return ConnectionProbeResult(
                     ok: true,
                     models: models,
@@ -212,11 +324,29 @@ enum ConnectionProbe {
                         ? "Verbunden — \(models.count) Modelle. Chat/Skills ok; Mini-Apps im Template-Modus empfohlen."
                         : "Verbunden — \(models.count) Modelle, Test-Chat ok.",
                     toolsLikely: true,
-                    chatOnly: local
+                    chatOnly: local,
+                    stages: stages,
+                    serverVersion: manifest?.serverVersion,
+                    latencyMilliseconds: Int(Date().timeIntervalSince(started) * 1_000),
+                    recommendedChatModel: mapping.chat,
+                    recommendedImageModel: mapping.image
                 )
             }
         } catch {
-            return .failure(NetworkErrorFriendly.message(for: error))
+            let message = NetworkErrorFriendly.message(for: error)
+            return ConnectionProbeResult(
+                ok: false,
+                models: [],
+                reason: message,
+                toolsLikely: false,
+                chatOnly: isSelfHostedEndpoint(settings.presetId),
+                stages: [ConnectionProbeStage(
+                    name: String(localized: "Server, Anmeldung & Modelle"),
+                    state: .failed,
+                    detail: message
+                )],
+                latencyMilliseconds: Int(Date().timeIntervalSince(started) * 1_000)
+            )
         }
     }
 
@@ -267,7 +397,7 @@ enum ConnectionProbe {
         case .anthropic:
             return ProviderRequestSupport.endpoint(base: base, path: "/v1/models?limit=100")
                 ?? ProviderRequestSupport.endpoint(base: base, path: "/v1/models")
-        case .mlx:
+        case .mlx, .foundation:
             return nil
         }
     }
@@ -303,7 +433,7 @@ enum ConnectionProbe {
                 request.setValue(token, forHTTPHeaderField: "x-api-key")
             }
             request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-        case .mlx:
+        case .mlx, .foundation:
             break
         }
     }
@@ -311,7 +441,8 @@ enum ConnectionProbe {
     /// Internal (not private) so the preset-catalog tests can assert request
     /// construction — URL shape and auth headers — for both wire dialects.
     static func completionRequest(
-        base: String, dialect: ProviderDialect, model: String, apiKey: String
+        base: String, dialect: ProviderDialect, model: String, apiKey: String,
+        testMessage: String = "Reply with exactly: ok"
     ) -> URLRequest? {
         switch dialect {
         case .openai:
@@ -324,7 +455,7 @@ enum ConnectionProbe {
             var body: [String: Any] = [
                 "model": model,
                 "stream": false,
-                "messages": [["role": "user", "content": "Reply with exactly: ok"]],
+                "messages": [["role": "user", "content": testMessage]],
             ]
             // gpt-5 / o-series reject `max_tokens` and require `max_completion_tokens`;
             // reuse the live path's tested branching so a valid key doesn't fail the
@@ -342,11 +473,11 @@ enum ConnectionProbe {
             let body: [String: Any] = [
                 "model": model,
                 "max_tokens": 8,
-                "messages": [["role": "user", "content": "Reply with exactly: ok"]],
+                "messages": [["role": "user", "content": testMessage]],
             ]
             request.httpBody = jsonData(body)
             return request
-        case .mlx:
+        case .mlx, .foundation:
             return nil
         }
     }

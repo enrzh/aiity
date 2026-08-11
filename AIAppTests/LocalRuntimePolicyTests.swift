@@ -38,7 +38,7 @@ final class LocalRuntimePolicyTests: XCTestCase {
     /// Endpoint locality: everything the user points at an address of their
     /// own, plus on-device.
     func testSelfHostedCoversEveryBringYourOwnAddressPreset() {
-        for id in ["ollama", "lmstudio", "localai", "custom-openai", "custom-anthropic", "sub2api", "mlx"] {
+        for id in ["ollama", "lmstudio", "localai", "custom-openai", "custom-anthropic", "sub2api", "mlx", "apple-foundation"] {
             XCTAssertTrue(LocalRuntimePolicy.isSelfHosted(settings(id)), "\(id) is a self-hosted endpoint")
         }
         for id in ["openai", "anthropic", "openrouter", "gemini"] {
@@ -48,7 +48,7 @@ final class LocalRuntimePolicyTests: XCTestCase {
 
     /// Capability: only the genuine small-model runtimes.
     func testSmallModelProfileIsOnlyTheRealLocalRuntimes() {
-        for id in ["ollama", "lmstudio", "localai", "mlx"] {
+        for id in ["ollama", "lmstudio", "localai", "mlx", "apple-foundation"] {
             XCTAssertTrue(LocalRuntimePolicy.usesSmallModelProfile(settings(id)), "\(id) runs small models")
         }
         for id in ["custom-openai", "sub2api", "openai", "anthropic", "openrouter"] {
@@ -79,7 +79,7 @@ final class LocalRuntimePolicyTests: XCTestCase {
     }
 
     func testSmallRuntimesGetNoToolsByDefault() {
-        for id in ["ollama", "lmstudio", "localai", "mlx"] {
+        for id in ["ollama", "lmstudio", "localai", "mlx", "apple-foundation"] {
             XCTAssertFalse(LocalRuntimePolicy.shouldSendTools(settings(id)),
                            "\(id) keeps the small-model protection")
         }
@@ -127,7 +127,7 @@ final class LocalRuntimePolicyTests: XCTestCase {
     /// still cannot take tools away from anyone else.
     func testGlobalSwitchStillActsAsTheDefaultForSmallRuntimes() {
         UserDefaults.standard.set(true, forKey: AppPreferences.allowLocalToolsKey)
-        for id in ["ollama", "lmstudio", "localai", "mlx"] {
+        for id in ["ollama", "lmstudio", "localai", "mlx", "apple-foundation"] {
             XCTAssertTrue(LocalRuntimePolicy.shouldSendTools(settings(id)))
         }
         XCTAssertTrue(LocalRuntimePolicy.shouldSendTools(settings("openai")))

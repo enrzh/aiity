@@ -7,6 +7,7 @@ enum ProviderDialect: String, Codable {
     case openai
     case anthropic
     case mlx
+    case foundation
 }
 
 /// OAuth flow shape. Two are supported, both of which mint a credential aiity
@@ -176,6 +177,9 @@ struct ProviderPreset: Identifiable, Equatable {
                        defaultBaseURL: "", needsKey: false,
                        editableBaseURL: false, defaultModel: "",
                        maturity: .verified),
+        ProviderPreset(id: "apple-foundation", label: "Apple Foundation Models", dialect: .foundation,
+                       defaultBaseURL: "", needsKey: false,
+                       editableBaseURL: false, defaultModel: "Apple On-Device Model"),
     ]
 
     static func preset(for id: String) -> ProviderPreset {

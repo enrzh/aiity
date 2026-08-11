@@ -163,7 +163,7 @@ enum ChatSuggestionService {
             ]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
             return request
-        case .mlx:
+        case .mlx, .foundation:
             return nil
         }
     }
@@ -184,7 +184,7 @@ enum ChatSuggestionService {
     private static func content(of data: Data, dialect: ProviderDialect) -> String? {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
         switch dialect {
-        case .openai, .mlx:
+        case .openai, .mlx, .foundation:
             let choices = root["choices"] as? [[String: Any]]
             let message = choices?.first?["message"] as? [String: Any]
             return message?["content"] as? String

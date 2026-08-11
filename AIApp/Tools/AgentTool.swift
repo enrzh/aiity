@@ -56,6 +56,9 @@ enum ToolRegistry {
         // Reminders / calendar / shared documents. Offered strictly by current
         // authorization — see `personalTools`.
         tools.append(contentsOf: await personalTools())
+        for profile in MCPStore.load() where profile.enabled {
+            tools.append(contentsOf: profile.tools.map { MCPAgentTool(profile: profile, definition: $0) })
+        }
         if delegating {
             let agents = await MainActor.run { AgentStore.active() }
             if !agents.isEmpty {

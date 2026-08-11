@@ -36,6 +36,7 @@ struct ProviderConnectionView: View {
     @State private var probeGeneration = 0
     @State private var probeTask: Task<Void, Never>?
     @State private var probeResult: ConnectionProbeResult?
+    @State private var testMessage = "Antworte nur mit: OK"
     @State private var validationError: ProviderConnectionValidationError?
     @State private var hostDraft = ""
     /// Local draft for model when this provider is not yet the active slot.
@@ -47,6 +48,10 @@ struct ProviderConnectionView: View {
     @State private var showLeaveWithoutModelDialog = false
     /// Per-provider tool policy, mirrored from `LocalRuntimePolicy` on appear.
     @State private var toolPolicy: LocalRuntimePolicy.ToolPolicy = .auto
+    @State private var showSub2APIScanner = false
+    @State private var enrollingSub2API = false
+    @State private var sub2APIEnrollmentError: String?
+    @State private var sub2APIHealth: Sub2APIHealth?
 
     private var preset: ProviderPreset { ProviderPreset.preset(for: presetId) }
     private var isLocalWizard: Bool { ConnectionProbe.isSelfHostedEndpoint(presetId) }
@@ -86,7 +91,10 @@ struct ProviderConnectionView: View {
     var body: some View {
         Form {
             useForModalitySection
-            if preset.dialect == .mlx {
+            if preset.dialect == .foundation {
+                foundationModelSection
+                if modality == .chat { testConnectionSection }
+            } else if preset.dialect == .mlx {
                 if modality == .chat {
                     Section("Modelle auf dem Gerät") { localModelRows }
                     toolPolicySection
@@ -161,6 +169,7 @@ struct ProviderConnectionView: View {
         .onAppear {
             syncDraftsFromStore()
             toolPolicy = LocalRuntimePolicy.toolPolicy(forPresetId: presetId)
+            if presetId == "sub2api" { sub2APIHealth = Sub2APIHealthStore().load() }
             // Instant model list from cache/defaults, then silent refresh.
             bootstrapModels()
         }
@@ -175,6 +184,22 @@ struct ProviderConnectionView: View {
                 )
             }
         }
+        .sheet(isPresented: $showSub2APIScanner) {
+            NavigationStack {
+                QRCodeScannerView(
+                    onCode: handleSub2APIEnrollmentCode,
+                    onError: { sub2APIEnrollmentError = $0; showSub2APIScanner = false }
+                )
+                .ignoresSafeArea(edges: .bottom)
+                .navigationTitle("sub2api verbinden")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Abbrechen") { showSub2APIScanner = false }
+                    }
+                }
+            }
+        }
     }
 
     private var oauthPasteHint: String {
@@ -186,6 +211,24 @@ struct ProviderConnectionView: View {
 
     private var supportsThisModality: Bool {
         MediaCapability.supports(modality, presetId: presetId)
+    }
+
+    private var foundationModelSection: some View {
+        Section {
+            switch AppleFoundationProvider.availability() {
+            case .available:
+                Label("Bereit", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+            case .unavailable(let reason):
+                Label(reason, systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.secondary)
+            }
+            Text("Verwendet das von Apple bereitgestellte On-Device-Modell. Kein Download, API-Key oder Server erforderlich.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        } header: {
+            Text("Apple Intelligence")
+        }
     }
 
     private func syncDraftsFromStore() {
@@ -374,13 +417,17 @@ struct ProviderConnectionView: View {
 
     private var testConnectionSection: some View {
         Section {
+            LabeledContent("1", value: "Zugang und Modell prüfen")
+            TextField("Testnachricht", text: $testMessage, axis: .vertical)
+                .lineLimit(1...3)
+                .accessibilityIdentifier("provider-test-message")
             Button {
                 runProbe()
             } label: {
                 if probing {
                     ProgressView()
                 } else {
-                    Label("Verbindung testen", systemImage: "stethoscope")
+                    Label("2 · Testnachricht senden", systemImage: "paperplane")
                 }
             }
             .disabled(probing)
@@ -403,8 +450,25 @@ struct ProviderConnectionView: View {
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
+                        ForEach(probeResult.stages) { stage in
+                            HStack(spacing: 6) {
+                                Image(systemName: stageIcon(stage.state))
+                                    .foregroundStyle(stageColor(stage.state))
+                                Text(stage.name)
+                                Spacer()
+                                if let detail = stage.detail {
+                                    Text(detail).foregroundStyle(.secondary).lineLimit(1)
+                                }
+                            }
+                            .font(.caption)
+                        }
                     }
                 }
+            }
+            if probeResult == nil, let health = sub2APIHealth, presetId == "sub2api" {
+                LabeledContent("Zuletzt geprüft", value: health.checkedAt.formatted(date: .abbreviated, time: .shortened))
+                if let version = health.serverVersion { LabeledContent("Server-Version", value: version) }
+                if let latency = health.latencyMilliseconds { LabeledContent("Latenz", value: "\(latency) ms") }
             }
             if let validationError {
                 Text(validationError.localizedDescription)
@@ -413,9 +477,9 @@ struct ProviderConnectionView: View {
                     .accessibilityIdentifier("provider-validation-error")
             }
         } header: {
-            Text("Diagnose")
+            Text("Einrichtung abschließen")
         } footer: {
-            Text("Lädt die Modell-Liste und sendet einen kurzen Test-Chat. Fehler werden klar angezeigt — kein stilles Scheitern.")
+            Text("Nach einem erfolgreichen Test wird dieser Anbieter gespeichert und aktiviert.")
         }
     }
 
@@ -582,7 +646,22 @@ struct ProviderConnectionView: View {
                 }
                 .accessibilityIdentifier("sub2api-admin-link")
             }
-            Text("Einrichten: 1. Gateway-Adresse oben eintragen. 2. sk-…-Key als Konto hinzufügen. 3. „Modelle laden“.")
+            Button {
+                sub2APIEnrollmentError = nil
+                showSub2APIScanner = true
+            } label: {
+                if enrollingSub2API {
+                    ProgressView()
+                } else {
+                    Label("Einrichtungs-QR scannen", systemImage: "qrcode.viewfinder")
+                }
+            }
+            .disabled(enrollingSub2API)
+            .accessibilityIdentifier("sub2api-scan-enrollment")
+            if let sub2APIEnrollmentError {
+                Text(sub2APIEnrollmentError).font(.caption).foregroundStyle(.red)
+            }
+            Text("Der QR-Code enthält nur ein einmaliges Geräte-Token. Alternativ: Gateway-Adresse und Geräte-Key manuell eintragen.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         } header: {
@@ -821,12 +900,19 @@ struct ProviderConnectionView: View {
                                     : (localModelDraft == model.id ? Color.accentColor : Color.secondary)
                             )
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(model.displayName)
-                                .foregroundStyle(shortage != nil ? Color.secondary : Color.primary)
+                            HStack(spacing: 5) {
+                                Text(model.displayName)
+                                    .foregroundStyle(shortage != nil ? Color.secondary : Color.primary)
+                                if model.recommended {
+                                    Label("Empfohlen", systemImage: "star.fill")
+                                        .font(.caption2)
+                                        .foregroundStyle(Color.accentColor)
+                                }
+                            }
                             // The shortage REPLACES the marketing subtitle: two
                             // lines that disagree about whether a model is a
                             // good idea is how the old screen read.
-                            Text(shortage ?? model.details)
+                            Text(shortage.map { String(localized: "Deaktiviert: \($0)") } ?? model.details)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -1009,12 +1095,35 @@ struct ProviderConnectionView: View {
                 current: connectionSettings,
                 modality: probeModality
             )
-            let result = await ConnectionProbe.test(settings: snapshot, apiKey: candidate.apiKey)
+            let result = await ConnectionProbe.test(
+                settings: snapshot,
+                apiKey: candidate.apiKey,
+                testMessage: testMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    ? "Reply with exactly: ok" : testMessage
+            )
             guard !Task.isCancelled, generation == probeGeneration else { return }
             probeResult = result
-            if ProviderConnectionModel.shouldCommit(candidate: candidate, probe: result) {
-                commit(candidate, label: label, modality: probeModality)
+            let mapping = Sub2APIModelMapping(
+                chat: result.recommendedChatModel,
+                image: result.recommendedImageModel
+            )
+            let resolvedCandidate = ProviderConnectionCandidate(
+                presetId: candidate.presetId,
+                baseURL: candidate.baseURL,
+                model: candidate.model.isEmpty ? (mapping.chat ?? "") : candidate.model,
+                apiKey: candidate.apiKey,
+                localModelId: candidate.localModelId,
+                credentialSnapshot: candidate.credentialSnapshot
+            )
+            if ProviderConnectionModel.shouldCommit(candidate: resolvedCandidate, probe: result),
+               !resolvedCandidate.model.isEmpty {
+                commit(resolvedCandidate, label: label, modality: probeModality)
+                modelDraft = resolvedCandidate.model
+                if presetId == "sub2api", let image = mapping.image {
+                    ProviderProfiles.update(presetId: presetId) { $0.lastImageModel = image }
+                }
             }
+            saveSub2APIHealth(result)
             if probeModality == .chat, modality == .chat, result.ok, !result.models.isEmpty {
                 if let rich = try? await ModelCatalogService.fetchModels(settings: snapshot, apiKey: candidate.apiKey) {
                     guard !Task.isCancelled, generation == probeGeneration else { return }
@@ -1037,6 +1146,65 @@ struct ProviderConnectionView: View {
             return AuthStore.oauthMarker + credential.accessToken
         }
         return AuthStore.storedKeySynchronously(presetId: presetId)
+    }
+
+    private func handleSub2APIEnrollmentCode(_ code: String) {
+        do {
+            let payload = try Sub2APIEnrollmentPayload.parse(code)
+            showSub2APIScanner = false
+            enrollingSub2API = true
+            hostDraft = payload.gatewayURL
+            Task { @MainActor in
+                do {
+                    let enrollment = try await Sub2APIIntegration.enroll(payload)
+                    newKey = enrollment.apiKey
+                    newLabel = enrollment.label ?? payload.deviceName ?? "iPhone"
+                    enrollingSub2API = false
+                    runProbe()
+                } catch {
+                    enrollingSub2API = false
+                    sub2APIEnrollmentError = NetworkErrorFriendly.message(for: error)
+                }
+            }
+        } catch {
+            showSub2APIScanner = false
+            sub2APIEnrollmentError = error.localizedDescription
+        }
+    }
+
+    private func saveSub2APIHealth(_ result: ConnectionProbeResult) {
+        guard presetId == "sub2api" else { return }
+        let failed = result.stages.first { $0.state == .failed }?.name
+        let health = Sub2APIHealth(
+            checkedAt: Date(), ok: result.ok,
+            serverVersion: result.serverVersion,
+            latencyMilliseconds: result.latencyMilliseconds,
+            modelCount: result.models.count,
+            failedStage: failed,
+            message: result.ok ? "Connected" : "Connection failed"
+        )
+        Sub2APIHealthStore().save(health)
+        sub2APIHealth = health
+        DiagnosticsRecorder.shared.record(
+            "provider",
+            "sub2api probe \(result.ok ? "ok" : "failed") stage=\(failed ?? "none") models=\(result.models.count) latency=\(result.latencyMilliseconds ?? 0)ms"
+        )
+    }
+
+    private func stageIcon(_ state: ConnectionProbeStage.State) -> String {
+        switch state {
+        case .passed: return "checkmark.circle.fill"
+        case .failed: return "xmark.circle.fill"
+        case .unavailable: return "minus.circle"
+        }
+    }
+
+    private func stageColor(_ state: ConnectionProbeStage.State) -> Color {
+        switch state {
+        case .passed: return .green
+        case .failed: return .red
+        case .unavailable: return .secondary
+        }
     }
 
     /// The only persistence boundary for the provider form. Callers must have

@@ -229,7 +229,7 @@ final class ProviderConnectionModelTests: XCTestCase {
                 "runProbe(for: .image, model: imageModel.isEmpty ? ModelModality.image.defaultModel : imageModel)"
             )
         )
-        XCTAssertTrue(source.contains("commit(candidate, label: label, modality: probeModality)"))
+        XCTAssertTrue(source.contains("commit(resolvedCandidate, label: label, modality: probeModality)"))
     }
 
     func testValidationFailureLeavesStatefulStoreUntouched() throws {

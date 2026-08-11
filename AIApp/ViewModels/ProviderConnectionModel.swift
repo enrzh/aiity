@@ -77,13 +77,16 @@ enum ProviderConnectionModel {
         let normalizedModel = preset.dialect == .mlx
             ? ""
             : (chosenModel.isEmpty ? preset.defaultModel : chosenModel)
-        guard preset.dialect == .mlx || !normalizedModel.isEmpty else {
+        // sub2api discovers its model map during the transactional probe. It
+        // is the only keyed preset that may enter the probe without a manual
+        // model; the resolved model is committed only after chat succeeds.
+        guard preset.dialect == .mlx || preset.id == "sub2api" || !normalizedModel.isEmpty else {
             return .failure(.modelRequired)
         }
 
         let rawURL = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedURL: String
-        if preset.dialect == .mlx {
+        if preset.dialect == .mlx || preset.dialect == .foundation {
             normalizedURL = ""
         } else {
             guard !preset.editableBaseURL || !rawURL.isEmpty || !preset.defaultBaseURL.isEmpty else {
@@ -208,7 +211,10 @@ enum ProviderConnectionModel {
         committedModel: String,
         accountCount: Int
     ) -> Bool {
-        guard modality == .chat, preset.dialect != .mlx, isChatActive else { return false }
+        guard modality == .chat,
+              preset.dialect != .mlx,
+              preset.dialect != .foundation,
+              isChatActive else { return false }
         guard committedModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return false
         }
@@ -216,7 +222,7 @@ enum ProviderConnectionModel {
     }
 
     static func statusText(for preset: ProviderPreset, accountCount: Int) -> String {
-        if preset.dialect == .mlx {
+        if preset.dialect == .mlx || preset.dialect == .foundation {
             return "On-Device"
         }
 

@@ -27,12 +27,13 @@ final class ProviderPresetCatalogTests: XCTestCase {
         }
     }
 
-    /// The 16 shipped presets stay addressable by their known ids — a removed
+    /// Shipped presets stay addressable by their known ids — a removed
     /// or renamed id silently breaks stored settings that reference it.
     func testKnownPresetIdsResolve() {
         let expected = ["anthropic", "openai", "openrouter", "gemini", "mistral",
                         "groq", "deepseek", "xai", "together", "ollama", "lmstudio",
-                        "localai", "sub2api", "custom-openai", "custom-anthropic", "mlx"]
+                        "localai", "sub2api", "custom-openai", "custom-anthropic", "mlx",
+                        "apple-foundation"]
         for id in expected {
             XCTAssertEqual(ProviderPreset.preset(for: id).id, id, "missing preset \(id)")
         }
@@ -41,15 +42,16 @@ final class ProviderPresetCatalogTests: XCTestCase {
     // MARK: - Endpoint building (both wire dialects)
 
     /// Every preset that talks HTTP must be able to name its models endpoint;
-    /// only on-device MLX legitimately has none.
-    func testEveryNonMLXPresetHasAModelsListURL() {
-        for preset in catalog where preset.dialect != .mlx {
+    /// Native on-device providers legitimately have none.
+    func testEveryHTTPPresetHasAModelsListURL() {
+        for preset in catalog where ![.mlx, .foundation].contains(preset.dialect) {
             let url = ConnectionProbe.modelsListURL(base: sampleBase(for: preset), dialect: preset.dialect)
             XCTAssertNotNil(url, "\(preset.id): no models-list URL")
             XCTAssertFalse((url?.absoluteString ?? "").contains("/v1/v1"),
                            "\(preset.id) doubled /v1: \(url?.absoluteString ?? "")")
         }
         XCTAssertNil(ConnectionProbe.modelsListURL(base: "", dialect: .mlx))
+        XCTAssertNil(ConnectionProbe.modelsListURL(base: "", dialect: .foundation))
     }
 
     /// The probe's test-chat request must build for both wire dialects, with
@@ -63,6 +65,8 @@ final class ProviderPresetCatalogTests: XCTestCase {
             switch preset.dialect {
             case .mlx:
                 XCTAssertNil(request, "\(preset.id): mlx has no HTTP completion")
+            case .foundation:
+                XCTAssertNil(request, "\(preset.id): Foundation Models has no HTTP completion")
             case .openai:
                 let url = try XCTUnwrap(request?.url?.absoluteString, preset.id)
                 XCTAssertTrue(url.hasSuffix("/chat/completions"), "\(preset.id): \(url)")
@@ -98,7 +102,7 @@ final class ProviderPresetCatalogTests: XCTestCase {
     /// an API key travels to it. An empty default is only allowed when the
     /// user can type their own address.
     func testBaseURLEditabilityConsistency() {
-        for preset in catalog where preset.dialect != .mlx {
+        for preset in catalog where ![.mlx, .foundation].contains(preset.dialect) {
             if preset.defaultBaseURL.isEmpty {
                 XCTAssertTrue(preset.editableBaseURL,
                               "\(preset.id): no default URL and no way to enter one")
@@ -117,7 +121,7 @@ final class ProviderPresetCatalogTests: XCTestCase {
     /// user-supplied server address.
     func testKeylessPresetsAreLocalStyleOrOnDevice() {
         for preset in catalog where !preset.needsKey {
-            XCTAssertTrue(preset.dialect == .mlx || preset.editableBaseURL, preset.id)
+            XCTAssertTrue([.mlx, .foundation].contains(preset.dialect) || preset.editableBaseURL, preset.id)
         }
     }
 
@@ -147,7 +151,7 @@ final class ProviderPresetCatalogTests: XCTestCase {
         let ids = Set(catalog.map(\.id))
         XCTAssertTrue(LocalRuntimePolicy.smallModelPresetIds.isSubset(of: ids),
                       "unknown ids: \(LocalRuntimePolicy.smallModelPresetIds.subtracting(ids))")
-        let plausible = ConnectionProbe.selfHostedPresetIds.union([LocalRuntimePolicy.mlxPresetId])
+        let plausible = ConnectionProbe.selfHostedPresetIds.union(["mlx", "apple-foundation"])
         XCTAssertTrue(LocalRuntimePolicy.smallModelPresetIds.isSubset(of: plausible),
                       "a small-model runtime that is not even self-hosted makes no sense")
     }

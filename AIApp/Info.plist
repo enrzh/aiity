@@ -70,6 +70,8 @@
 	<string>Damit der Agent Termine eintragen und dir Fragen zu deinem Kalender beantworten kann. Gelesen werden Titel, Zeit, Kalendername und Ort der Termine im angefragten Zeitraum; diese Angaben gehen an den KI-Anbieter, den du selbst eingerichtet hast.</string>
 	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
 	<string>Damit der Agent auf deine Bestätigung hin Termine eintragen kann. Bestehende Termine kann er damit nicht sehen.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Zum Scannen eines einmaligen sub2api-Einrichtungscodes. Es werden keine Bilder gespeichert oder übertragen.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Verbindung zu deinem lokalen Server (sub2api-Gateway, Ollama, LM Studio) im selben WLAN.</string>
 	<key>NSMicrophoneUsageDescription</key>

@@ -349,6 +349,8 @@ struct ProviderSettings: Codable, Equatable {
             )
         case .mlx:
             return MLXProvider(modelId: localModelId)
+        case .foundation:
+            return AppleFoundationProvider()
         }
     }
 }

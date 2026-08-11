@@ -111,7 +111,7 @@ final class AccountStore: ObservableObject {
     private func migrateLegacyIfNeeded() {
         guard !UserDefaults.standard.bool(forKey: "accounts-migrated-v1") else { return }
         var migrated = Self.loadAll()
-        for preset in ProviderPreset.catalog where preset.dialect != .mlx {
+        for preset in ProviderPreset.catalog where ![.mlx, .foundation].contains(preset.dialect) {
             let legacyKey = "api-key-\(preset.id)"
             let raw = Keychain.get(legacyKey)
             guard !raw.isEmpty else { continue }

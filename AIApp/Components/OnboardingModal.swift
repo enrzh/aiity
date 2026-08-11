@@ -189,7 +189,7 @@ struct OnboardingModal: View {
     /// compiled and even passed a test that didn't check every option this
     /// button's own subtitle promises by name (OpenAI, Anthropic, …).
     private static let apiKeyPresetIds: [String] = ProviderPreset.catalog
-        .filter { $0.dialect != .mlx }
+        .filter { ![.mlx, .foundation].contains($0.dialect) }
         .filter { !["sub2api", "ollama", "lmstudio", "localai"].contains($0.id) }
         .map(\.id)
 

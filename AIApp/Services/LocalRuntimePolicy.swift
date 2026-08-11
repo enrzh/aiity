@@ -33,7 +33,8 @@ enum LocalRuntimePolicy {
     /// presets (Ollama, LM Studio, LocalAI, custom-openai, sub2api) and for
     /// on-device MLX. **Never** use this to decide about tools.
     static func isSelfHosted(_ settings: ProviderSettings) -> Bool {
-        settings.preset.dialect == .mlx || ConnectionProbe.isSelfHostedEndpoint(settings.presetId)
+        [.mlx, .foundation].contains(settings.preset.dialect)
+            || ConnectionProbe.isSelfHostedEndpoint(settings.presetId)
     }
 
     /// Question 2 — model capability. The genuine 1–8B LAN/on-device runtimes,
@@ -43,14 +44,14 @@ enum LocalRuntimePolicy {
     /// `custom-openai` and `sub2api` are intentionally absent — see the type
     /// doc. A user who does point one of them at a tiny local model can opt in
     /// per provider via `ToolPolicy.never` (Anbieter → Werkzeuge).
-    static let smallModelPresetIds: Set<String> = ["ollama", "lmstudio", "localai", "mlx"]
+    static let smallModelPresetIds: Set<String> = ["ollama", "lmstudio", "localai", "mlx", "apple-foundation"]
 
     static func usesSmallModelProfile(_ settings: ProviderSettings) -> Bool {
         usesSmallModelProfile(presetId: settings.presetId, dialect: settings.preset.dialect)
     }
 
     static func usesSmallModelProfile(presetId: String, dialect: ProviderDialect) -> Bool {
-        dialect == .mlx || smallModelPresetIds.contains(presetId)
+        dialect == .mlx || dialect == .foundation || smallModelPresetIds.contains(presetId)
     }
 
     /// The preset id MLX runs under (`MLXProvider` is only ever built for it).
@@ -179,7 +180,7 @@ enum LocalRuntimePolicy {
         cloudLimit: Int
     ) -> [ChatMessage] {
         let recent = Array(transcript.suffix(cloudLimit))
-        guard settings.preset.dialect == .mlx else { return recent }
+        guard settings.preset.dialect == .mlx || settings.preset.dialect == .foundation else { return recent }
 
         // The newest USER message is reserved before anything else.
         //

@@ -56,6 +56,12 @@ enum ModelCatalogService {
                         mediaGenerationLikely: false
                     )
                 }
+            case .foundation:
+                models = [CatalogModel(
+                    id: settings.preset.defaultModel,
+                    displayName: "Apple On-Device Model",
+                    supportsTools: false
+                )]
             case .openai:
                 models = try await fetchOpenAICompatible(settings: settings, apiKey: apiKey)
             case .anthropic:

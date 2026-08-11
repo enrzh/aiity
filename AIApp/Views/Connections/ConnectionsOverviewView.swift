@@ -19,6 +19,23 @@ struct ConnectionsView: View {
                 Text("Schnellstart")
             }
 
+            Section {
+                NavigationLink {
+                    ProviderConnectionView(presetId: "apple-foundation", modality: .chat)
+                } label: {
+                    AppSettingsRow(
+                        title: "Apple Foundation Models",
+                        subtitle: ProviderConnectionModel.statusText(
+                            for: ProviderPreset.preset(for: "apple-foundation"),
+                            accountCount: 0
+                        ),
+                        systemImage: "apple.intelligence"
+                    )
+                }
+            } header: {
+                Text("Apple Intelligence")
+            }
+
             modalitySection(.chat)
             modalitySection(.image)
         }
@@ -131,7 +148,8 @@ struct ConnectionsView: View {
 
     private func providers(for modality: ModelModality) -> [ProviderPreset] {
         ProviderPreset.catalog.filter {
-            MediaCapability.supports(modality, presetId: $0.id)
+            $0.id != "apple-foundation"
+                && MediaCapability.supports(modality, presetId: $0.id)
         }
     }
 
@@ -148,7 +166,7 @@ struct ConnectionsView: View {
     ) -> String {
         let model = settingsStore.settings.model(for: modality)
         let modelPart = model.isEmpty ? "Kein Modell" : model
-        if ProviderPreset.preset(for: presetId).dialect == .mlx {
+        if [.mlx, .foundation].contains(ProviderPreset.preset(for: presetId).dialect) {
             return "On-Device · \(modelPart)"
         }
         if let account = accountStore.activeAccount(for: presetId) {

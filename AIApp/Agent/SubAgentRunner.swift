@@ -26,7 +26,7 @@ enum SubAgentRunner {
             return String(localized: "[\(agent.name) hat kein Konto — unter Anbieter einen Key hinterlegen.]")
         }
         if settings.effectiveModel.trimmingCharacters(in: .whitespaces).isEmpty,
-           settings.preset.dialect != .mlx {
+           ![.mlx, .foundation].contains(settings.preset.dialect) {
             return String(localized: "[\(agent.name) hat kein Modell gewählt.]")
         }
 

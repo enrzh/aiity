@@ -40,82 +40,44 @@ struct ChatComposer: View {
                 attachmentStrip
             }
             HStack(alignment: .bottom, spacing: 10) {
-            // Left of the input: how much the agent asks before acting.
-            Menu {
-                Picker("Modus", selection: $prefs.chatMode) {
-                    ForEach(ChatMode.allCases) { mode in
-                        Label(mode.title, systemImage: mode.systemImage).tag(mode)
+                composerMenu
+
+            HStack(alignment: .bottom, spacing: 0) {
+                TextField(placeholder, text: $text, axis: .vertical)
+                    .focused(focus)
+                    .lineLimit(1...6)
+                    .textFieldStyle(.plain)
+                    .padding(.leading, Theme.space3)
+                    .padding(.vertical, 10)
+                    .onSubmit(onSend)
+                    .disabled(isBusy)
+                    .accessibilityIdentifier("chat-input")
+                    .onChange(of: text) { _, newValue in
+                        if dictation.isListening, newValue != dictationApplied { dictation.stop() }
+                        onTextChange(newValue)
                     }
-                }
-            } label: {
-                Image(systemName: prefs.chatMode.systemImage)
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(prefs.chatMode == .auto ? Color.secondary : Theme.accent)
-                    // Same metric as the send button so all three items in the
-                    // row share one baseline — 34pt made it sit low and small
-                    // against the input pill's minHeight.
-                    .frame(width: Theme.controlHeight, height: Theme.controlHeight)
-                    .glassSurface(in: Circle(), interactive: true)
+                dictateButton
             }
-            .accessibilityIdentifier("chat-mode")
-            .accessibilityLabel("Modus: \(prefs.chatMode.title)")
-            .accessibilityHint(prefs.chatMode.detail)
-
-            TextField(placeholder, text: $text, axis: .vertical)
-                .focused(focus)
-                .lineLimit(1...6)
-                .textFieldStyle(.plain)
-                .padding(.horizontal, Theme.space3)
-                .frame(minHeight: Theme.controlHeight)
-                .glassSurface(
-                    in: RoundedRectangle(cornerRadius: Theme.bubbleRadius, style: .continuous)
-                )
-                .onSubmit(onSend)
-                .disabled(isBusy)
-                .accessibilityIdentifier("chat-input")
-                .onChange(of: text) { _, newValue in
-                    // Typing during a dictation means the user took over —
-                    // stop listening rather than overwrite them at the next
-                    // partial result.
-                    if dictation.isListening, newValue != dictationApplied {
-                        dictation.stop()
-                    }
-                    onTextChange(newValue)
-                }
-
-            dictateButton
-
-                attachmentPicker
+            .frame(minHeight: Theme.controlHeight)
+            .glassSurface(in: RoundedRectangle(cornerRadius: Theme.bubbleRadius, style: .continuous))
 
                 Button(action: isBusy ? onStop : onSend) {
                 Image(systemName: isBusy ? "stop.fill" : "arrow.up")
-                    // Text style, not a fixed size, so the glyph tracks Dynamic Type.
                     .font(.body.weight(.bold))
-                    // Morph arrow ↔ stop in place instead of a hard swap.
                     .contentTransition(.symbolEffect(.replace))
                     .foregroundStyle(buttonForeground)
                     .frame(width: Theme.controlHeight, height: Theme.controlHeight)
                     .background(buttonBackground, in: Circle())
             }
             .disabled(!isBusy && !canSend)
-            // One animation context for the symbol morph and the
-            // gradient ↔ gray background change; fades under Reduce Motion.
-            .animation(
-                Theme.Motion.preferSpring(Theme.Motion.snappy, reduceMotion: reduceMotion),
-                value: isBusy
-            )
-            .animation(
-                Theme.Motion.preferSpring(Theme.Motion.snappy, reduceMotion: reduceMotion),
-                value: canSend
-            )
+            .animation(Theme.Motion.preferSpring(Theme.Motion.snappy, reduceMotion: reduceMotion), value: isBusy)
+            .animation(Theme.Motion.preferSpring(Theme.Motion.snappy, reduceMotion: reduceMotion), value: canSend)
             .accessibilityIdentifier(isBusy ? "chat-stop" : "chat-send")
             .accessibilityLabel(isBusy ? "Stopp" : "Senden")
             }
             .padding(.horizontal, Theme.space2)
             .padding(.vertical, 10)
         }
-        // Live transcript → composer. Nothing is ever sent automatically; the
-        // user reviews, edits and presses send themselves.
         .onChange(of: dictation.transcript) { _, spoken in
             guard !spoken.isEmpty else { return }
             let composed = DictationText.compose(base: dictationBase, transcript: spoken)
@@ -123,56 +85,44 @@ struct ChatComposer: View {
             dictationApplied = composed
             text = composed
         }
-        .onChange(of: dictation.notice) { _, notice in
-            showDictationNotice = notice != nil
-        }
-        .onChange(of: showDictationNotice) { _, shown in
-            if !shown { dictation.notice = nil }
-        }
-        // Never hold the microphone (or the ducked audio session) past this
-        // screen or into the background.
+        .onChange(of: dictation.notice) { _, notice in showDictationNotice = notice != nil }
+        .onChange(of: showDictationNotice) { _, shown in if !shown { dictation.notice = nil } }
         .onDisappear { dictation.cancel() }
-        .onChange(of: scenePhase) { _, phase in
-            if phase != .active { dictation.cancel() }
-        }
-        .alert(
-            dictation.notice?.title ?? "",
-            isPresented: $showDictationNotice,
-            presenting: dictation.notice
-        ) { reason in
+        .onChange(of: scenePhase) { _, phase in if phase != .active { dictation.cancel() } }
+        .alert(dictation.notice?.title ?? "", isPresented: $showDictationNotice, presenting: dictation.notice) { reason in
             if reason.offersSettingsLink {
-                Button(String(localized: "Einstellungen öffnen")) {
-                    DictationService.openSystemSettings()
-                }
+                Button(String(localized: "Einstellungen öffnen")) { DictationService.openSystemSettings() }
             }
             Button(String(localized: "OK"), role: .cancel) {}
-        } message: { reason in
-            Text(reason.message)
-        }
+        } message: { reason in Text(reason.message) }
     }
 
-    private var attachmentPicker: some View {
+    private var composerMenu: some View {
         Menu {
-            PhotosPicker(
-                selection: $photoItems,
-                maxSelectionCount: 4,
-                matching: .images
-            ) {
-                Label("Foto", systemImage: "photo")
+            Section("Modus") {
+                Picker("Modus", selection: $prefs.chatMode) {
+                    ForEach(ChatMode.allCases) { mode in
+                        Label(mode.title, systemImage: mode.systemImage).tag(mode)
+                    }
+                }
             }
-            Button(action: onPickFile) {
-                Label("Datei", systemImage: "doc")
+            Section("Hinzufügen") {
+                PhotosPicker(selection: $photoItems, maxSelectionCount: 4, matching: .images) {
+                    Label("Foto", systemImage: "photo")
+                }
+                Button(action: onPickFile) { Label("Datei", systemImage: "doc") }
             }
         } label: {
-            Image(systemName: "paperclip")
-                .font(.body.weight(.semibold))
-                .foregroundStyle(Color.secondary)
-                .frame(width: Theme.controlHeight, height: Theme.controlHeight)
-                .glassSurface(in: Circle(), interactive: true)
-        }
-        .disabled(isBusy)
-        .accessibilityIdentifier("chat-attachments")
-        .accessibilityLabel("Anhänge")
+                Image(systemName: "plus")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(prefs.chatMode == .auto ? Color.secondary : Theme.accent)
+                    .frame(width: Theme.controlHeight, height: Theme.controlHeight)
+                    .glassSurface(in: Circle(), interactive: true)
+            }
+            .disabled(isBusy)
+            .accessibilityIdentifier("chat-mode")
+            .accessibilityLabel("Hinzufügen und Modus: \(prefs.chatMode.title)")
+            .accessibilityHint("Modus ändern oder Foto und Datei hinzufügen")
     }
 
     private var attachmentStrip: some View {
@@ -229,10 +179,7 @@ struct ChatComposer: View {
                     )
                     .foregroundStyle(dictationForeground)
             }
-            // Same metric as the mode and send buttons — one baseline for the
-            // whole row (and the bar height the ChatView measurement reads).
             .frame(width: Theme.controlHeight, height: Theme.controlHeight)
-            .glassSurface(in: Circle(), interactive: true)
         }
         // A permanent block (no offline model for this language, or a policy
         // restriction) leaves nothing to tap; a denial stays tappable so the
