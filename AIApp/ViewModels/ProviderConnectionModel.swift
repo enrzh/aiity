@@ -41,6 +41,15 @@ enum ProviderConnectionValidationError: Error, Equatable, LocalizedError {
 }
 
 enum ProviderConnectionModel {
+    static func credentialSnapshot(
+        apiKey: String,
+        pendingOAuthCredential: OAuthCredential?
+    ) -> ProviderConnectionCredentialSnapshot? {
+        let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !key.isEmpty { return .apiKey(key) }
+        return pendingOAuthCredential.map { .oauth($0) }
+    }
+
     /// Builds an isolated connection attempt. Nothing in this method reads or
     /// writes persistence, which keeps invalid drafts and failed probes safe to
     /// retry.

@@ -323,6 +323,71 @@ final class ProviderConnectionModelTests: XCTestCase {
 
         XCTAssertEqual(state.credentialSnapshot, .apiKey("sk-probed"))
     }
+
+    func testCandidatePreservesOAuthCredentialSnapshotThroughCommitState() throws {
+        var oauth = OAuthCredential(
+            accessToken: "oauth-access",
+            refreshToken: "oauth-refresh",
+            expiresAt: Date(timeIntervalSince1970: 123),
+            accountId: "account-1"
+        )
+        let capturedOAuth = oauth
+        let candidate = try XCTUnwrap(
+            ProviderConnectionModel.makeCandidate(
+                preset: ProviderPreset.preset(for: "anthropic"),
+                baseURL: "",
+                model: "claude-model",
+                apiKey: AuthStore.oauthMarker + oauth.accessToken,
+                credentialSnapshot: ProviderConnectionModel.credentialSnapshot(
+                    apiKey: "",
+                    pendingOAuthCredential: oauth
+                )
+            ).successValue
+        )
+        oauth.accessToken = "mutated-after-probe"
+
+        let state = ProviderConnectionModel.commitState(
+            candidate: candidate,
+            currentSettings: ProviderSettings(),
+            currentProfile: ProviderProfile(),
+            modality: .chat
+        )
+
+        XCTAssertEqual(candidate.credentialSnapshot, .oauth(capturedOAuth))
+        XCTAssertEqual(state.credentialSnapshot, .oauth(capturedOAuth))
+    }
+
+    func testAPIKeySnapshotReplacesPendingOAuthDraft() throws {
+        let oauth = OAuthCredential(
+            accessToken: "stale-oauth",
+            refreshToken: "refresh",
+            expiresAt: nil,
+            accountId: nil
+        )
+        let snapshot = ProviderConnectionModel.credentialSnapshot(
+            apiKey: " sk-replacement ",
+            pendingOAuthCredential: oauth
+        )
+        let candidate = try XCTUnwrap(
+            ProviderConnectionModel.makeCandidate(
+                preset: ProviderPreset.preset(for: "custom-openai"),
+                baseURL: "api.example.com",
+                model: "replacement-model",
+                apiKey: " sk-replacement ",
+                credentialSnapshot: snapshot
+            ).successValue
+        )
+
+        let state = ProviderConnectionModel.commitState(
+            candidate: candidate,
+            currentSettings: ProviderSettings(),
+            currentProfile: ProviderProfile(),
+            modality: .chat
+        )
+
+        XCTAssertEqual(snapshot, .apiKey("sk-replacement"))
+        XCTAssertEqual(state.credentialSnapshot, .apiKey("sk-replacement"))
+    }
 }
 
 private struct ProviderConnectionStateSpy: Equatable {

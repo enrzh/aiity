@@ -970,14 +970,10 @@ struct ProviderConnectionView: View {
             ? draftKey
             : (oauthCredential.map { AuthStore.oauthMarker + $0.accessToken }
                 ?? AuthStore.storedKeySynchronously(presetId: presetId))
-        let credentialSnapshot: ProviderConnectionCredentialSnapshot?
-        if !draftKey.isEmpty {
-            credentialSnapshot = .apiKey(draftKey)
-        } else if let oauthCredential {
-            credentialSnapshot = .oauth(oauthCredential)
-        } else {
-            credentialSnapshot = nil
-        }
+        let credentialSnapshot = ProviderConnectionModel.credentialSnapshot(
+            apiKey: draftKey,
+            pendingOAuthCredential: oauthCredential
+        )
         let candidateResult = ProviderConnectionModel.makeCandidate(
             preset: preset,
             baseURL: hostDraft,
@@ -1042,6 +1038,7 @@ struct ProviderConnectionView: View {
             pendingOAuthCredential = nil
         case .apiKey(let key):
             accountStore.addKeyAccount(presetId: presetId, label: label, key: key)
+            pendingOAuthCredential = nil
         case nil:
             break
         }
