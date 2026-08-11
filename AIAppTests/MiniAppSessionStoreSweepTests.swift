@@ -737,9 +737,9 @@ final class MiniAppSessionStoreSweepTests: XCTestCase {
 
         onDisk = await allIdentifiers()
         XCTAssertTrue(onDisk.contains(store(for: keeper.uuidString)))
-        let orphanIsGone = await jarDisappeared(store(for: orphan.uuidString))
-        XCTAssertTrue(orphanIsGone,
-                      "the jar must be reaped in the SAME pass, not stranded by the revocation")
+        XCTAssertEqual(MiniAppSessionStorePurgeQueue.record(for: store(for: orphan.uuidString))?.state,
+                       .residual,
+                       "the accepted removal must stay tombstoned until WebKit confirms it is gone")
         // The keeper's jar and both grants go in `tearDown`, failure included.
     }
 
