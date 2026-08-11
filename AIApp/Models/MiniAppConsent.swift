@@ -2,7 +2,8 @@ import Foundation
 
 /// Remembers a mini-app's capability tier and the public hosts it may reach.
 /// The v2 payload is a Codable dictionary so future fields can be added without
-/// changing the UserDefaults key again; v1 capability-only maps still migrate.
+/// changing the UserDefaults key again; v1 capability-only maps migrate once
+/// and are removed after the v2 write so revoked grants cannot return.
 enum MiniAppConsent {
     private static let legacyKey = "miniapp-consent-v1"
     private static let recordsKey = "miniapp-consent-v2"
@@ -54,10 +55,11 @@ enum MiniAppConsent {
     static func allow(appId: String, capability: MiniAppCapability, hosts: [String] = []) {
         var all = records()
         let existingHosts = all[appId]?.hosts ?? []
+        let normalizedHosts = Set(existingHosts.compactMap(NetworkTargetValidator.normalizeHost))
+            .union(hosts.compactMap(NetworkTargetValidator.normalizeHost))
         all[appId] = Record(
             capability: capability,
-            hosts: Set((hosts.isEmpty ? existingHosts : hosts)
-                .compactMap(NetworkTargetValidator.normalizeHost)).sorted()
+            hosts: normalizedHosts.sorted()
         )
         persist(all)
     }
@@ -107,6 +109,7 @@ enum MiniAppConsent {
     private static func records() -> [String: Record] {
         if let data = UserDefaults.standard.data(forKey: recordsKey),
            let decoded = try? JSONDecoder().decode([String: Record].self, from: data) {
+            UserDefaults.standard.removeObject(forKey: legacyKey)
             return decoded.mapValues { record in
                 var record = record
                 record.hosts = Set(record.hosts.compactMap(NetworkTargetValidator.normalizeHost)).sorted()
@@ -120,12 +123,15 @@ enum MiniAppConsent {
         let migrated = legacy.compactMapValues { raw in
             MiniAppCapability(rawValue: raw).map { Record(capability: $0) }
         }
-        if !migrated.isEmpty { persist(migrated) }
+        persist(migrated)
         return migrated
     }
 
-    private static func persist(_ records: [String: Record]) {
-        guard let data = try? JSONEncoder().encode(records) else { return }
+    @discardableResult
+    private static func persist(_ records: [String: Record]) -> Bool {
+        guard let data = try? JSONEncoder().encode(records) else { return false }
         UserDefaults.standard.set(data, forKey: recordsKey)
+        UserDefaults.standard.removeObject(forKey: legacyKey)
+        return true
     }
 }

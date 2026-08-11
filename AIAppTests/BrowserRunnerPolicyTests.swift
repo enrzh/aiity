@@ -46,6 +46,21 @@ final class BrowserNavigationPolicyTests: XCTestCase {
         XCTAssertEqual(decide("https://api.example.com/", allowedHosts: ["api.example.com"]), .allow)
     }
 
+    func testRuntimeRejectsIPLiteralsAndExplicitPortsOnNavigationAndExternalLinks() {
+        for raw in [
+            "https://8.8.8.8/",
+            "https://[2001:4860:4860::8888]/",
+            "https://example.com:443/",
+            "https://example.com:8443/"
+        ] {
+            XCTAssertEqual(decide(raw, allowedHosts: ["8.8.8.8", "2001:4860:4860::8888", "example.com"]), .cancel,
+                           "navigation must refuse \(raw)")
+            XCTAssertEqual(decide(raw, capability: .network, isLinkActivated: true,
+                                  allowedHosts: ["8.8.8.8", "2001:4860:4860::8888", "example.com"]), .cancel,
+                           "external open must refuse \(raw)")
+        }
+    }
+
     func testSandboxedExternalLinksStillRequirePublicHostGrants() {
         for capability in [MiniAppCapability.offline, .network] {
             XCTAssertEqual(decide("https://untrusted.example/", capability: capability,
@@ -149,6 +164,27 @@ final class BrowserRetryPolicyTests: XCTestCase {
         XCTAssertNil(fallback("http://alt.example.com/"), "already cleartext")
         XCTAssertNil(fallback("https://192.168.1.10/"), "a downgrade must not reopen the LAN")
         XCTAssertNil(fallback("https://127.0.0.1:8080/"))
+    }
+
+    func testRetryRejectsIPLiteralsAndExplicitPortsWhenGranted() {
+        let hosts = ["8.8.8.8", "2001:4860:4860::8888", "example.com"]
+        for raw in [
+            "https://8.8.8.8/",
+            "https://[2001:4860:4860::8888]/",
+            "https://example.com:443/",
+            "https://example.com:8443/"
+        ] {
+            XCTAssertNil(
+                BrowserRetryPolicy.httpFallbackURL(
+                    for: URL(string: raw)!,
+                    errorCode: NSURLErrorCannotConnectToHost,
+                    schemeWasAssumed: true,
+                    alreadyRetried: false,
+                    allowedHosts: hosts
+                ),
+                "retry must refuse \(raw)"
+            )
+        }
     }
 }
 

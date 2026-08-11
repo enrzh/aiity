@@ -42,9 +42,18 @@ final class MiniAppBundleTests: XCTestCase {
 
     func testSanitizeBlocksTraversal() {
         XCTAssertEqual(MiniAppBundleParser.sanitizePath("../etc/passwd"), "")
+        XCTAssertEqual(MiniAppBundleParser.sanitizePath("assets/../etc/passwd"), "")
+        XCTAssertEqual(MiniAppBundleParser.sanitizePath("assets/icons/../../app.js"), "")
         XCTAssertEqual(MiniAppBundleParser.sanitizePath("app.js"), "app.js")
         XCTAssertEqual(MiniAppBundleParser.sanitizePath("assets/icons/app.js"), "assets/icons/app.js")
         XCTAssertEqual(MiniAppBundleParser.sanitizePath("/assets/app.js"), "")
+        XCTAssertEqual(MiniAppBundleParser.sanitizePath("C:/assets/app.js"), "")
+        XCTAssertEqual(MiniAppBundleParser.sanitizePath("https://example.com/app.js"), "")
+        XCTAssertEqual(MiniAppBundleParser.sanitizePath("data:text/plain,app.js"), "")
+        XCTAssertEqual(MiniAppBundleParser.sanitizePath("//example.com/app.js"), "")
+        XCTAssertEqual(MiniAppBundleParser.sanitizePath("assets/%2e%2e/pass.js"), "")
+        XCTAssertEqual(MiniAppBundleParser.sanitizePath("C%3A/assets/app.js"), "")
+        XCTAssertEqual(MiniAppBundleParser.sanitizePath("assets/%5Capp.js"), "")
         XCTAssertEqual(MiniAppBundleParser.sanitizePath("assets\\app.js"), "")
     }
 

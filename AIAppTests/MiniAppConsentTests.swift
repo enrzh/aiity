@@ -49,9 +49,30 @@ final class MiniAppConsentTests: XCTestCase {
         XCTAssertEqual(NetworkTargetValidator.normalizeHost(" HTTPS://Example.COM./path "), "example.com")
         XCTAssertEqual(NetworkTargetValidator.normalizeHost("example.com."), "example.com")
         XCTAssertNil(NetworkTargetValidator.normalizeHost("127.0.0.1"))
+        XCTAssertNil(NetworkTargetValidator.normalizeHost("8.8.8.8"))
+        XCTAssertNil(NetworkTargetValidator.normalizeHost("https://1.1.1.1"))
+        XCTAssertNil(NetworkTargetValidator.normalizeHost("https://[2001:4860:4860::8888]"))
+        XCTAssertNil(NetworkTargetValidator.normalizeHost("https://example.com:443"))
         XCTAssertNil(NetworkTargetValidator.normalizeHost("http://example.com/path with spaces"))
         XCTAssertNil(NetworkTargetValidator.normalizeHost("example.com/other"))
         XCTAssertNil(NetworkTargetValidator.normalizeHost("example\\.com"))
+    }
+
+    func testRuntimeRejectsIPLiteralAndExplicitPortEvenWhenHostIsGranted() {
+        for raw in [
+            "https://8.8.8.8/",
+            "https://[2001:4860:4860::8888]/",
+            "https://example.com:443/",
+            "https://example.com:8443/"
+        ] {
+            let url = URL(string: raw)!
+            XCTAssertFalse(
+                NetworkTargetValidator.isAllowed(
+                    url, allowPrivate: false, allowedHosts: [url.host ?? "8.8.8.8"]
+                ),
+                "mini-app runtime must refuse \(raw)"
+            )
+        }
     }
 
     func testIndividualAndAllHostRevocationPreserveCapability() {
@@ -73,5 +94,24 @@ final class MiniAppConsentTests: XCTestCase {
 
         XCTAssertEqual(MiniAppConsent.granted(appId: "upgrade-app"), .browser)
         XCTAssertEqual(MiniAppConsent.hosts(appId: "upgrade-app"), ["api.example"])
+    }
+
+    func testAllowUnionsNewHostsWithExistingHosts() {
+        MiniAppConsent.allow(appId: "union-app", capability: .network, hosts: ["one.example"])
+        MiniAppConsent.allow(appId: "union-app", capability: .network, hosts: ["two.example"])
+
+        XCTAssertEqual(MiniAppConsent.hosts(appId: "union-app"), ["one.example", "two.example"])
+    }
+
+    func testMigrationRemovesLegacySoRevokeCannotResurrectAfterCorruptV2() {
+        UserDefaults.standard.set(["legacy-app": "network"], forKey: "miniapp-consent-v1")
+
+        XCTAssertEqual(MiniAppConsent.granted(appId: "legacy-app"), .network)
+        XCTAssertNil(UserDefaults.standard.object(forKey: "miniapp-consent-v1"))
+
+        MiniAppConsent.revoke(appId: "legacy-app")
+        UserDefaults.standard.set(Data("corrupt-v2".utf8), forKey: "miniapp-consent-v2")
+
+        XCTAssertNil(MiniAppConsent.granted(appId: "legacy-app"))
     }
 }

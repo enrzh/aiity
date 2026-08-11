@@ -9,6 +9,16 @@ import WebKit
 @MainActor
 final class BrowserRunnerIntegrationTests: XCTestCase {
 
+    override func setUp() {
+        super.setUp()
+        MiniAppConsent.revoke(appId: "integration-app")
+    }
+
+    override func tearDown() {
+        MiniAppConsent.revoke(appId: "integration-app")
+        super.tearDown()
+    }
+
     private func makeRunner(_ capability: MiniAppCapability = .browser)
     -> (MiniAppRunnerView.Coordinator, WKWebView) {
         let coordinator = MiniAppRunnerView.Coordinator(appId: "integration-app", capability: capability)
@@ -69,12 +79,23 @@ final class BrowserRunnerIntegrationTests: XCTestCase {
     /// popup without an http(s) URL and loaded the rest into the parent view,
     /// which is exactly what breaks an OAuth window.
     func testWindowOpenGetsARealChildWebView() async {
+        MiniAppConsent.allow(appId: "integration-app", capability: .browser, hosts: ["example.com"])
         let (coordinator, webView) = makeRunner()
         run(coordinator, webView, script: """
         window.__opened = !!window.open('https://example.com/signin', 'oauth');
         """)
         _ = await eventually(webView, "window.__opened")
         XCTAssertEqual(coordinator.popupsCreated, 1, "an OAuth popup must get its own web view")
+    }
+
+    func testPopupToPublicAddressIsRefusedWithoutHostGrant() async {
+        let (coordinator, webView) = makeRunner()
+        run(coordinator, webView, script: """
+        window.__opened = window.open('https://example.com/signin', 'oauth') ? 'yes' : 'no';
+        """)
+        let opened = await eventually(webView, "window.__opened")
+        XCTAssertEqual(opened as? String, "no")
+        XCTAssertEqual(coordinator.popupsCreated, 0, "an ungranted popup must not get a web view")
     }
 
     /// An about:blank popup the SDK navigates itself — the pattern that was

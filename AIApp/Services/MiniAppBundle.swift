@@ -200,8 +200,28 @@ enum MiniAppBundleParser {
 
     static func sanitizePath(_ raw: String) -> String {
         var p = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        if p.hasPrefix("./") { p = String(p.dropFirst(2)) }
-        if p.contains("..") || p.hasPrefix("/") || p.contains("\\") { return "" }
+        guard !p.isEmpty, !p.contains("\\"),
+              let components = URLComponents(string: p),
+              components.scheme == nil,
+              components.host == nil,
+              components.user == nil,
+              components.password == nil,
+              components.port == nil,
+              components.query == nil,
+              components.fragment == nil else { return "" }
+        guard let decodedPath = components.path.removingPercentEncoding else { return "" }
+        p = decodedPath
+        let hasSchemePrefix = p.range(
+            of: #"^[A-Za-z][A-Za-z0-9+.-]*:"#, options: .regularExpression
+        ) != nil
+        guard !p.contains("\\"), !hasSchemePrefix else {
+            return ""
+        }
+        while p.hasPrefix("./") { p.removeFirst(2) }
+        guard !p.isEmpty, !p.hasPrefix("/"),
+              !p.split(separator: "/", omittingEmptySubsequences: false).contains(where: { $0 == ".." }) else {
+            return ""
+        }
         return String(p.prefix(120))
     }
 }

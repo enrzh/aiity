@@ -44,15 +44,18 @@ enum NetworkTargetValidator {
               value.rangeOfCharacter(from: .whitespacesAndNewlines) == nil else { return nil }
 
         let host: String
-        if let url = URL(string: value), let scheme = url.scheme {
+        if let components = URLComponents(string: value), let scheme = components.scheme {
             guard ["http", "https"].contains(scheme.lowercased()),
-                  url.user == nil, url.password == nil,
-                  let urlHost = url.host, url.port == nil else { return nil }
+                  components.user == nil, components.password == nil,
+                  components.port == nil,
+                  let urlHost = components.host else { return nil }
             host = urlHost
         } else {
             guard !value.contains("/"), !value.contains(":"),
-                  let url = URL(string: "https://\(value)"),
-                  let urlHost = url.host, url.port == nil else { return nil }
+                  let components = URLComponents(string: "https://\(value)"),
+                  components.user == nil, components.password == nil,
+                  components.port == nil,
+                  let urlHost = components.host else { return nil }
             host = urlHost
         }
 
@@ -60,6 +63,7 @@ enum NetworkTargetValidator {
         let labels = normalized.split(separator: ".", omittingEmptySubsequences: false)
         guard !normalized.isEmpty,
               normalized.count <= 253,
+              !isIPLiteral(normalized),
               labels.allSatisfy { label in
                   let value = String(label)
                   return !value.isEmpty && value.count <= 63
@@ -70,11 +74,35 @@ enum NetworkTargetValidator {
         return normalized
     }
 
-    /// Public-target validation plus this app's persisted host grant.
+    /// Strict public-target validation plus this app's persisted host grant.
+    /// Mini-app targets never accept IP literals, userinfo, or explicit ports.
     static func isAllowed(_ url: URL, allowPrivate: Bool, allowedHosts: [String]) -> Bool {
-        guard isAllowed(url, allowPrivate: false),
+        guard isMiniAppTarget(url),
               let host = normalizeHost(url.host ?? "") else { return false }
-        return allowedHosts.contains(host)
+        let normalizedAllowedHosts = Set(allowedHosts.compactMap(normalizeHost))
+        return normalizedAllowedHosts.contains(host)
+    }
+
+    private static func isMiniAppTarget(_ url: URL) -> Bool {
+        guard isAllowed(url, allowPrivate: false),
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              components.user == nil, components.password == nil,
+              components.port == nil,
+              !isIPLiteral(url.host ?? "") else { return false }
+        return true
+    }
+
+    private static func isIPLiteral(_ rawHost: String) -> Bool {
+        let host = rawHost.trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
+        if host.contains(":"), FetchURLTool.blockedIPv6(host) != nil { return true }
+        if FetchURLTool.normalizedIPv4(host) != nil { return true }
+
+        let parts = host.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count == 4 else { return false }
+        return parts.allSatisfy { part in
+            guard let octet = Int(part) else { return false }
+            return (0...255).contains(octet)
+        }
     }
 
     /// Reason a target was refused, for surfacing to the model rather than
