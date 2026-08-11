@@ -44,6 +44,14 @@ final class ChatPresentationTests: XCTestCase {
         XCTAssertEqual(String(plain.characters), "kein Markdown")
     }
 
+    func testMarkdownParserFallbackUsesPlainTextWhenInjectedParserThrows() {
+        let fallback = ChatView.markdownAttributedString("**unparseable**", parser: { _ in
+            throw MarkdownParserTestError.failed
+        })
+
+        XCTAssertEqual(String(fallback.characters), "**unparseable**")
+    }
+
     func testToolVisualStateDerivesActiveCompletedAndFailed() {
         let call = ToolCallData(id: "call-1", name: "web_search", argumentsJSON: "{}")
         let pending = ChatMessage(role: .assistant, text: "", toolCalls: [call])
@@ -101,4 +109,8 @@ final class ChatPresentationTests: XCTestCase {
             String(localized: "Bild nicht verfügbar")
         )
     }
+}
+
+private enum MarkdownParserTestError: Error {
+    case failed
 }

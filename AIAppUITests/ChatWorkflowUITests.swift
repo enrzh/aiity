@@ -46,24 +46,14 @@ final class ChatWorkflowUITests: XCTestCase {
     }
 
     func testJumpToLatestAfterUserScrollsAway() {
+        app.launchEnvironment["AIITY_UI_TEST_SCROLL_FIXTURE"] = "1"
         app.launch()
         openFreshChat()
 
-        for index in 0..<8 {
-            typeText("Öffne example.com " + String(index), into: "chat-input")
-            app.buttons["chat-send"].tap()
-            XCTAssertTrue(
-                waitFor(timeout: 10) {
-                    app.staticTexts.matching(
-                        NSPredicate(format: "label CONTAINS 'example.com'")
-                    ).count >= index + 1
-                }
-            )
-        }
+        XCTAssertTrue(app.staticTexts["fixture-latest"].waitForExistence(timeout: 10))
 
         let scroll = app.scrollViews["chat-transcript"]
         XCTAssertTrue(scroll.waitForExistence(timeout: 5))
-        scroll.swipeDown()
         scroll.swipeDown()
         let jump = app.buttons["jump-to-latest"]
         XCTAssertTrue(jump.waitForExistence(timeout: 5))
@@ -71,17 +61,35 @@ final class ChatWorkflowUITests: XCTestCase {
         XCTAssertTrue(waitFor(timeout: 5) { !jump.exists })
     }
 
-    func testGeneratedImageOpensAndDismissesSharedPreview() {
+    func testScrollStaysPutWhenNewContentArrivesAwayFromLatest() {
+        app.launchEnvironment["AIITY_UI_TEST_SCROLL_FIXTURE"] = "1"
         app.launch()
         openFreshChat()
-        typeText("Mach mir ein Bild von einer roten Katze", into: "chat-input")
-        app.buttons["chat-send"].tap()
 
-        XCTAssertTrue(
-            app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Hier ist dein Bild'"))
-                .firstMatch.waitForExistence(timeout: 30)
-        )
-        let image = app.descendants(matching: .any)["generated-image"]
+        XCTAssertTrue(app.staticTexts["fixture-latest"].waitForExistence(timeout: 10))
+        let scroll = app.scrollViews["chat-transcript"]
+        XCTAssertTrue(scroll.waitForExistence(timeout: 5))
+        scroll.swipeDown()
+
+        let anchor = app.staticTexts["fixture-anchor"]
+        XCTAssertTrue(anchor.waitForExistence(timeout: 5))
+        let before = anchor.frame.minY
+        let deliver = app.buttons["ui-test-deliver-content"]
+        XCTAssertTrue(deliver.waitForExistence(timeout: 5))
+        deliver.tap()
+
+        XCTAssertTrue(waitFor(timeout: 5) { app.buttons["jump-to-latest"].exists })
+        XCTAssertTrue(waitFor(timeout: 5) { abs(anchor.frame.minY - before) < 20 })
+    }
+
+    func testAttachedImageOpensAndDismissesSharedPreview() {
+        app.launchEnvironment["AIITY_UI_TEST_IMAGE_ATTACHMENT"] = "1"
+        app.launch()
+        openFreshChat()
+
+        let image = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH 'chat-attachment-preview-'")
+        ).firstMatch
         XCTAssertTrue(image.waitForExistence(timeout: 10))
         image.tap()
         let close = app.buttons["media-preview-close"]
@@ -90,19 +98,17 @@ final class ChatWorkflowUITests: XCTestCase {
         XCTAssertFalse(close.exists)
     }
 
-    func testImageToolShowsCompletionState() {
+    func testDelayedToolShowsRunningThenCompletionState() {
+        app.launchEnvironment["AIITY_UI_TEST_DELAYED_TOOL"] = "1"
         app.launch()
         openFreshChat()
-        typeText("Mach mir ein Bild von einer roten Katze", into: "chat-input")
+        typeText("fixture delayed tool", into: "chat-input")
         app.buttons["chat-send"].tap()
 
-        let tool = app.descendants(matching: .any)["chat-tool-generate_image"]
-        XCTAssertTrue(tool.waitForExistence(timeout: 20))
-        XCTAssertTrue(waitFor(timeout: 30) { tool.value as? String == "Abgeschlossen" })
-        XCTAssertTrue(
-            app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Hier ist dein Bild'"))
-                .firstMatch.waitForExistence(timeout: 10)
-        )
+        let tool = app.descendants(matching: .any)["chat-tool-generate_image"].firstMatch
+        XCTAssertTrue(tool.waitForExistence(timeout: 10))
+        XCTAssertTrue(waitFor(timeout: 3) { tool.value as? String == "Läuft" })
+        XCTAssertTrue(waitFor(timeout: 10) { tool.value as? String == "Abgeschlossen" })
     }
 
     private func openFreshChat() {

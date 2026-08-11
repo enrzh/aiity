@@ -54,6 +54,9 @@ struct ChatView: View {
     @State private var isNearBottom = true
     @State private var showJumpToLatest = false
     @State private var scrollToLatestRequest = 0
+#if DEBUG
+    @State private var uiTestFixtureDelivered = false
+#endif
     /// Composer focus, owned here so the keyboard can be dropped BEFORE any
     /// sheet presents — a keyboard alive through a sheet transition is what
     /// used to leave the stale inset behind.
@@ -114,11 +117,15 @@ struct ChatView: View {
         contentHeight > 0 ? contentTop + contentHeight : sentinelBottom
     }
 
-    static func markdownAttributedString(_ text: String) -> AttributedString {
-        (try? AttributedString(
-            markdown: text,
+    static func markdownAttributedString(
+        _ text: String,
+        parser: ((String) throws -> AttributedString)? = nil
+    ) -> AttributedString {
+        let parse = parser ?? { try AttributedString(
+            markdown: $0,
             options: .init(interpretedSyntax: .full)
-        )) ?? AttributedString(text)
+        ) }
+        return (try? parse(text)) ?? AttributedString(text)
     }
 
     static func mediaPlaceholder(for kind: MediaStore.Kind) -> String {
@@ -364,6 +371,10 @@ struct ChatView: View {
                                 key: ChatContentHeightKey.self,
                                 value: geometry.size.height
                             )
+                            .preference(
+                                key: ChatContentTopKey.self,
+                                value: geometry.frame(in: .named("chat-scroll")).minY
+                            )
                         }
                     )
                     .animation(
@@ -460,8 +471,31 @@ struct ChatView: View {
                         .transition(.scale.combined(with: .opacity))
                     }
                 }
+#if DEBUG
+                .overlay(alignment: .topTrailing) {
+                    if uiTestScrollFixtureEnabled {
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Button {
+                                deliverUITestScrollFixtureContent()
+                            } label: {
+                                Image(systemName: "arrow.down.message")
+                            }
+                            if uiTestFixtureDelivered {
+                                Text("fixture-content-delivered")
+                                    .font(.caption2)
+                                    .accessibilityIdentifier("ui-test-content-delivered")
+                            }
+                        }
+                        .accessibilityIdentifier("ui-test-deliver-content")
+                        .accessibilityLabel("Fixture-Inhalt liefern")
+                        .padding(.trailing, Theme.space3)
+                        .padding(.top, Theme.space2)
+                    }
+                }
+#endif
 
                 .scrollDismissesKeyboard(.immediately)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         // Input floats over the scroll content so messages pass behind it.
@@ -522,6 +556,9 @@ struct ChatView: View {
         .onAppear {
             stageIntentTextIfNeeded()
             loadUITestAttachmentFixtureIfNeeded()
+#if DEBUG
+            loadUITestConversationFixturesIfNeeded()
+#endif
         }
         .onChange(of: intents.stagedComposerText) { _, _ in stageIntentTextIfNeeded() }
         .navigationTitle(session.activeThreadTitle.isEmpty ? "Chat" : session.activeThreadTitle)
@@ -741,6 +778,15 @@ struct ChatView: View {
             return
         }
         Theme.Haptics.send()
+#if DEBUG
+        if runUITestDelayedToolFixtureIfNeeded(text) {
+            input = ""
+            attachments = []
+            photoItems = []
+            scrollToLatestRequest += 1
+            return
+        }
+#endif
         session.send(text, attachments: pendingAttachments, settings: settingsStore.settings)
         input = ""
         attachments = []
@@ -760,7 +806,91 @@ struct ChatView: View {
             kind: .image
         )]
         #endif
+
     }
+
+#if DEBUG
+    private var uiTestScrollFixtureEnabled: Bool {
+        ProcessInfo.processInfo.environment["AIITY_UI_TEST_SCROLL_FIXTURE"] == "1"
+    }
+
+    private func loadUITestConversationFixturesIfNeeded() {
+        let environment = ProcessInfo.processInfo.environment
+        guard session.messages.isEmpty else { return }
+
+        if uiTestScrollFixtureEnabled {
+            var fixture: [ChatMessage] = []
+            for index in 0..<12 {
+                fixture.append(ChatMessage(role: .user, text: "fixture-user-\(index)"))
+                fixture.append(ChatMessage(
+                    role: .assistant,
+                    text: index == 5 ? "fixture-anchor" : "fixture-message-\(index)"
+                ))
+            }
+            fixture.append(ChatMessage(role: .assistant, text: "fixture-latest"))
+            session.messages = fixture
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                scrollToLatestRequest += 1
+            }
+            return
+        }
+
+        guard environment["AIITY_UI_TEST_IMAGE_ATTACHMENT"] == "1",
+              let data = Data(base64Encoded: Self.uiTestPNGBase64),
+              let mediaId = MediaStore.save(data: data, filename: "fixture.png", mimeType: "image/png") else {
+            return
+        }
+        session.messages = [ChatMessage(
+            role: .user,
+            text: "attached fixture",
+            attachments: [ChatAttachment(
+                mediaId: mediaId,
+                filename: "fixture.png",
+                mimeType: "image/png",
+                kind: .image
+            )]
+        )]
+    }
+
+    private func deliverUITestScrollFixtureContent() {
+        guard uiTestScrollFixtureEnabled, !uiTestFixtureDelivered else { return }
+        uiTestFixtureDelivered = true
+        session.messages.append(ChatMessage(role: .assistant, text: "fixture-new-content"))
+    }
+
+    private func runUITestDelayedToolFixtureIfNeeded(_ text: String) -> Bool {
+        guard ProcessInfo.processInfo.environment["AIITY_UI_TEST_DELAYED_TOOL"] == "1",
+              text == "fixture delayed tool" else { return false }
+
+        let call = ToolCallData(
+            id: "ui-test-delayed-tool",
+            name: "generate_image",
+            argumentsJSON: "{\"prompt\":\"fixture\"}"
+        )
+        session.messages.append(ChatMessage(role: .user, text: text))
+        session.messages.append(ChatMessage(role: .assistant, text: "", toolCalls: [call]))
+        session.busy = true
+        session.statusLine = String(localized: "Läuft")
+
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(800))
+            guard !Task.isCancelled else { return }
+            session.messages.append(ChatMessage(
+                role: .tool,
+                text: "Bild erstellt",
+                toolCallId: call.id,
+                toolName: call.name
+            ))
+            session.messages.append(ChatMessage(role: .assistant, text: "fixture tool complete"))
+            session.busy = false
+            session.statusLine = nil
+        }
+        return true
+    }
+
+    private static let uiTestPNGBase64 =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+#endif
 
     private func updateScrollPosition() {
         let contentBottom = Self.trueContentBottom(
