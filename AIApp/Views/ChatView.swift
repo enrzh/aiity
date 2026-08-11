@@ -127,7 +127,9 @@ struct ChatView: View {
         guard let end = lines[(start + 1)...].firstIndex(where: {
             $0.trimmingCharacters(in: .whitespaces) == "```"
         }) else {
-            return text.trimmingCharacters(in: .whitespacesAndNewlines)
+            return lines[..<start]
+                .joined(separator: "\n")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
         }
         lines.replaceSubrange(start...end, with: [""])
         return lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)

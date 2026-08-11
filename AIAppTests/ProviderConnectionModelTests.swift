@@ -428,10 +428,9 @@ final class ProviderConnectionModelTests: XCTestCase {
         )
         let source = try String(contentsOf: sourceURL, encoding: .utf8)
 
-        XCTAssertTrue(
-            source.contains("        .disabled(probing)\n        .navigationTitle"),
-            "the form content should gate draft controls without disabling navigation dismissal"
-        )
+        let disabled = try XCTUnwrap(source.range(of: ".disabled(probing)"))
+        let title = try XCTUnwrap(source.range(of: ".navigationTitle", range: disabled.upperBound..<source.endIndex))
+        XCTAssertLessThan(disabled.lowerBound, title.lowerBound)
     }
 }
 

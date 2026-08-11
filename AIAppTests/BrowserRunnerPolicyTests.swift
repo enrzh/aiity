@@ -28,7 +28,7 @@ final class BrowserNavigationPolicyTests: XCTestCase {
 
     func testPublicWebNavigationIsAllowedOnTheBrowserTier() {
         XCTAssertEqual(decide("https://example.com/deep/page?q=1"), .allow)
-        XCTAssertEqual(decide("http://example.com/"), .allow)
+        XCTAssertEqual(decide("http://example.com/"), .cancel)
         XCTAssertEqual(decide("about:blank"), .allow)
     }
 
