@@ -351,6 +351,44 @@ final class DiagnosticsReportTests: XCTestCase {
         XCTAssertFalse(text.contains("iCloud —"), "a healthy run must not grow an alarming empty section")
     }
 
+    /// A cookie jar WebKit keeps refusing to delete is otherwise invisible: the
+    /// sweep's breadcrumb only exists in the launch that tried, so a report
+    /// exported later would show nothing at all. It has to be device state read
+    /// at export time.
+    func testAStuckCookieJarPurgeShowsUpInTheReport() {
+        let stuck = UUID()
+        let leftovers = UUID()
+        let text = DiagnosticsReport.render(
+            previous: nil, verdict: .noPreviousRun, metricKit: nil,
+            current: DiagnosticRun(
+                appVersion: "0.6.0", build: "13", systemVersion: "27.0", deviceModel: "iPhone18,4"
+            ),
+            generatedAt: Date(),
+            storePurges: [
+                .init(identifier: stuck, state: .pending,
+                      firstNotedAt: Date(timeIntervalSince1970: 770_000_000), attempts: 4),
+                .init(identifier: leftovers, state: .residual,
+                      firstNotedAt: Date(timeIntervalSince1970: 770_000_100), attempts: 1),
+            ]
+        )
+        XCTAssertTrue(text.contains(stuck.uuidString), text)
+        XCTAssertTrue(text.contains("1 offen, 1 Rest"), text)
+        XCTAssertTrue(text.contains("4 Versuch(e)"), text)
+    }
+
+    /// And nothing owed means no section — an empty scary heading in every
+    /// report is how a real one stops being read.
+    func testTheReportSaysNothingAboutJarsWhenNoneAreOwed() {
+        let text = DiagnosticsReport.render(
+            previous: nil, verdict: .noPreviousRun, metricKit: nil,
+            current: DiagnosticRun(
+                appVersion: "0.6.0", build: "13", systemVersion: "27.0", deviceModel: "iPhone18,4"
+            ),
+            generatedAt: Date()
+        )
+        XCTAssertFalse(text.contains("Cookie-Jars"), text)
+    }
+
     func testDurationsReadInTheRightUnit() {
         let start = Date(timeIntervalSince1970: 0)
         XCTAssertEqual(DiagnosticsReport.duration(from: start, to: start.addingTimeInterval(45)), "45s")

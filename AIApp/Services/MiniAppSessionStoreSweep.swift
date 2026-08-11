@@ -61,6 +61,34 @@ import WebKit
 /// revocation. Pinned by `testTheOrphanedJarIsReapedBeforeItsGrantIsRevoked`
 /// and `testTheSecondPassAfterRevocationHasNoJarLeftToStrand`.
 ///
+/// **Removals fail, and the failure is the normal case.** WebKit refuses to
+/// delete a data store the CURRENT process has opened
+/// (`WKWebSiteDataStore Code=1 "Failed to delete files on disk"`), which is
+/// exactly the shape of "open a browser mini-app, then delete it" — one launch,
+/// one process. A fresh process deletes the same store without complaint. So
+/// every removal here reports whether WebKit accepted it, anything unaccepted is
+/// written to `MiniAppSessionStorePurgeQueue` (durable) and retried by the next
+/// launch's pass, and `.swept(reaped:)` counts only what actually went. That
+/// queue is also a THIRD trigger for this pass: an entry in it makes the store
+/// half run even when no `.browser` grant is left — without that, a jar whose
+/// grant was revoked in the same breath as the failed removal would be
+/// unreachable forever.
+///
+/// **The residual rule.** A removal WebKit *accepts* still leaves a stub
+/// directory behind (`…/WebsiteDataStore/<uuid>/ResourceLoadStatistics`) that a
+/// LATER process enumerates as a data store again. It has no owner, so it would
+/// be doomed again on every launch and reported as a freshly reaped cookie jar
+/// every time — a count that never settles, about data that is already gone. So
+/// an accepted removal does not forget the identifier, it *tombstones* it
+/// (`.residual`): the next pass sweeps it once more so the stub goes, counts it
+/// as `residual` rather than `reaped` or `kept`, and forgets it entirely on the
+/// first launch that no longer enumerates it. The price is exactly one
+/// confirming enumeration after a reap — the launch after the last browser
+/// mini-app is deleted still brings WebKit up, once, and then never again.
+/// Pinned by `testAnIdentifierAlreadyRemovedOnceCountsAsResidualNotAsAReap`,
+/// `testAResidualIsForgottenOnceWebKitStopsListingIt` and the second pass of
+/// `testTheSecondPassAfterRevocationHasNoJarLeftToStrand`.
+///
 /// **Bias: keep.** Every ambiguous case leaves the jar — and the grant — alone.
 /// Deleting a live user's site logins is unrecoverable and wrongly revoking is
 /// at least a re-prompt; a stale jar living one more cycle is neither. That is
@@ -85,9 +113,10 @@ enum MiniAppSessionStoreSweep {
 
     /// What one sweep of the cookie jars decided.
     enum StoreOutcome: Equatable {
-        /// The user has never granted ANY capability to ANY mini-app, so
-        /// there is no jar to reap and no grant to revoke. The cheap exit that
-        /// keeps the whole pass — and WebKit — out of most launches.
+        /// The user has never granted ANY capability to ANY mini-app AND
+        /// nothing is owed to the purge queue, so there is no jar to reap and no
+        /// grant to revoke. The cheap exit that keeps the whole pass — and
+        /// WebKit — out of most launches.
         case skippedNoGrants
         /// The store this launch opened cannot vouch for the record set:
         /// `.recovered` (the old store was moved aside, so the library looks
@@ -97,17 +126,34 @@ enum MiniAppSessionStoreSweep {
         /// Syncing, but the first CloudKit import has not settled — records
         /// may still be on their way in.
         case skippedImportUnsettled
-        /// The user has never granted browser tier to anything, so no
-        /// persistent store can exist. Costs nothing and, crucially, keeps
-        /// WebKit out of the launch path for everyone else. The grant half of
-        /// the pass still ran.
+        /// The user has never granted browser tier to anything and nothing is
+        /// owed to the purge queue, so no persistent store can exist. Costs
+        /// nothing and, crucially, keeps WebKit out of the launch path for
+        /// everyone else. The grant half of the pass still ran.
         case skippedNoBrowserGrants
         /// The record fetch failed. An empty "live" set here would reap every
         /// jar and revoke every grant the user has — refusing is the only safe
         /// reading (same shape as `BackgroundWorkCoordinator.sweepMedia`'s
         /// unreadable-archive case).
         case skippedUnreadableLibrary
-        case swept(reaped: Int, kept: Int)
+        /// What the pass actually achieved. The four counts partition every
+        /// identifier WebKit enumerated — `reaped + deferred + residual + kept
+        /// == found` — and none of them is a claim the pass cannot back up:
+        ///
+        ///  * `reaped` — a jar with no live owner whose removal WebKit
+        ///    **accepted** this pass. Only these are gone.
+        ///  * `kept` — enumerated and owned by something live. Untouched.
+        ///  * `deferred` — a jar with no live owner whose removal WebKit
+        ///    **refused** (almost always: this process opened it). Still on
+        ///    disk, still holding the site's logins, written to
+        ///    `MiniAppSessionStorePurgeQueue` and retried next launch. This is
+        ///    the count that used to be reported as `reaped`.
+        ///  * `residual` — an identifier a PREVIOUS pass already removed
+        ///    successfully and that the enumeration still lists: WebKit's own
+        ///    leftover metadata directory, not a cookie jar. Removed again
+        ///    best-effort, and counted apart so it can neither be mistaken for
+        ///    a fresh orphan nor inflate `reaped` on every launch.
+        case swept(reaped: Int, kept: Int, deferred: Int, residual: Int)
     }
 
     // MARK: - Pure policy
@@ -227,7 +273,11 @@ enum MiniAppSessionStoreSweep {
     /// ownership logic above must be testable without either.
     struct StoreIndex {
         var identifiers: @MainActor () async -> [UUID]
-        var remove: @MainActor (UUID) async -> Void
+        /// Answers whether WebKit **accepted** the removal. The error used to be
+        /// thrown away here, which is how a refusal ("Failed to delete files on
+        /// disk", the answer for any store this process has opened) turned into
+        /// a reported reap with the cookies still on disk.
+        var remove: @MainActor (UUID) async -> Bool
 
         static let webKit = StoreIndex(
             identifiers: {
@@ -243,8 +293,21 @@ enum MiniAppSessionStoreSweep {
                 // Same hazard, same guard — this is the other fatal-without-
                 // initialisation class API.
                 WebKitRuntime.ensureInitialised()
-                await withCheckedContinuation { continuation in
-                    WKWebsiteDataStore.remove(forIdentifier: identifier) { _ in continuation.resume() }
+                return await withCheckedContinuation { continuation in
+                    WKWebsiteDataStore.remove(forIdentifier: identifier) { error in
+                        if let error {
+                            // The refusal itself, in the breadcrumbs: a purge
+                            // that never completes has to be readable in the
+                            // diagnostics export, not only inferable from a
+                            // count that stopped moving.
+                            DiagnosticsRecorder.shared.record(
+                                "miniapp",
+                                "session store \(identifier.uuidString.prefix(8)) removal refused: "
+                                + error.localizedDescription
+                            )
+                        }
+                        continuation.resume(returning: error == nil)
+                    }
                 }
             }
         )
@@ -270,10 +333,16 @@ enum MiniAppSessionStoreSweep {
         records: @MainActor (ModelContext) -> [UUID]? = MiniAppSessionStoreSweep.liveAppIds(in:),
         revoke: @MainActor (String) -> Void = { MiniAppConsent.revoke(appId: $0) }
     ) async -> Outcome {
+        // Everything the previous launches could not finish. Read once, up
+        // front: it is both a work list and a reason to run at all.
+        let owed = MiniAppSessionStorePurgeQueue.records()
+
         // Cheapest gate first: nothing was ever granted, so no persistent
         // store was ever created (the runner only picks one for a `.browser`
         // grant) and no grant can have gone stale. WebKit need not come up.
-        guard !grants.isEmpty else { return Outcome(stores: .skippedNoGrants) }
+        // An outstanding purge overrides it — that is precisely the state a
+        // finished delete leaves behind (record gone, grant revoked, jar not).
+        guard !grants.isEmpty || !owed.isEmpty else { return Outcome(stores: .skippedNoGrants) }
         guard mayCompare(mode: status.mode, initialImportComplete: true) else {
             return Outcome(stores: .skippedUnsafeStorageMode)
         }
@@ -291,25 +360,14 @@ enum MiniAppSessionStoreSweep {
         //       below reads the very grants step 2 deletes, and a jar whose
         //       grant is revoked first is stranded on disk forever.
         var stores: StoreOutcome = .skippedNoBrowserGrants
-        if grants.values.contains(.browser) {
-            let found = await index.identifiers()
-            let doomed = plan(
-                found: found,
-                liveAppIds: live,
+        if grants.values.contains(.browser) || !owed.isEmpty {
+            stores = await sweepStores(
+                owed: owed,
+                live: live,
                 consentedIds: Array(grants.keys),
-                mode: status.mode,
-                initialImportComplete: status.initialImportComplete
+                status: status,
+                index: index
             )
-            for identifier in doomed {
-                await index.remove(identifier)
-            }
-            if !doomed.isEmpty {
-                DiagnosticsRecorder.shared.record(
-                    "miniapp",
-                    "session store sweep: removed \(doomed.count) orphaned of \(found.count)"
-                )
-            }
-            stores = .swept(reaped: doomed.count, kept: found.count - doomed.count)
         }
 
         // ── 2. Consent grants. Only now, once the jars are gone.
@@ -329,5 +387,95 @@ enum MiniAppSessionStoreSweep {
             )
         }
         return Outcome(stores: stores, revokedGrants: stale)
+    }
+
+    /// The jar half of one pass, including everything earlier passes could not
+    /// finish. Split out only for length; it is not a second owner and has no
+    /// caller but `run`.
+    ///
+    /// Order inside it matters as much as the order between the halves:
+    ///
+    ///  1. **Reconcile the queue against reality first.** An owed identifier the
+    ///     enumeration no longer lists is done — forget it, or the app would
+    ///     keep bringing WebKit up at launch for a jar that is not there. An
+    ///     owed identifier that now has a LIVE owner is forgotten too, and
+    ///     emphatically not deleted: a record can come back (iCloud restore, a
+    ///     resurrected CloudKit record), and the queue must never outrank the
+    ///     ownership check and take a live user's logins with it.
+    ///  2. **Note before attempting.** The note is durable and the attempt is
+    ///     not; a kill between them must leave the app knowing it still owes the
+    ///     deletion, never the other way round.
+    ///  3. **Count what WebKit accepted, not what was attempted.**
+    private static func sweepStores(
+        owed: [MiniAppSessionStorePurgeQueue.Record],
+        live: [UUID],
+        consentedIds: [String],
+        status: SyncStatus,
+        index: StoreIndex
+    ) async -> StoreOutcome {
+        let found = await index.identifiers()
+        let onDisk = Set(found)
+        let owned = ownedIdentifiers(liveAppIds: live, consentedIds: consentedIds)
+
+        var state: [UUID: MiniAppSessionStorePurgeQueue.State] = [:]
+        for record in owed {
+            if !onDisk.contains(record.identifier) || owned.contains(record.identifier) {
+                MiniAppSessionStorePurgeQueue.forget(record.identifier)
+            } else {
+                state[record.identifier] = record.state
+            }
+        }
+
+        let doomed = plan(
+            found: found,
+            liveAppIds: live,
+            consentedIds: consentedIds,
+            mode: status.mode,
+            initialImportComplete: status.initialImportComplete
+        )
+
+        var reaped = 0
+        var deferred = 0
+        var residual = 0
+        for identifier in doomed {
+            // A tombstoned identifier is leftovers from a removal that already
+            // succeeded — it is swept again so the directory finally goes, but
+            // it is never counted as a jar that was there to lose.
+            let isResidual = state[identifier] == .residual
+            MiniAppSessionStorePurgeQueue.note(identifier)
+            let accepted = await index.remove(identifier)
+            MiniAppSessionStorePurgeQueue.recordAttempt(identifier, succeeded: accepted)
+            if isResidual {
+                residual += 1
+            } else if accepted {
+                reaped += 1
+            } else {
+                deferred += 1
+            }
+        }
+
+        if !doomed.isEmpty {
+            DiagnosticsRecorder.shared.record(
+                "miniapp",
+                "session store sweep: \(reaped) reaped, \(deferred) deferred, "
+                + "\(residual) residual, \(found.count - doomed.count) kept"
+            )
+        }
+        let stillOwed = MiniAppSessionStorePurgeQueue.records()
+            .filter { $0.state == .pending }
+        if !stillOwed.isEmpty {
+            DiagnosticsRecorder.shared.record(
+                "miniapp",
+                "session store purge queue: \(stillOwed.count) jar(s) still owed — "
+                + stillOwed.map { "\($0.identifier.uuidString.prefix(8))×\($0.attempts)" }
+                    .joined(separator: " ")
+            )
+        }
+        return .swept(
+            reaped: reaped,
+            kept: found.count - doomed.count,
+            deferred: deferred,
+            residual: residual
+        )
     }
 }

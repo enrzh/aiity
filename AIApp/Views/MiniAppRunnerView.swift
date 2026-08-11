@@ -169,12 +169,49 @@ struct MiniAppRunnerView: UIViewRepresentable {
 
     /// Drop a mini-app's persistent cookie jar when the app itself is deleted.
     /// Otherwise its logins outlive it on disk, owned by nothing.
-    static func removeSessionStore(for appId: String) {
+    ///
+    /// Returns immediately — deleting a mini-app must stay instant — but never
+    /// silently: the identifier is written to `MiniAppSessionStorePurgeQueue`
+    /// **before** the attempt, and only a removal WebKit actually accepts takes
+    /// it off that list. That ordering is the whole fix. WebKit refuses to
+    /// delete a store the current process has opened, which is exactly the
+    /// common case (open the browser mini-app, then delete it), and the refusal
+    /// used to be discarded by the `{ _ in }` handler that stood here — leaving
+    /// real site logins on disk while the app reported the delete as done.
+    /// `MiniAppSessionStoreSweep` retries whatever is left on the next launch,
+    /// which is a fresh process and therefore able to delete it.
+    /// The returned task is the removal in flight. The UI ignores it — that is
+    /// the point of returning rather than awaiting — but a test must be able to
+    /// wait for it: an unsequenced WebKit removal outlives the test that started
+    /// it and materialises a data store directory in the middle of the next one.
+    @discardableResult
+    static func removeSessionStore(for appId: String) -> Task<Bool, Never> {
+        let identifier = sessionStoreID(for: appId)
+        // Durable first, and synchronously: a kill between the tap and the
+        // removal must leave the app knowing it still owes this deletion.
+        MiniAppSessionStorePurgeQueue.note(identifier)
         // Deleting is the one mini-app action that needs no web view, so this
         // is where WebKit's uninitialised-run-loop segfault actually fired.
-        // WebKitRuntime carries the full explanation.
+        // Brought up here, on the caller's thread, rather than inside the task
+        // below — the guard has to be in front of the class API no matter how
+        // the task is scheduled. WebKitRuntime carries the full explanation.
         WebKitRuntime.ensureInitialised()
-        WKWebsiteDataStore.remove(forIdentifier: sessionStoreID(for: appId)) { _ in }
+        return Task { @MainActor in
+            await purgeSessionStore(identifier)
+        }
+    }
+
+    /// One removal attempt, awaited, answering whether WebKit accepted it — and
+    /// keeping the durable purge queue honest either way. The single deleter of
+    /// a persistent store in the app: `MiniAppSessionStoreSweep.StoreIndex`
+    /// owns the WebKit call itself, so there is one place where the error is
+    /// read and one place where the fatal-without-initialisation guard lives.
+    @MainActor
+    @discardableResult
+    static func purgeSessionStore(_ identifier: UUID) async -> Bool {
+        let accepted = await MiniAppSessionStoreSweep.StoreIndex.webKit.remove(identifier)
+        MiniAppSessionStorePurgeQueue.recordAttempt(identifier, succeeded: accepted)
+        return accepted
     }
 
     final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate {

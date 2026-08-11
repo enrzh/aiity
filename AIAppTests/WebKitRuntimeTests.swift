@@ -38,11 +38,17 @@ final class WebKitRuntimeTests: XCTestCase {
     /// Deleting a mini-app is the path that actually crashed: it is the only
     /// mini-app action reachable with no web view anywhere in the process.
     /// Resetting first makes this independent of whatever ran before it.
-    func testDeletingASessionStoreBringsWebKitUpFirst() {
+    func testDeletingASessionStoreBringsWebKitUpFirst() async {
         WebKitRuntime.resetForTesting()
-        MiniAppRunnerView.removeSessionStore(for: UUID().uuidString)
+        let removal = MiniAppRunnerView.removeSessionStore(for: UUID().uuidString)
+        // Still asserted BEFORE anything is awaited: initialisation has to
+        // happen on the caller's thread, ahead of the class API, whatever the
+        // removal task does afterwards.
         XCTAssertTrue(WebKitRuntime.isInitialised,
                       "removeSessionStore must initialise WebKit before calling a class API")
+        // Then drained, so a WebKit removal started here cannot still be running
+        // — and materialising a store directory — inside another test.
+        _ = await removal.value
     }
 
     /// The fetch tool reaches WebKit class APIs (`nonPersistent()`, the content

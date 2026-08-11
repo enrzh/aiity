@@ -569,7 +569,11 @@ final class DiagnosticsRecorder: @unchecked Sendable {
             verdict: snapshot.verdict,
             metricKit: snapshot.metricKit,
             current: currentRunSnapshot(),
-            generatedAt: Date()
+            generatedAt: Date(),
+            // Read here, not recorded as a breadcrumb, so a jar whose deletion
+            // keeps failing is visible in EVERY export rather than only in the
+            // one taken during the launch that last tried.
+            storePurges: MiniAppSessionStorePurgeQueue.records()
         )
     }
 

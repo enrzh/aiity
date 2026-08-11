@@ -80,12 +80,8 @@ struct LibraryView: View {
                     ))
                 }
             }
-            // A sheet-style confirmation, not an alert: it slides up from the
-            // bottom, does not block the screen behind it, and is dismissed by
-            // tapping anywhere outside. Deleting a mini-app is irreversible and
-            // propagates to every device over iCloud, so it keeps one
-            // confirmation step — the same shape the Home Screen uses for
-            // "Remove App".
+            // Deleting a mini-app is irreversible and propagates to every
+            // device over iCloud, so it keeps one confirmation step.
             // Centered alert, deliberately NOT a confirmationDialog: the
             // bottom sheet reads as a menu continuation of the long-press that
             // opened it, and the destructive step deserves to interrupt in the
@@ -101,7 +97,11 @@ struct LibraryView: View {
                 Button("Löschen", role: .destructive) {
                     // A browser app keeps a persistent WKWebsiteDataStore with
                     // its cookies and logins. Deleting only the record leaves
-                    // that session on disk forever, tied to nothing.
+                    // that session on disk forever, tied to nothing. This
+                    // returns immediately and WebKit usually REFUSES the
+                    // deletion in this process (it opened the store when the
+                    // app was last run); the identifier is queued durably and
+                    // the next launch's MiniAppSessionStoreSweep finishes it.
                     MiniAppRunnerView.removeSessionStore(for: app.id.uuidString)
                     MiniAppConsent.revoke(appId: app.id.uuidString)
                     modelContext.delete(app)

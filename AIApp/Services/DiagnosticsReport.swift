@@ -16,7 +16,8 @@ enum DiagnosticsReport {
         verdict: DiagnosticVerdict,
         metricKit: String?,
         current: DiagnosticRun,
-        generatedAt: Date
+        generatedAt: Date,
+        storePurges: [MiniAppSessionStorePurgeQueue.Record] = []
     ) -> String {
         var out: [String] = []
         out.append("aiity — Diagnose")
@@ -51,6 +52,7 @@ enum DiagnosticsReport {
 
         out.append("━━━ AKTUELLER LAUF ━━━")
         out.append(contentsOf: runFacts(current))
+        out.append(contentsOf: storePurgeLines(storePurges))
         out.append("")
         out.append("Ereignisse:")
         out.append(contentsOf: breadcrumbLines(current.breadcrumbs))
@@ -285,6 +287,36 @@ enum DiagnosticsReport {
         }
         out.append(String(localized: "  (Ein späterer Erfolg löscht diesen Eintrag nicht — ob der Abgleich"))
         out.append(String(localized: "   danach wieder lief, steht in den Ereignissen unter \"icloud\".)"))
+        return out
+    }
+
+    /// Cookie jars the app has decided to delete and not yet seen disappear.
+    ///
+    /// Present only when something is actually owed, and deliberately in the
+    /// CURRENT-run block rather than in `runFacts`: this is device state read at
+    /// export time, not a fact about the run being reported. Without it a jar
+    /// WebKit keeps refusing to delete is invisible — the sweep's own breadcrumb
+    /// only appears in the launch that tried, so a report exported later would
+    /// show nothing at all. Untranslated, like every other technical line in
+    /// this export (see docs/LOCALIZATION.md).
+    static func storePurgeLines(_ purges: [MiniAppSessionStorePurgeQueue.Record]) -> [String] {
+        guard !purges.isEmpty else { return [] }
+        let pending = purges.filter { $0.state == .pending }
+        var out = [
+            "",
+            "  Mini-App-Cookie-Jars, noch nicht gelöscht: "
+            + "\(pending.count) offen, \(purges.count - pending.count) Rest",
+        ]
+        for purge in purges {
+            let label = purge.state == .pending ? "offen  " : "Rest   "
+            out.append(
+                "    \(purge.identifier.uuidString)  \(label)"
+                + "seit \(stamp(purge.firstNotedAt))  \(purge.attempts) Versuch(e)"
+            )
+        }
+        out.append("  (\"offen\" = WebKit hat die Löschung abgelehnt, meist weil dieser Prozess")
+        out.append("   den Store geöffnet hatte; der nächste Start versucht es erneut. \"Rest\" =")
+        out.append("   bereits gelöscht, WebKit listet nur noch ein leeres Verzeichnis.)")
         return out
     }
 

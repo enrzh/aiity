@@ -99,6 +99,7 @@
 		7638D9B8308E1A606793ADA7 /* OAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ABB510FA42777974274E004 /* OAuthService.swift */; };
 		789237983030FA01832A6906 /* MiniAppSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 625099991BC035FAF50720AE /* MiniAppSheet.swift */; };
 		78C9BAD4BA1FC8E990E75868 /* StopAgentRunIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 907749EFB6F38476E9D9AB9D /* StopAgentRunIntent.swift */; };
+		7A581851ACE3E7C775BA0DD8 /* MiniAppSessionStorePurgeQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B3D83B8DCD2107565625831 /* MiniAppSessionStorePurgeQueue.swift */; };
 		7DBB3207B4E8ACA327538280 /* SkillsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB46AD8FB434B5CFCB76DD93 /* SkillsView.swift */; };
 		7DED930B741A78AC67DAF426 /* AIAppLiveActivityBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB298954AA86AB20388D0735 /* AIAppLiveActivityBundle.swift */; };
 		7E5995C4C2F832D122A7ACB0 /* ProviderPresetCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 884E796A095504D74F54EC2F /* ProviderPresetCatalogTests.swift */; };
@@ -145,6 +146,7 @@
 		AE469D82EC595E85864FCF6E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = C16E8E5E4E68B9F5FDCAEFBF /* PrivacyInfo.xcprivacy */; };
 		B07F39379280F41E6123DF95 /* ProbeStubServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71BE07E108BB15C9A6DA6F5B /* ProbeStubServer.swift */; };
 		B175AA788AB0C9E894F020E1 /* SettingsTourUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93F8325DAC9548FB101F120A /* SettingsTourUITests.swift */; };
+		B291791452695566C809675E /* MiniAppSessionStorePurgeQueueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1994A36862E6690F130ABB /* MiniAppSessionStorePurgeQueueTests.swift */; };
 		B2DFE808FB5A276AB941A13E /* StreamingTextBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7219098FBB7E78A0120C471E /* StreamingTextBuffer.swift */; };
 		B3E712C8951A91F7642ED2DC /* ToolCallParsingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 592FAC2E2E94BA2A4E5FD5AF /* ToolCallParsingTests.swift */; };
 		B3FE7459265FC7F06DF95975 /* ChatSuggestionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E69A8AEAC6C19636B9C18FB /* ChatSuggestionsTests.swift */; };
@@ -279,6 +281,7 @@
 		2490BAAC944CD31E6953877B /* AppNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNotifications.swift; sourceTree = "<group>"; };
 		266D94DDD73F14B006FB2D68 /* BrowserFetchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserFetchTests.swift; sourceTree = "<group>"; };
 		27E6A2A3C24290F84E5008F4 /* AppIntentsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIntentsTests.swift; sourceTree = "<group>"; };
+		2B3D83B8DCD2107565625831 /* MiniAppSessionStorePurgeQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniAppSessionStorePurgeQueue.swift; sourceTree = "<group>"; };
 		2B5B359F8FEE6A340921B0B8 /* BackupRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupRoundTripTests.swift; sourceTree = "<group>"; };
 		2C3071FF7163FA0580F35F6E /* LocalModelLocationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalModelLocationTests.swift; sourceTree = "<group>"; };
 		2C86F83176F788DEC5D87646 /* ModelCatalogCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelCatalogCache.swift; sourceTree = "<group>"; };
@@ -342,6 +345,7 @@
 		76B856813601A1FE8ED70BC7 /* BundledSkills */ = {isa = PBXFileReference; lastKnownFileType = folder; name = BundledSkills; path = AIApp/Resources/BundledSkills; sourceTree = SOURCE_ROOT; };
 		77FA12D4F5198A0234EC746A /* DiagnosticsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsUITests.swift; sourceTree = "<group>"; };
 		798AE81DDE4AC400C927479C /* WebKitRuntimeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebKitRuntimeTests.swift; sourceTree = "<group>"; };
+		7A1994A36862E6690F130ABB /* MiniAppSessionStorePurgeQueueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniAppSessionStorePurgeQueueTests.swift; sourceTree = "<group>"; };
 		7C0F84349D42610A96B83C8C /* ShipReadinessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShipReadinessTests.swift; sourceTree = "<group>"; };
 		7FAABD9AFCC0E572641D5FE3 /* ReportContentSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportContentSheet.swift; sourceTree = "<group>"; };
 		8015895FBCB654D64B179212 /* OAuthServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthServiceTests.swift; sourceTree = "<group>"; };
@@ -500,6 +504,7 @@
 				43918F31F3CCEA61F225CBF9 /* MemoryPressure.swift */,
 				1392287F6C0E834FAA71B8B6 /* MiniAppBundle.swift */,
 				7267ACD1A86943F0D49BC51E /* MiniAppIndex.swift */,
+				2B3D83B8DCD2107565625831 /* MiniAppSessionStorePurgeQueue.swift */,
 				84190B44BAD282D02D84E638 /* MiniAppSessionStoreSweep.swift */,
 				B64CD47856B221735B081C23 /* MiniAppValidator.swift */,
 				2C86F83176F788DEC5D87646 /* ModelCatalogCache.swift */,
@@ -627,6 +632,7 @@
 				DA8466963EF2CD19656D9FEB /* LocalRuntimePolicyTests.swift */,
 				6CD59DF34EB2C44797D18EB6 /* MiniAppBundleTests.swift */,
 				0C9A59361BEACB918BD5FC01 /* MiniAppEditContextTests.swift */,
+				7A1994A36862E6690F130ABB /* MiniAppSessionStorePurgeQueueTests.swift */,
 				6BB7F9B4CDF91637C4542741 /* MiniAppSessionStoreSweepTests.swift */,
 				0D6A69B321F0B9D850477143 /* MiniAppValidatorTests.swift */,
 				17F951165BDDAA69ACF6561E /* ModelCatalogTests.swift */,
@@ -1059,6 +1065,7 @@
 				70A6E03977A48B6A17A2D102 /* MiniAppIndex.swift in Sources */,
 				C3D0A39A19C380D5BE46DF50 /* MiniAppRunnerView.swift in Sources */,
 				D817671B08A9EFCFAA46BF12 /* MiniAppServices.swift in Sources */,
+				7A581851ACE3E7C775BA0DD8 /* MiniAppSessionStorePurgeQueue.swift in Sources */,
 				3017C110AA958F70550C4054 /* MiniAppSessionStoreSweep.swift in Sources */,
 				789237983030FA01832A6906 /* MiniAppSheet.swift in Sources */,
 				0EDB9E10A7D741108C97D3D9 /* MiniAppTile.swift in Sources */,
@@ -1142,6 +1149,7 @@
 				6AB254B91A2E253599524DD2 /* LocalRuntimePolicyTests.swift in Sources */,
 				5195B6E0E2F504654EFF8AB0 /* MiniAppBundleTests.swift in Sources */,
 				40747E4CD7BA22059AE5B22D /* MiniAppEditContextTests.swift in Sources */,
+				B291791452695566C809675E /* MiniAppSessionStorePurgeQueueTests.swift in Sources */,
 				DC92C3BE2B43622823123047 /* MiniAppSessionStoreSweepTests.swift in Sources */,
 				1C99875F3564B076392F5868 /* MiniAppValidatorTests.swift in Sources */,
 				ACC26DC315DAF4BAFD2C574A /* ModelCatalogTests.swift in Sources */,
@@ -1195,7 +1203,7 @@
 				CODE_SIGN_ENTITLEMENTS = AIApp/AIApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 16;
+				CURRENT_PROJECT_VERSION = 17;
 				DEVELOPMENT_TEAM = H8FW6W6K2D;
 				INFOPLIST_FILE = AIApp/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1214,7 +1222,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 16;
+				CURRENT_PROJECT_VERSION = 17;
 				DEVELOPMENT_TEAM = H8FW6W6K2D;
 				INFOPLIST_FILE = AIAppLiveActivity/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1314,7 +1322,7 @@
 				CODE_SIGN_ENTITLEMENTS = AIApp/AIApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 16;
+				CURRENT_PROJECT_VERSION = 17;
 				DEVELOPMENT_TEAM = H8FW6W6K2D;
 				INFOPLIST_FILE = AIApp/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1333,7 +1341,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 16;
+				CURRENT_PROJECT_VERSION = 17;
 				DEVELOPMENT_TEAM = H8FW6W6K2D;
 				INFOPLIST_FILE = AIAppLiveActivity/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

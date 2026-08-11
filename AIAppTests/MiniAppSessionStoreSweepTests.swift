@@ -54,6 +54,12 @@ final class MiniAppSessionStoreSweepTests: XCTestCase {
 
     /// The consent map exactly as this test found it, restored in `tearDown`.
     private var grantsBeforeTest: [String: MiniAppCapability] = [:]
+    /// The durable purge queue as this test found it, restored the same way and
+    /// for the same reason: it lives in the shared `UserDefaults`, and an entry
+    /// left behind by one test makes the NEXT one enumerate WebKit at all (the
+    /// queue is a trigger for the store half, exactly so a jar whose grant is
+    /// already revoked still gets retried).
+    private var purgesBeforeTest: [MiniAppSessionStorePurgeQueue.Record] = []
     /// Set by `usingRealDataStores()`, so `tearDown` only brings WebKit up for
     /// the two tests that already use it.
     private var usesRealDataStores = false
@@ -62,6 +68,8 @@ final class MiniAppSessionStoreSweepTests: XCTestCase {
         try await super.setUp()
         grantsBeforeTest = MiniAppConsent.grants()
         for appId in grantsBeforeTest.keys { MiniAppConsent.revoke(appId: appId) }
+        purgesBeforeTest = MiniAppSessionStorePurgeQueue.records()
+        MiniAppSessionStorePurgeQueue.removeAll()
     }
 
     override func tearDown() async throws {
@@ -76,6 +84,8 @@ final class MiniAppSessionStoreSweepTests: XCTestCase {
             MiniAppConsent.allow(appId: appId, capability: capability)
         }
         grantsBeforeTest = [:]
+        MiniAppSessionStorePurgeQueue.replaceAll(purgesBeforeTest)
+        purgesBeforeTest = []
         try await super.tearDown()
     }
 
@@ -391,14 +401,18 @@ final class MiniAppSessionStoreSweepTests: XCTestCase {
 
     // MARK: - End to end, with WebKit behind the seam
 
+    /// A WebKit that accepts every removal, unless `refusing` names it — the
+    /// refusal is not an exotic case but the one WebKit gives for any store the
+    /// current process has opened.
     private func fakeIndex(
-        _ found: [UUID], removed: RemovalLog
+        _ found: [UUID], removed: RemovalLog, refusing: Set<UUID> = []
     ) -> MiniAppSessionStoreSweep.StoreIndex {
         MiniAppSessionStoreSweep.StoreIndex(
             identifiers: { removed.events.append("list"); return found },
             remove: {
                 removed.ids.append($0)
                 removed.events.append("remove")
+                return !refusing.contains($0)
             }
         )
     }
@@ -442,7 +456,7 @@ final class MiniAppSessionStoreSweepTests: XCTestCase {
             revoke: log.revoke
         )
 
-        XCTAssertEqual(outcome.stores, .swept(reaped: 1, kept: 1))
+        XCTAssertEqual(outcome.stores, .swept(reaped: 1, kept: 1, deferred: 0, residual: 0))
         XCTAssertEqual(log.ids, [store(for: orphan.uuidString)])
         XCTAssertEqual(outcome.revokedGrants, [orphan.uuidString],
                        "the same mirrored delete leaks the grant, not just the jar")
@@ -468,7 +482,7 @@ final class MiniAppSessionStoreSweepTests: XCTestCase {
                     XCTFail("must not enumerate stores when no browser grant exists")
                     return []
                 },
-                remove: { log.ids.append($0) }
+                remove: { log.ids.append($0); return true }
             ),
             revoke: log.revoke
         )
@@ -493,7 +507,7 @@ final class MiniAppSessionStoreSweepTests: XCTestCase {
                     XCTFail("must not enumerate stores when nothing was ever granted")
                     return []
                 },
-                remove: { log.ids.append($0) }
+                remove: { log.ids.append($0); return true }
             ),
             records: { _ in XCTFail("must not even read the library"); return [] },
             revoke: log.revoke
@@ -528,7 +542,7 @@ final class MiniAppSessionStoreSweepTests: XCTestCase {
 
         XCTAssertEqual(log.events, ["list", "remove", "revoke"],
                        "the jar must be reaped BEFORE the grant that gates the sweep is revoked")
-        XCTAssertEqual(outcome.stores, .swept(reaped: 1, kept: 0))
+        XCTAssertEqual(outcome.stores, .swept(reaped: 1, kept: 0, deferred: 0, residual: 0))
         XCTAssertEqual(outcome.revokedGrants, [gone.uuidString])
     }
 
@@ -550,25 +564,46 @@ final class MiniAppSessionStoreSweepTests: XCTestCase {
             context: context, status: status, grants: grants,
             index: MiniAppSessionStoreSweep.StoreIndex(
                 identifiers: { Array(disk.jars) },
-                remove: { disk.jars.remove($0); first.ids.append($0) }
+                remove: { disk.jars.remove($0); first.ids.append($0); return true }
             ),
             revoke: first.revoke
         )
         for revoked in firstOutcome.revokedGrants { grants.removeValue(forKey: revoked) }
         XCTAssertTrue(disk.jars.isEmpty, "pass one must take the jar with it")
 
-        // Pass two, next launch, reading the grants pass one left behind.
+        // Pass two, next launch, reading the grants pass one left behind. The
+        // grant is gone, so the only reason this pass looks at all is the
+        // tombstone pass one's successful removal left in the purge queue — and
+        // looking is the point: a removal WebKit accepts still leaves a stub
+        // directory that only a LATER process can see, so exactly one confirming
+        // enumeration follows every reap. Nothing is on disk here, so nothing is
+        // swept and the tombstone is dropped.
         let second = RemovalLog()
         let secondOutcome = await MiniAppSessionStoreSweep.run(
             context: context, status: status, grants: grants,
             index: MiniAppSessionStoreSweep.StoreIndex(
-                identifiers: { XCTFail("no grant left, so no sweep"); return [] },
-                remove: { second.ids.append($0) }
+                identifiers: { second.events.append("list"); return Array(disk.jars) },
+                remove: { second.ids.append($0); return true }
             ),
             revoke: second.revoke
         )
-        XCTAssertEqual(secondOutcome.stores, .skippedNoGrants)
-        XCTAssertEqual(second.events, [])
+        XCTAssertEqual(secondOutcome.stores, .swept(reaped: 0, kept: 0, deferred: 0, residual: 0))
+        XCTAssertEqual(second.ids, [], "there was nothing left on disk to remove")
+        XCTAssertTrue(MiniAppSessionStorePurgeQueue.isEmpty)
+
+        // Pass three, the launch after that: no grant, nothing owed, so the
+        // whole pass — and WebKit — stays out of the launch path again.
+        let third = RemovalLog()
+        let thirdOutcome = await MiniAppSessionStoreSweep.run(
+            context: context, status: status, grants: grants,
+            index: MiniAppSessionStoreSweep.StoreIndex(
+                identifiers: { XCTFail("no grant and nothing owed, so no sweep"); return [] },
+                remove: { third.ids.append($0); return true }
+            ),
+            revoke: third.revoke
+        )
+        XCTAssertEqual(thirdOutcome.stores, .skippedNoGrants)
+        XCTAssertEqual(third.events, [])
     }
 
     // MARK: - An unreadable library is not an empty one
@@ -641,7 +676,7 @@ final class MiniAppSessionStoreSweepTests: XCTestCase {
                       "the live app's logins must survive the sweep")
         let orphanIsGone = await jarDisappeared(store(for: orphan.uuidString))
         XCTAssertTrue(orphanIsGone, "the jar with no record must be gone")
-        XCTAssertEqual(outcome.stores, .swept(reaped: 1, kept: inherited.count + 1),
+        XCTAssertEqual(outcome.stores, .swept(reaped: 1, kept: inherited.count + 1, deferred: 0, residual: 0),
                        "exactly the orphan, and nothing else this test put on disk")
         XCTAssertEqual(log.revoked, [orphan.uuidString],
                        "the same pass must take the orphan's grant, not only its jar")
@@ -697,7 +732,7 @@ final class MiniAppSessionStoreSweepTests: XCTestCase {
                        "the live app's own grant must be untouched")
         XCTAssertTrue(outcome.revokedGrants.contains(orphan.uuidString))
         XCTAssertFalse(outcome.revokedGrants.contains(keeper.uuidString))
-        XCTAssertEqual(outcome.stores, .swept(reaped: 1, kept: inherited.count + 1),
+        XCTAssertEqual(outcome.stores, .swept(reaped: 1, kept: inherited.count + 1, deferred: 0, residual: 0),
                        "exactly the orphan, and nothing else this test put on disk")
 
         onDisk = await allIdentifiers()
@@ -712,7 +747,8 @@ final class MiniAppSessionStoreSweepTests: XCTestCase {
     /// The read-back is not decoration: it is the only thing that says the
     /// write reached the networking process before the sweep tries to delete
     /// the directory underneath it.
-    private func writeCookie(into identifier: UUID, name: String) async throws {
+    @discardableResult
+    private func writeCookie(into identifier: UUID, name: String) async throws -> WKWebsiteDataStore {
         let dataStore = WKWebsiteDataStore(forIdentifier: identifier)
         let cookie = try XCTUnwrap(HTTPCookie(properties: [
             .domain: "example.com", .path: "/", .name: name, .value: "1",
@@ -721,6 +757,7 @@ final class MiniAppSessionStoreSweepTests: XCTestCase {
         await dataStore.httpCookieStore.setCookie(cookie)
         let stored = await dataStore.httpCookieStore.allCookies()
         XCTAssertTrue(stored.contains { $0.name == name }, "the jar must really hold a login")
+        return dataStore
     }
 
     private func allIdentifiers() async -> [UUID] {
@@ -744,5 +781,250 @@ final class MiniAppSessionStoreSweepTests: XCTestCase {
         )
         XCTAssertEqual(outcome, MiniAppSessionStoreSweep.Outcome(stores: .skippedUnsafeStorageMode))
         XCTAssertEqual(log.events, [], "a relocated store's empty library is not evidence of a delete")
+    }
+
+    // MARK: - Honest counts, and the purge that survives the process
+    //
+    // The gap these close: `remove(forIdentifier:)` FAILS for any data store the
+    // current process has opened — "Failed to delete files on disk", every time,
+    // for the lifetime of that process — and the shipped code discarded the
+    // error and reported the attempt as a reap. The common delete is exactly
+    // that shape (open a browser mini-app, then delete it), so the app was
+    // routinely reporting a deletion of real site logins that never happened.
+
+    /// `.swept(reaped:)` is a claim about what is gone, so a refused removal
+    /// must land in `deferred`, not in `reaped`.
+    func testSweptCountsOnlyTheRemovalsWebKitAccepted() async throws {
+        let context = try makeContext()
+        let live = MiniApp(name: "Bank", emoji: "🏦", html: "<html>b</html>")
+        context.insert(live)
+        try context.save()
+        let goes = UUID()
+        let refuses = UUID()
+
+        let status = SyncStatus(importWaitTimeout: 0.1) { $0(false) }
+        status.report(.localOnly)
+        let log = RemovalLog()
+        let outcome = await MiniAppSessionStoreSweep.run(
+            context: context,
+            status: status,
+            grants: [live.id.uuidString: .browser,
+                     goes.uuidString: .browser,
+                     refuses.uuidString: .browser],
+            index: fakeIndex(
+                [store(for: live.id.uuidString),
+                 store(for: goes.uuidString),
+                 store(for: refuses.uuidString)],
+                removed: log,
+                refusing: [store(for: refuses.uuidString)]
+            ),
+            revoke: log.revoke
+        )
+
+        XCTAssertEqual(outcome.stores, .swept(reaped: 1, kept: 1, deferred: 1, residual: 0),
+                       "the refused jar is still on disk — counting it as reaped is the lie")
+        XCTAssertEqual(MiniAppSessionStorePurgeQueue.record(for: store(for: refuses.uuidString))?.state,
+                       .pending,
+                       "what could not be deleted has to outlive the process that tried")
+        XCTAssertEqual(MiniAppSessionStorePurgeQueue.record(for: store(for: goes.uuidString))?.state,
+                       .residual,
+                       "a removal WebKit accepted is believed done, pending one confirming enumeration")
+    }
+
+    /// THE case that was broken, with the real WebKit: a store this process has
+    /// open cannot be deleted here at all. Nothing may be reported as reaped, the
+    /// identifier has to be written down durably, and the next launch — which is
+    /// a fresh process, and crucially has NO grant left to gate the sweep on,
+    /// because the same pass revoked it — has to finish the job.
+    ///
+    /// Against the shipped code this failed on the first assertion: it reported
+    /// `.swept(reaped: 1, …)` with the cookies still on disk.
+    func testAJarThisProcessHoldsOpenIsDeferredAndFinishedOnTheNextLaunch() async throws {
+        usingRealDataStores()
+        let orphan = UUID()
+        let jar = store(for: orphan.uuidString)
+        // Start from a disk this process has accounted for. Stores left by an
+        // EARLIER process are not stable enough to count: WebKit lists a stale
+        // stub directory on one enumeration and has tidied it away by the next,
+        // which turns any `kept:` expectation derived from a snapshot into a
+        // coin flip. (Seen: this test failed alone with `kept: 0` against a
+        // snapshot of 1.) Anything that survives this purge is genuinely stuck
+        // and is adopted below, exactly as the other real-WebKit tests do.
+        _ = await purgeDataStores(await allIdentifiers())
+        // Held for the whole test: an OPEN store is the state WebKit refuses to
+        // delete, and it is the state every just-used mini-app is in.
+        let open = try await writeCookie(into: jar, name: "orphan")
+
+        guard await allIdentifiers().contains(jar) else {
+            throw XCTSkip("WebKit did not persist the test data store in this environment")
+        }
+        let inherited = await inheritedStores(besides: [jar])
+
+        let context = try makeContext()
+        try adopt(inherited, into: context)
+        let status = SyncStatus(importWaitTimeout: 0.1) { $0(false) }
+        status.report(.localOnly)
+
+        let log = RemovalLog()
+        let outcome = await MiniAppSessionStoreSweep.run(
+            context: context,
+            status: status,
+            grants: [orphan.uuidString: .browser],
+            index: .webKit,
+            revoke: log.revoke
+        )
+        withExtendedLifetime(open) {}
+
+        guard await allIdentifiers().contains(jar) else {
+            throw XCTSkip("this WebKit deleted a store the process still holds open — "
+                          + "the same-session case cannot be reproduced here")
+        }
+        XCTAssertEqual(outcome.stores, .swept(reaped: 0, kept: inherited.count,
+                                              deferred: 1, residual: 0),
+                       "the jar is still on disk with its cookies in it — nothing was reaped")
+        XCTAssertEqual(MiniAppSessionStorePurgeQueue.record(for: jar)?.state, .pending,
+                       "the only way back to this jar is a note that outlives the process")
+        XCTAssertEqual(log.revoked, [orphan.uuidString],
+                       "the grant still goes — which is exactly why the note has to exist")
+
+        // The next launch. A fresh process CAN delete it; modelled here by an
+        // index that accepts, because a second process is not available inside
+        // one test. Everything else is real: the same durable queue, and NO
+        // grants at all, since the pass above revoked the only one.
+        let disk = FakeDisk(jars: [jar])
+        let next = RemovalLog()
+        let nextOutcome = await MiniAppSessionStoreSweep.run(
+            context: context, status: status, grants: [:],
+            index: MiniAppSessionStoreSweep.StoreIndex(
+                identifiers: { Array(disk.jars) },
+                remove: { disk.jars.remove($0); next.ids.append($0); return true }
+            ),
+            revoke: next.revoke
+        )
+        XCTAssertEqual(nextOutcome.stores, .swept(reaped: 1, kept: 0, deferred: 0, residual: 0))
+        XCTAssertEqual(next.ids, [jar], "the queue, not a grant, is what got the sweep to run")
+        XCTAssertTrue(disk.jars.isEmpty)
+    }
+
+    /// The stranding hazard one level deeper than the grant/jar ordering: a
+    /// refused removal whose grant is already gone is invisible to every gate
+    /// the sweep has. The queue is the third trigger, and without it that jar
+    /// would sit on disk forever.
+    func testAQueuedPurgeMakesTheSweepRunWithNoGrantsLeft() async throws {
+        let context = try makeContext()
+        let jar = store(for: UUID().uuidString)
+        MiniAppSessionStorePurgeQueue.note(jar)
+        let status = SyncStatus(importWaitTimeout: 0.1) { $0(false) }
+        status.report(.localOnly)
+
+        let log = RemovalLog()
+        let outcome = await MiniAppSessionStoreSweep.run(
+            context: context, status: status, grants: [:],
+            index: fakeIndex([jar], removed: log), revoke: log.revoke
+        )
+
+        XCTAssertEqual(outcome.stores, .swept(reaped: 1, kept: 0, deferred: 0, residual: 0))
+        XCTAssertEqual(log.ids, [jar])
+    }
+
+    /// The residual rule. A removal WebKit ACCEPTED still leaves a stub
+    /// directory (`…/<uuid>/ResourceLoadStatistics`) that the next process
+    /// enumerates as a data store. It has no owner, so it is doomed again — and
+    /// without the tombstone it would be reported as a freshly reaped cookie jar
+    /// on every launch, forever. It is swept again so the stub goes, and counted
+    /// apart from both `reaped` and `kept`.
+    func testAnIdentifierAlreadyRemovedOnceCountsAsResidualNotAsAReap() async throws {
+        let context = try makeContext()
+        let jar = store(for: UUID().uuidString)
+        MiniAppSessionStorePurgeQueue.note(jar)
+        MiniAppSessionStorePurgeQueue.recordAttempt(jar, succeeded: true)
+        let status = SyncStatus(importWaitTimeout: 0.1) { $0(false) }
+        status.report(.localOnly)
+
+        let log = RemovalLog()
+        let outcome = await MiniAppSessionStoreSweep.run(
+            context: context, status: status, grants: [:],
+            index: fakeIndex([jar], removed: log), revoke: log.revoke
+        )
+
+        XCTAssertEqual(outcome.stores, .swept(reaped: 0, kept: 0, deferred: 0, residual: 1),
+                       "leftovers of a completed deletion are not a jar that was there to lose")
+        XCTAssertEqual(log.ids, [jar], "the stub is still swept, or it never goes away")
+    }
+
+    /// And it converges: the first launch that does not enumerate the identifier
+    /// forgets it, so the tombstone cannot accumulate.
+    func testAResidualIsForgottenOnceWebKitStopsListingIt() async throws {
+        let context = try makeContext()
+        let jar = store(for: UUID().uuidString)
+        MiniAppSessionStorePurgeQueue.note(jar)
+        MiniAppSessionStorePurgeQueue.recordAttempt(jar, succeeded: true)
+        let status = SyncStatus(importWaitTimeout: 0.1) { $0(false) }
+        status.report(.localOnly)
+
+        let log = RemovalLog()
+        let outcome = await MiniAppSessionStoreSweep.run(
+            context: context, status: status, grants: [:],
+            index: fakeIndex([], removed: log), revoke: log.revoke
+        )
+
+        XCTAssertEqual(outcome.stores, .swept(reaped: 0, kept: 0, deferred: 0, residual: 0))
+        XCTAssertTrue(MiniAppSessionStorePurgeQueue.isEmpty,
+                      "nothing on disk means nothing owed — otherwise WebKit is brought up at "
+                      + "every launch for a jar that is not there")
+        // And with the queue empty the pass goes back to costing nothing.
+        let second = await MiniAppSessionStoreSweep.run(
+            context: context, status: status, grants: [:],
+            index: MiniAppSessionStoreSweep.StoreIndex(
+                identifiers: { XCTFail("nothing owed and nothing granted"); return [] },
+                remove: { _ in true }
+            ),
+            revoke: log.revoke
+        )
+        XCTAssertEqual(second.stores, .skippedNoGrants)
+    }
+
+    /// The queue must never outrank the ownership check. A record can come back
+    /// — an iCloud restore, a CloudKit record resurrected on another device —
+    /// and then the jar it names holds a LIVE user's logins again. Bias: keep.
+    func testAQueuedPurgeWhoseRecordCameBackIsForgottenNotDeleted() async throws {
+        let context = try makeContext()
+        let restored = MiniApp(name: "Bank", emoji: "🏦", html: "<html>b</html>")
+        context.insert(restored)
+        try context.save()
+        let jar = store(for: restored.id.uuidString)
+        MiniAppSessionStorePurgeQueue.note(jar)
+        let status = SyncStatus(importWaitTimeout: 0.1) { $0(false) }
+        status.report(.localOnly)
+
+        let log = RemovalLog()
+        let outcome = await MiniAppSessionStoreSweep.run(
+            context: context, status: status, grants: [restored.id.uuidString: .browser],
+            index: fakeIndex([jar], removed: log), revoke: log.revoke
+        )
+
+        XCTAssertEqual(outcome.stores, .swept(reaped: 0, kept: 1, deferred: 0, residual: 0))
+        XCTAssertEqual(log.ids, [], "a live record's logins must survive a stale purge note")
+        XCTAssertTrue(MiniAppSessionStorePurgeQueue.isEmpty,
+                      "and the note must go, or it would fight the record on every launch")
+    }
+
+    /// The delete path itself: the note is durable and it is written BEFORE the
+    /// attempt, so a kill between the tap and WebKit's answer still leaves the
+    /// app owing the deletion. Asserted synchronously on purpose — that is the
+    /// whole point of the ordering.
+    func testDeletingAMiniAppQueuesItsJarBeforeWebKitIsEvenAsked() async throws {
+        usingRealDataStores()
+        let appId = UUID().uuidString
+        let removal = MiniAppRunnerView.removeSessionStore(for: appId)
+        XCTAssertNotNil(MiniAppSessionStorePurgeQueue.record(for: store(for: appId)),
+                        "the jar has to be owed the moment the user taps Löschen")
+        // Drained on purpose. The removal is deliberately not awaited by the UI,
+        // and WebKit materialises a store directory while serving it — left
+        // in flight it lands in the middle of a LATER test's enumeration and
+        // shows up there as an extra orphan. (Observed: it made
+        // `testTheShippedPathRevokesTheRealGrantAndReapsTheRealJar` report
+        // `reaped: 2` on one run in two.)
+        _ = await removal.value
     }
 }
