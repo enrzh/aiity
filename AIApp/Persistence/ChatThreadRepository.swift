@@ -287,7 +287,9 @@ actor ChatThreadRepository {
             snapshot = nil
         }
         guard let snapshot else { return nil }
-        return Set(snapshot.threads.flatMap(\.messages).flatMap(\.mediaIds))
+        return Set(snapshot.threads.flatMap(\.messages).flatMap { message in
+            message.mediaIds + message.attachments.map(\.mediaId)
+        })
     }
 
     nonisolated private static func declaresVersion(in data: Data) -> Bool {

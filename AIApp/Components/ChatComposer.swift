@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 struct ChatComposer: View {
     @ObservedObject private var prefs = AppPreferences.shared
@@ -20,6 +21,8 @@ struct ChatComposer: View {
     @State private var showDictationNotice = false
 
     @Binding var text: String
+    @Binding var attachments: [ChatAttachment]
+    @Binding var photoItems: [PhotosPickerItem]
     /// Owned by ChatView so it can drop the keyboard before sheets present
     /// and on disappear — see the stale-keyboard-inset fix there.
     var focus: FocusState<Bool>.Binding
@@ -28,10 +31,15 @@ struct ChatComposer: View {
     let canSend: Bool
     let onSend: () -> Void
     let onStop: () -> Void
+    let onPickFile: () -> Void
     var onTextChange: (String) -> Void = { _ in }
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 10) {
+        VStack(alignment: .leading, spacing: 6) {
+            if !attachments.isEmpty {
+                attachmentStrip
+            }
+            HStack(alignment: .bottom, spacing: 10) {
             // Left of the input: how much the agent asks before acting.
             Menu {
                 Picker("Modus", selection: $prefs.chatMode) {
@@ -77,7 +85,9 @@ struct ChatComposer: View {
 
             dictateButton
 
-            Button(action: isBusy ? onStop : onSend) {
+                attachmentPicker
+
+                Button(action: isBusy ? onStop : onSend) {
                 Image(systemName: isBusy ? "stop.fill" : "arrow.up")
                     // Text style, not a fixed size, so the glyph tracks Dynamic Type.
                     .font(.body.weight(.bold))
@@ -100,9 +110,10 @@ struct ChatComposer: View {
             )
             .accessibilityIdentifier(isBusy ? "chat-stop" : "chat-send")
             .accessibilityLabel(isBusy ? "Stopp" : "Senden")
+            }
+            .padding(.horizontal, Theme.space2)
+            .padding(.vertical, 10)
         }
-        .padding(.horizontal, Theme.space2)
-        .padding(.vertical, 10)
         // Live transcript → composer. Nothing is ever sent automatically; the
         // user reviews, edits and presses send themselves.
         .onChange(of: dictation.transcript) { _, spoken in
@@ -137,6 +148,58 @@ struct ChatComposer: View {
             Button(String(localized: "OK"), role: .cancel) {}
         } message: { reason in
             Text(reason.message)
+        }
+    }
+
+    private var attachmentPicker: some View {
+        Menu {
+            PhotosPicker(
+                selection: $photoItems,
+                maxSelectionCount: 4,
+                matching: .images
+            ) {
+                Label("Foto", systemImage: "photo")
+            }
+            Button(action: onPickFile) {
+                Label("Datei", systemImage: "doc")
+            }
+        } label: {
+            Image(systemName: "paperclip")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(Color.secondary)
+                .frame(width: Theme.controlHeight, height: Theme.controlHeight)
+                .glassSurface(in: Circle(), interactive: true)
+        }
+        .disabled(isBusy)
+        .accessibilityIdentifier("chat-attachments")
+        .accessibilityLabel("Anhänge")
+    }
+
+    private var attachmentStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(attachments) { attachment in
+                    HStack(spacing: 5) {
+                        Image(systemName: attachment.kind == .image ? "photo" : "doc")
+                            .font(.caption)
+                        Text(attachment.filename)
+                            .font(.caption)
+                            .lineLimit(1)
+                        Button {
+                            attachments.removeAll { $0.id == attachment.id }
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.caption)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Anhang entfernen")
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(Color(.secondarySystemBackground), in: Capsule())
+                }
+            }
+            .padding(.horizontal, Theme.space2)
         }
     }
 

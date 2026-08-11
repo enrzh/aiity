@@ -10,6 +10,8 @@ struct PendingTurn: Codable, Equatable {
     var threadId: UUID
     /// The user message that started the turn — what a resume re-sends.
     var userText: String
+    /// Attachments belonging to the user message — what a resume re-sends.
+    var attachments: [ChatAttachment] = []
     /// Where the turn begins in the thread's message array. A resume rewinds
     /// to exactly here.
     var turnStartIndex: Int
@@ -22,6 +24,43 @@ struct PendingTurn: Codable, Equatable {
     /// diagnostics and for showing the user what they nearly had; the replay
     /// itself discards it (see `ChatSession.rewindToInterruptedTurnStart`).
     var partialAssistantText: String
+
+    private enum CodingKeys: String, CodingKey {
+        case threadId, userText, attachments, turnStartIndex, repairPasses
+        case startedAt, updatedAt, partialAssistantText
+    }
+
+    init(
+        threadId: UUID,
+        userText: String,
+        attachments: [ChatAttachment] = [],
+        turnStartIndex: Int,
+        repairPasses: Int,
+        startedAt: Date,
+        updatedAt: Date,
+        partialAssistantText: String
+    ) {
+        self.threadId = threadId
+        self.userText = userText
+        self.attachments = attachments
+        self.turnStartIndex = turnStartIndex
+        self.repairPasses = repairPasses
+        self.startedAt = startedAt
+        self.updatedAt = updatedAt
+        self.partialAssistantText = partialAssistantText
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        threadId = try values.decode(UUID.self, forKey: .threadId)
+        userText = try values.decode(String.self, forKey: .userText)
+        attachments = try values.decodeIfPresent([ChatAttachment].self, forKey: .attachments) ?? []
+        turnStartIndex = try values.decode(Int.self, forKey: .turnStartIndex)
+        repairPasses = try values.decode(Int.self, forKey: .repairPasses)
+        startedAt = try values.decode(Date.self, forKey: .startedAt)
+        updatedAt = try values.decode(Date.self, forKey: .updatedAt)
+        partialAssistantText = try values.decode(String.self, forKey: .partialAssistantText)
+    }
 
     /// Hard cap. The checkpoint has to survive being written inside a few
     /// seconds of expiration grace, so it must never grow to the size of a

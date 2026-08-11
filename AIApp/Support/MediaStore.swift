@@ -5,17 +5,22 @@ import Foundation
 /// file extension. Chat messages reference media by id so they survive
 /// restarts alongside the conversation.
 enum MediaStore {
-    private static let directory: URL = {
+    static var directoryOverride: URL?
+
+    private static var directory: URL {
+        if let directoryOverride { return directoryOverride }
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("media", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
-    }()
+    }
 
-    enum Kind { case image, videoURL }
+    enum Kind { case image, videoURL, file }
 
     static func kind(of mediaId: String) -> Kind {
-        mediaId.hasSuffix(".videourl") ? .videoURL : .image
+        if mediaId.hasSuffix(".videourl") { return .videoURL }
+        if mediaId.hasSuffix(".attachment") { return .file }
+        return .image
     }
 
     static func url(for mediaId: String) -> URL {
@@ -30,6 +35,22 @@ enum MediaStore {
         } catch {
             return nil
         }
+    }
+
+    static func save(data: Data, filename: String, mimeType: String) -> String? {
+        _ = filename
+        _ = mimeType
+        let id = "\(UUID().uuidString).attachment"
+        do {
+            try data.write(to: url(for: id), options: .atomic)
+            return id
+        } catch {
+            return nil
+        }
+    }
+
+    static func data(for mediaId: String) -> Data? {
+        try? Data(contentsOf: url(for: mediaId))
     }
 
     static func imageData(for mediaId: String) -> Data? {

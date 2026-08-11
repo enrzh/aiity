@@ -91,7 +91,7 @@ struct OpenAICompatibleProvider: LLMProvider {
         var body: [String: Any] = [
             "model": model,
             "stream": true,
-            "messages": messages.map(encodeMessage),
+            "messages": try messages.map { try encodeMessage($0) },
         ]
         if isSmallModelRuntime {
             body["temperature"] = LocalRuntimePolicy.temperature
@@ -281,7 +281,7 @@ struct OpenAICompatibleProvider: LLMProvider {
         var body: [String: Any] = [
             "model": model,
             "stream": false,
-            "messages": messages.map(encodeMessage),
+            "messages": try messages.map { try encodeMessage($0) },
         ]
         if isSmallModelRuntime {
             body["temperature"] = LocalRuntimePolicy.temperature
@@ -365,7 +365,7 @@ struct OpenAICompatibleProvider: LLMProvider {
         }
     }
 
-    private static func encodeMessage(_ message: ChatMessage) -> [String: Any] {
+    static func encodeMessage(_ message: ChatMessage) throws -> [String: Any] {
         var encoded: [String: Any] = ["role": message.role.rawValue]
         switch message.role {
         case .tool:
@@ -384,8 +384,30 @@ struct OpenAICompatibleProvider: LLMProvider {
                 "function": ["name": $0.name, "arguments": $0.argumentsJSON],
             ] as [String: Any] }
         default:
-            encoded["content"] = message.text
+            encoded["content"] = try encodeContent(message)
         }
         return encoded
+    }
+
+    private static func encodeContent(_ message: ChatMessage) throws -> Any {
+        guard !message.attachments.isEmpty else { return message.text }
+        var parts: [[String: Any]] = []
+        if !message.text.isEmpty {
+            parts.append(["type": "text", "text": message.text])
+        }
+        for attachment in message.attachments {
+            guard attachment.kind == .image,
+                  attachment.mimeType.lowercased().hasPrefix("image/"),
+                  let data = MediaStore.data(for: attachment.mediaId) else {
+                throw ProviderError.unsupportedAttachment(attachment.filename)
+            }
+            parts.append([
+                "type": "image_url",
+                "image_url": [
+                    "url": "data:\(attachment.mimeType);base64,\(data.base64EncodedString())",
+                ],
+            ])
+        }
+        return parts
     }
 }

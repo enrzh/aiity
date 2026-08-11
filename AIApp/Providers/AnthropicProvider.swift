@@ -120,7 +120,7 @@ struct AnthropicProvider: LLMProvider {
             "model": model,
             "stream": true,
             "max_tokens": maxTokens,
-            "messages": encodeMessages(messages.filter { $0.role != .system }),
+            "messages": try encodeMessages(messages.filter { $0.role != .system }),
         ]
         if isOAuth {
             var blocks: [[String: Any]] = [["type": "text", "text": claudeCodeIdentity]]
@@ -254,7 +254,7 @@ struct AnthropicProvider: LLMProvider {
 
     /// Anthropic has no `tool` role: tool results are user messages with
     /// `tool_result` blocks, assistant tool calls are `tool_use` blocks.
-    private static func encodeMessages(_ messages: [ChatMessage]) -> [[String: Any]] {
+    static func encodeMessages(_ messages: [ChatMessage]) throws -> [[String: Any]] {
         var encoded: [[String: Any]] = []
         for message in messages {
             switch message.role {
@@ -288,7 +288,30 @@ struct AnthropicProvider: LLMProvider {
                 }
                 encoded.append(["role": "assistant", "content": content])
             default:
-                encoded.append(["role": message.role.rawValue, "content": message.text])
+                guard !message.attachments.isEmpty else {
+                    encoded.append(["role": message.role.rawValue, "content": message.text])
+                    continue
+                }
+                var content: [[String: Any]] = []
+                if !message.text.isEmpty {
+                    content.append(["type": "text", "text": message.text])
+                }
+                for attachment in message.attachments {
+                    guard attachment.kind == .image,
+                          attachment.mimeType.lowercased().hasPrefix("image/"),
+                          let data = MediaStore.data(for: attachment.mediaId) else {
+                        throw ProviderError.unsupportedAttachment(attachment.filename)
+                    }
+                    content.append([
+                        "type": "image",
+                        "source": [
+                            "type": "base64",
+                            "media_type": attachment.mimeType,
+                            "data": data.base64EncodedString(),
+                        ],
+                    ])
+                }
+                encoded.append(["role": message.role.rawValue, "content": content])
             }
         }
         return coalesceAdjacentRoles(encoded)

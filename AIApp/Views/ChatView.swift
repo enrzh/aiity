@@ -1,6 +1,8 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import PhotosUI
+import UniformTypeIdentifiers
 
 struct ChatView: View {
     @EnvironmentObject private var session: ChatSession
@@ -8,6 +10,9 @@ struct ChatView: View {
     @EnvironmentObject private var accountStore: AccountStore
     @Query private var savedApps: [MiniApp]
     @State private var input = ""
+    @State private var attachments: [ChatAttachment] = []
+    @State private var photoItems: [PhotosPickerItem] = []
+    @State private var showFileImporter = false
     @State private var previewDraft: MiniAppDraft?
     @State private var showQuickProvider = false
     @State private var showSkills = false
@@ -47,6 +52,7 @@ struct ChatView: View {
             case .assistant:
                 return !ChatView.strippingHTMLFence(from: $0.text).isEmpty
                     || !$0.mediaIds.isEmpty
+                    || !$0.attachments.isEmpty
                     || !$0.toolCalls.isEmpty
                     || session.busy
             case .system: return false
@@ -436,6 +442,15 @@ struct ChatView: View {
                 onDismiss: { reportTarget = nil }
             )
         }
+        .fileImporter(
+            isPresented: $showFileImporter,
+            allowedContentTypes: [.item],
+            allowsMultipleSelection: true,
+            onCompletion: importFiles
+        )
+        .onChange(of: photoItems) { _, items in
+            importPhotos(items)
+        }
     }
 
     private func editingBanner(_ ctx: ChatSession.EditingContext) -> some View {
@@ -518,15 +533,18 @@ struct ChatView: View {
     private var inputBar: some View {
         ChatComposer(
             text: $input,
+            attachments: $attachments,
+            photoItems: $photoItems,
             focus: $composerFocused,
             placeholder: isEditingApp ? String(localized: "Änderung beschreiben…") : String(localized: "Nachricht"),
             isBusy: session.busy,
-            canSend: !sanitizedInput.isEmpty,
+            canSend: !sanitizedInput.isEmpty || !attachments.isEmpty,
             onSend: send,
             onStop: {
                 Theme.Haptics.send()
                 session.stop()
-            }
+            },
+            onPickFile: { showFileImporter = true }
         ) { newValue in
             if PlainPasteboard.looksLikePasteboardArtifact(newValue) {
                 input = PlainPasteboard.plainText() ?? ""
@@ -554,7 +572,8 @@ struct ChatView: View {
 
     private func send() {
         let text = sanitizedInput
-        guard !text.isEmpty else {
+        let pendingAttachments = attachments
+        guard !text.isEmpty || !pendingAttachments.isEmpty else {
             if PlainPasteboard.looksLikePasteboardArtifact(input) {
                 session.errorMessage = String(localized: "Zwischenablage war RTF/RTFD (kein Klartext). Nochmal als Text kopieren.")
                 input = ""
@@ -562,16 +581,77 @@ struct ChatView: View {
             return
         }
         Theme.Haptics.send()
-        session.send(text, settings: settingsStore.settings)
+        session.send(text, attachments: pendingAttachments, settings: settingsStore.settings)
         input = ""
+        attachments = []
+        photoItems = []
         Analytics.track("chat_send")
     }
 
     private func retryLastUserMessage() {
         guard let last = session.messages.last(where: { $0.role == .user }) else { return }
         session.errorMessage = nil
-        session.send(last.text, settings: settingsStore.settings)
+        session.send(last.text, attachments: last.attachments, settings: settingsStore.settings)
         Analytics.track("chat_retry")
+    }
+
+    private func importPhotos(_ items: [PhotosPickerItem]) {
+        guard !items.isEmpty else { return }
+        photoItems = []
+        for item in items {
+            Task { @MainActor in
+                guard let data = try? await item.loadTransferable(type: Data.self),
+                      let type = item.supportedContentTypes.first else {
+                    session.errorMessage = String(localized: "Foto konnte nicht geladen werden.")
+                    return
+                }
+                let mimeType = type.preferredMIMEType ?? "image/jpeg"
+                guard let mediaId = MediaStore.save(data: data, filename: "photo", mimeType: mimeType) else {
+                    session.errorMessage = String(localized: "Foto konnte nicht gespeichert werden.")
+                    return
+                }
+                let extensionName = type.preferredFilenameExtension ?? "jpg"
+                attachments.append(ChatAttachment(
+                    mediaId: mediaId,
+                    filename: "photo-\(mediaId.prefix(8)).\(extensionName)",
+                    mimeType: mimeType,
+                    kind: .image
+                ))
+            }
+        }
+    }
+
+    private func importFiles(_ result: Result<[URL], Error>) {
+        guard case .success(let urls) = result else {
+            session.errorMessage = String(localized: "Datei konnte nicht geladen werden.")
+            return
+        }
+        for url in urls {
+            Task { @MainActor in
+                let scoped = url.startAccessingSecurityScopedResource()
+                defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+                guard let data = try? Data(contentsOf: url) else {
+                    session.errorMessage = String(localized: "Datei konnte nicht gelesen werden.")
+                    return
+                }
+                let type = UTType(filenameExtension: url.pathExtension)
+                let mimeType = type?.preferredMIMEType ?? "application/octet-stream"
+                guard let mediaId = MediaStore.save(
+                    data: data,
+                    filename: url.lastPathComponent,
+                    mimeType: mimeType
+                ) else {
+                    session.errorMessage = String(localized: "Datei konnte nicht gespeichert werden.")
+                    return
+                }
+                attachments.append(ChatAttachment(
+                    mediaId: mediaId,
+                    filename: url.lastPathComponent,
+                    mimeType: mimeType,
+                    kind: type?.conforms(to: .image) == true ? .image : .file
+                ))
+            }
+        }
     }
 
     private func keep(_ draft: MiniAppDraft) {
@@ -752,6 +832,9 @@ private struct MessageBubble: View {
                     ForEach(message.mediaIds, id: \.self) { mediaId in
                         GeneratedMediaView(mediaId: mediaId)
                     }
+                    ForEach(message.attachments) { attachment in
+                        ChatAttachmentBubble(attachment: attachment)
+                    }
                 }
                 if message.role == .assistant { Spacer(minLength: 48) }
             }
@@ -778,6 +861,29 @@ private struct MessageBubble: View {
             Text(attr)
         } else {
             Text(text)
+        }
+    }
+}
+
+private struct ChatAttachmentBubble: View {
+    let attachment: ChatAttachment
+
+    var body: some View {
+        if attachment.kind == .image,
+           let data = MediaStore.data(for: attachment.mediaId),
+           let image = UIImage(data: data) {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: 240, maxHeight: 220)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.bubbleRadius))
+        } else {
+            Label(attachment.filename, systemImage: attachment.kind == .image ? "photo" : "doc")
+                .font(.footnote)
+                .lineLimit(1)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.bubbleRadius))
         }
     }
 }
@@ -882,9 +988,11 @@ private struct GeneratedMediaView: View {
                     Label("Video ansehen", systemImage: "play.rectangle.fill")
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
-                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
+                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
                 }
             }
+        case .file:
+            EmptyView()
         }
     }
 }

@@ -170,7 +170,7 @@ enum GroupChatRunner {
         transcript.compactMap { message in
             switch message.role {
             case .user:
-                return ChatMessage(role: .user, text: message.text)
+                return ChatMessage(role: .user, text: message.text, attachments: message.attachments)
             case .assistant:
                 guard let author = message.authorName else {
                     // The plain assistant (a non-group turn in this thread).

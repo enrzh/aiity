@@ -60,6 +60,7 @@ struct ChatThread: Codable, Identifiable, Equatable {
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 if !text.isEmpty { return String(text.prefix(140)) }
                 if !message.mediaIds.isEmpty { return "📷 Bild" }
+                if !message.attachments.isEmpty { return "📎 \(message.attachments[0].filename)" }
             case .tool, .system:
                 continue
             }
@@ -412,9 +413,9 @@ final class ChatSession: ObservableObject {
         Analytics.track("webapp_built")
     }
 
-    func send(_ input: String, settings: ProviderSettings) {
+    func send(_ input: String, attachments: [ChatAttachment] = [], settings: ProviderSettings) {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, !busy, !persistenceReloadInProgress else { return }
+        guard (!text.isEmpty || !attachments.isEmpty), !busy, !persistenceReloadInProgress else { return }
         errorMessage = nil
         // Which provider a run was using is the first question about any crash
         // in this app, so it goes into the run record, not just a breadcrumb.
@@ -427,7 +428,7 @@ final class ChatSession: ObservableObject {
         // A group thread is a different conversation shape entirely — the
         // participants answer, not the mini-app-building assistant.
         if activeThreadIsGroup {
-            sendToGroup(text, settings: settings)
+            sendToGroup(text, attachments: attachments, settings: settings)
             return
         }
         // "Öffne <url>" builds a browser mini-app deterministically — the model
@@ -466,7 +467,7 @@ final class ChatSession: ObservableObject {
         // Everything from here on is the ACTIVE turn — `outgoing` must never
         // strip its tool scaffolding, only window the turns before it.
         turnStartIndex = messages.count
-        messages.append(ChatMessage(role: .user, text: text))
+        messages.append(ChatMessage(role: .user, text: text, attachments: attachments))
         persist()
         busy = true
         AgentLiveActivityController.shared.start(prompt: text)
@@ -776,6 +777,7 @@ final class ChatSession: ObservableObject {
             PendingTurn(
                 threadId: activeThreadId,
                 userText: text,
+                attachments: turnStartIndex < messages.count ? messages[turnStartIndex].attachments : [],
                 turnStartIndex: turnStartIndex,
                 repairPasses: repairPassesThisTurn,
                 startedAt: turnStartedAt ?? now,
@@ -931,7 +933,7 @@ final class ChatSession: ObservableObject {
         PendingTurnStore.clear()
         guard let text = rewindToInterruptedTurnStart(pending) else { return }
         errorMessage = nil
-        send(text, settings: settings)
+        send(text, attachments: pending.attachments, settings: settings)
     }
 
     private func runTurn(provider: LLMProvider, tools: [AgentTool]) async {
@@ -1355,8 +1357,8 @@ final class ChatSession: ObservableObject {
     }
 
     /// Post the user's message, then let every participant speak once.
-    private func sendToGroup(_ text: String, settings: ProviderSettings) {
-        messages.append(ChatMessage(role: .user, text: text))
+    private func sendToGroup(_ text: String, attachments: [ChatAttachment], settings: ProviderSettings) {
+        messages.append(ChatMessage(role: .user, text: text, attachments: attachments))
         groupRoundsThisTurn = 0
         persist()
         // The group branch returns before send()'s own start(), so without this
@@ -1949,8 +1951,16 @@ final class ChatSession: ObservableObject {
         // to a message yet (MediaStore's grace window is a second safety net).
         guard !busy else { return }
         var ids = Set<String>()
-        for thread in threads { for message in thread.messages { ids.formUnion(message.mediaIds) } }
-        for message in messages { ids.formUnion(message.mediaIds) }
+        for thread in threads {
+            for message in thread.messages {
+                ids.formUnion(message.mediaIds)
+                ids.formUnion(message.attachments.map(\.mediaId))
+            }
+        }
+        for message in messages {
+            ids.formUnion(message.mediaIds)
+            ids.formUnion(message.attachments.map(\.mediaId))
+        }
         MediaStore.sweep(keeping: ids)
     }
 

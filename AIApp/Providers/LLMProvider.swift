@@ -22,6 +22,7 @@ struct ChatMessage: Identifiable, Equatable, Codable {
     var toolName: String?
     /// Generated media (image/video) attached to this message, by MediaStore id.
     var mediaIds: [String] = []
+    var attachments: [ChatAttachment] = []
     /// In a group chat, which agent spoke. Nil = the user or the assistant.
     /// Stored by name/emoji rather than id so a message stays readable after
     /// its agent is deleted or renamed.
@@ -36,6 +37,7 @@ struct ChatMessage: Identifiable, Equatable, Codable {
         toolCallId: String? = nil,
         toolName: String? = nil,
         mediaIds: [String] = [],
+        attachments: [ChatAttachment] = [],
         authorName: String? = nil,
         authorEmoji: String? = nil
     ) {
@@ -46,6 +48,7 @@ struct ChatMessage: Identifiable, Equatable, Codable {
         self.toolCallId = toolCallId
         self.toolName = toolName
         self.mediaIds = mediaIds
+        self.attachments = attachments
         self.authorName = authorName
         self.authorEmoji = authorEmoji
     }
@@ -56,7 +59,7 @@ struct ChatMessage: Identifiable, Equatable, Codable {
     // them their whole thread, and with that the entire history array —
     // undecodable. Only `role` and `text` are genuinely mandatory.
     private enum CodingKeys: String, CodingKey {
-        case id, role, text, toolCalls, toolCallId, toolName, mediaIds
+        case id, role, text, toolCalls, toolCallId, toolName, mediaIds, attachments
         case authorName, authorEmoji
     }
 
@@ -69,6 +72,7 @@ struct ChatMessage: Identifiable, Equatable, Codable {
         toolCallId = try values.decodeIfPresent(String.self, forKey: .toolCallId)
         toolName = try values.decodeIfPresent(String.self, forKey: .toolName)
         mediaIds = try values.decodeIfPresent([String].self, forKey: .mediaIds) ?? []
+        attachments = try values.decodeIfPresent([ChatAttachment].self, forKey: .attachments) ?? []
         authorName = try values.decodeIfPresent(String.self, forKey: .authorName)
         authorEmoji = try values.decodeIfPresent(String.self, forKey: .authorEmoji)
     }
@@ -94,6 +98,7 @@ protocol LLMProvider {
 enum ProviderError: LocalizedError {
     case badResponse(Int, String)
     case missingKey
+    case unsupportedAttachment(String)
 
     var errorDescription: String? {
         switch self {
@@ -113,6 +118,8 @@ enum ProviderError: LocalizedError {
             return "API-Fehler: \(String(trimmed.prefix(400)))"
         case .missingKey:
             return String(localized: "Kein API-Key hinterlegt — bitte in den Einstellungen eintragen.")
+        case .unsupportedAttachment(let filename):
+            return String(localized: "Der Anhang \(filename) wird von diesem Modell nicht unterstützt.")
         }
     }
 }

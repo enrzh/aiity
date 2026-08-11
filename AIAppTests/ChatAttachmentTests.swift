@@ -1,0 +1,163 @@
+import XCTest
+@testable import AIApp
+
+final class ChatAttachmentTests: XCTestCase {
+    private var directory: URL!
+
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chat-attachments-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        MediaStore.directoryOverride = directory
+    }
+
+    override func tearDownWithError() throws {
+        MediaStore.directoryOverride = nil
+        try? FileManager.default.removeItem(at: directory)
+        try super.tearDownWithError()
+    }
+
+    func testOldMessageWithoutAttachmentsStillDecodes() throws {
+        let json = Data(#"{"role":"user","text":"Hallo"}"#.utf8)
+
+        let message = try JSONDecoder().decode(ChatMessage.self, from: json)
+
+        XCTAssertTrue(message.attachments.isEmpty)
+    }
+
+    func testAttachmentRoundTripPreservesIdentityAndMetadata() throws {
+        let attachment = ChatAttachment(
+            id: UUID(), mediaId: "photo.bin", filename: "photo.png",
+            mimeType: "image/png", kind: .image
+        )
+        let message = ChatMessage(role: .user, text: "", attachments: [attachment])
+
+        let decoded = try JSONDecoder().decode(
+            ChatMessage.self,
+            from: JSONEncoder().encode(message)
+        )
+
+        XCTAssertEqual(decoded.attachments, [attachment])
+    }
+
+    func testMediaStoreAtomicallyCopiesAttachmentBytes() throws {
+        let source = directory.appendingPathComponent("source.png")
+        let bytes = Data([0, 1, 2, 255])
+        try bytes.write(to: source)
+
+        let mediaId = try XCTUnwrap(
+            MediaStore.save(data: try Data(contentsOf: source), filename: "photo.png", mimeType: "image/png")
+        )
+
+        XCTAssertEqual(try Data(contentsOf: MediaStore.url(for: mediaId)), bytes)
+        XCTAssertNotEqual(mediaId, source.lastPathComponent)
+    }
+
+    func testMediaStoreReturnsNilWhenCopyCannotBeWritten() throws {
+        let blocker = directory.appendingPathComponent("not-a-directory")
+        try Data("blocker".utf8).write(to: blocker)
+        MediaStore.directoryOverride = blocker
+
+        XCTAssertNil(MediaStore.save(data: Data("x".utf8), filename: "x.txt", mimeType: "text/plain"))
+    }
+
+    func testSweepKeepsReferencedAttachmentAndRemovesOrphan() throws {
+        let kept = try XCTUnwrap(
+            MediaStore.save(data: Data("kept".utf8), filename: "kept.txt", mimeType: "text/plain")
+        )
+        let orphan = try XCTUnwrap(
+            MediaStore.save(data: Data("orphan".utf8), filename: "orphan.txt", mimeType: "text/plain")
+        )
+
+        MediaStore.sweep(keeping: [kept], graceInterval: -1)
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: MediaStore.url(for: kept).path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: MediaStore.url(for: orphan).path))
+    }
+
+    func testOpenAIEncodesImageAttachmentAsDataPart() throws {
+        let mediaId = try XCTUnwrap(
+            MediaStore.save(data: Data([1, 2, 3]), filename: "photo.png", mimeType: "image/png")
+        )
+        let message = ChatMessage(
+            role: .user,
+            text: "Beschreibe das Bild",
+            attachments: [ChatAttachment(mediaId: mediaId, filename: "photo.png", mimeType: "image/png", kind: .image)]
+        )
+
+        let encoded = try OpenAICompatibleProvider.encodeMessage(message)
+        let parts = try XCTUnwrap(encoded["content"] as? [[String: Any]])
+        let image = try XCTUnwrap(parts.last)
+
+        XCTAssertEqual(image["type"] as? String, "image_url")
+        XCTAssertEqual(
+            (image["image_url"] as? [String: Any])?["url"] as? String,
+            "data:image/png;base64,AQID"
+        )
+    }
+
+    func testAnthropicEncodesImageAttachmentAsBase64Source() throws {
+        let mediaId = try XCTUnwrap(
+            MediaStore.save(data: Data([1, 2, 3]), filename: "photo.png", mimeType: "image/png")
+        )
+        let message = ChatMessage(
+            role: .user,
+            text: "Beschreibe das Bild",
+            attachments: [ChatAttachment(mediaId: mediaId, filename: "photo.png", mimeType: "image/png", kind: .image)]
+        )
+
+        let encoded = try AnthropicProvider.encodeMessages([message])
+        let parts = try XCTUnwrap(encoded.first?["content"] as? [[String: Any]])
+        let image = try XCTUnwrap(parts.last)
+        let source = try XCTUnwrap(image["source"] as? [String: Any])
+
+        XCTAssertEqual(image["type"] as? String, "image")
+        XCTAssertEqual(source["type"] as? String, "base64")
+        XCTAssertEqual(source["media_type"] as? String, "image/png")
+        XCTAssertEqual(source["data"] as? String, "AQID")
+    }
+
+    func testUnsupportedFileRemainsRepresentableAndReturnsLocalizedError() throws {
+        let mediaId = try XCTUnwrap(
+            MediaStore.save(data: Data("document".utf8), filename: "document.pdf", mimeType: "application/pdf")
+        )
+        let attachment = ChatAttachment(
+            mediaId: mediaId, filename: "document.pdf", mimeType: "application/pdf", kind: .file
+        )
+
+        XCTAssertEqual(attachment.filename, "document.pdf")
+        XCTAssertThrowsError(try OpenAICompatibleProvider.encodeMessage(
+            ChatMessage(role: .user, text: "", attachments: [attachment])
+        )) { error in
+            XCTAssertFalse((error as? LocalizedError)?.errorDescription?.isEmpty ?? true)
+            XCTAssertTrue((error as? LocalizedError)?.errorDescription?.contains("document.pdf") ?? false)
+        }
+    }
+
+    func testPendingTurnRoundTripPreservesAttachments() throws {
+        let attachment = ChatAttachment(
+            mediaId: "photo.attachment",
+            filename: "photo.png",
+            mimeType: "image/png",
+            kind: .image
+        )
+        let pending = PendingTurn(
+            threadId: UUID(),
+            userText: "Beschreibe das Bild",
+            attachments: [attachment],
+            turnStartIndex: 0,
+            repairPasses: 0,
+            startedAt: .now,
+            updatedAt: .now,
+            partialAssistantText: ""
+        )
+
+        let decoded = try JSONDecoder().decode(
+            PendingTurn.self,
+            from: JSONEncoder().encode(pending)
+        )
+
+        XCTAssertEqual(decoded.attachments, [attachment])
+    }
+}
