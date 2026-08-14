@@ -48,11 +48,7 @@ struct MCPServersView: View {
                             title: recommendation.name,
                             subtitle: recommendation.summary,
                             systemImage: recommendation.systemImage
-                        ) {
-                            Image(systemName: "chevron.forward")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.tertiary)
-                        }
+                        )
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("mcp-recommendation-\(recommendation.id)")
@@ -73,9 +69,10 @@ struct MCPServersView: View {
                             subtitle: "Über einen empfohlenen MCP-Anbieter verbinden",
                             systemImage: icon
                         ) {
+                            // Same visual weight as the system disclosure chevron.
                             Image(systemName: "chevron.up.chevron.down")
-                                .font(.caption2.weight(.semibold))
-                                .foregroundStyle(.secondary)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.tertiary)
                         }
                     }
                 }
@@ -180,19 +177,25 @@ private struct MCPServerEditor: View {
 
             Section {
                 Button(action: testConnection) {
-                    if testing {
-                        ProgressView()
-                    } else {
+                    HStack {
                         Label("Testen und Werkzeuge laden", systemImage: "bolt.horizontal.circle")
+                        Spacer()
+                        // Stays mounted so the row never changes size while busy.
+                        ProgressView()
+                            .opacity(testing ? 1 : 0)
                     }
+                    .animation(Theme.Motion.snappy, value: testing)
                 }
                 .disabled(testing || profile.url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .accessibilityIdentifier("mcp-test-connection")
 
                 if let result {
-                    Label(result, systemImage: testSucceeded ? "checkmark.circle.fill" : "xmark.octagon.fill")
-                        .foregroundStyle(testSucceeded ? Color.green : Color.red)
-                        .font(.footnote)
+                    Label {
+                        Text(result)
+                    } icon: {
+                        TestResultIcon(ok: testSucceeded)
+                    }
+                    .font(.footnote)
                 }
                 ForEach(profile.tools) { tool in
                     VStack(alignment: .leading, spacing: 2) {
@@ -218,12 +221,12 @@ private struct MCPServerEditor: View {
     }
 
     private func setupStep(_ number: Int, _ text: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: Theme.space2) {
             Text("\(number)")
-                .font(.caption.bold())
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 22, height: 22)
-                .background(Color.accentColor.opacity(0.12), in: Circle())
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.tint)
+                .frame(width: 24, height: 24)
+                .background(.tint.opacity(0.12), in: Circle())
             Text(text).font(.footnote)
         }
     }
@@ -231,24 +234,47 @@ private struct MCPServerEditor: View {
     private func testConnection() {
         testing = true
         testSucceeded = false
-        result = nil
+        withAnimation(Theme.Motion.snappy) { result = nil }
         profile.enabled = false
         Task { @MainActor in
             do {
-                profile.tools = try await MCPClient.discover(profile: profile, token: token)
+                let discovered = try await MCPClient.discover(profile: profile, token: token)
+                withAnimation(Theme.Motion.snappy) { profile.tools = discovered }
                 guard !profile.tools.isEmpty else {
                     throw MCPError.server("Verbunden, aber der Server meldet keine Werkzeuge.")
                 }
-                profile.enabled = !profile.tools.isEmpty
-                testSucceeded = true
-                result = "Verbunden · \(profile.tools.count) Werkzeuge gefunden"
+                withAnimation(Theme.Motion.snappy) {
+                    profile.enabled = !profile.tools.isEmpty
+                    testSucceeded = true
+                    result = "Verbunden · \(profile.tools.count) Werkzeuge gefunden"
+                }
                 MCPStore.setToken(token, for: profile.id)
                 onSave(profile)
             } catch {
                 profile.enabled = false
-                result = error.localizedDescription
+                withAnimation(Theme.Motion.snappy) { result = error.localizedDescription }
             }
             testing = false
         }
+    }
+}
+
+/// One-shot bounce on the success checkmark, mirroring the provider probe's
+/// celebration moment. State + onAppear rather than a value-keyed effect:
+/// the row is inserted already holding its final value, so a value change
+/// would never be observed.
+private struct TestResultIcon: View {
+    let ok: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var bounced = false
+
+    var body: some View {
+        Image(systemName: ok ? "checkmark.circle.fill" : "xmark.circle.fill")
+            .foregroundStyle(ok ? Color.green : Color.red)
+            .symbolEffect(.bounce, options: .nonRepeating, value: bounced)
+            .onAppear {
+                // One-shot; Reduce Motion never triggers the bounce at all.
+                if ok, !reduceMotion { bounced = true }
+            }
     }
 }

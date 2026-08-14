@@ -32,6 +32,17 @@ final class ThemeTests: XCTestCase {
         }
     }
 
+    func testTileHueIsQuantizedToTheCuratedPalette() {
+        // Tile identity colors must come from the tuned palette, never from
+        // an arbitrary point on the hue wheel — that was the "AI-built"
+        // rainbow tell. Deterministic per seed, and the empty seed is valid.
+        for seed in ["", "aiity", "✨", "timer", "🧭compass", "checklist🌐", "a", "b", "c"] {
+            let hue = Theme.tileHue(for: seed)
+            XCTAssertTrue(Theme.tileHues.contains(hue), "hue \(hue) for seed \(seed) is off-palette")
+            XCTAssertEqual(hue, Theme.tileHue(for: seed))
+        }
+    }
+
     func testDarkTileToneIsDimmerButKeepsIdentity() {
         for deep in [false, true] {
             let light = Theme.tileTone(deep: deep, dark: false)

@@ -5,19 +5,6 @@ import UIKit
 enum Theme {
     static let accent = Color.accentColor
 
-    /// Accent gradient for **user bubbles and mini-app tiles only** — not chrome.
-    /// Scheme-aware: the light pair is tuned for white surroundings and glares
-    /// on dark grids, so dark mode anchors on the darker dark-mode
-    /// AccentColor (#8A7CFF) instead.
-    static func accentGradient(for scheme: ColorScheme) -> LinearGradient {
-        let colors: [Color] = scheme == .dark
-            ? [Color(red: 0.40, green: 0.33, blue: 0.86),
-               Color(red: 0.54, green: 0.49, blue: 1.00)]
-            : [Color(red: 0.42, green: 0.30, blue: 0.95),
-               Color(red: 0.61, green: 0.42, blue: 1.00)]
-        return LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
-    }
-
     // Corner radii (chip / card / bubble)
     static let chipRadius: CGFloat = 12
     static let cardRadius: CGFloat = 16
@@ -56,7 +43,7 @@ enum Theme {
     // MARK: - Haptics
 
     /// Restrained haptic vocabulary — fire only at meaningful moments (sending,
-    /// stopping, keeping an app, opening one), never on scroll or passive events.
+    /// stopping, keeping an app), never on scroll or passive events.
     enum Haptics {
         /// Committing something: send a message, stop a run.
         static func send() {
@@ -82,18 +69,31 @@ enum Theme {
         return Double(h % 360) / 360.0
     }
 
-    /// A pleasant, stable gradient for an app tile derived from its icon/emoji.
+    /// Curated tile hues (0…1) anchored on the iOS system palette — blue,
+    /// indigo, purple, pink, red, orange, warm yellow, green, mint, teal.
+    /// Tiles pick from these instead of anywhere on the wheel, so identity
+    /// colors always land on a tuned hue (the Shortcuts model), never on an
+    /// arbitrary hash color.
+    static let tileHues: [Double] = [0.58, 0.655, 0.74, 0.89, 0.99, 0.07, 0.13, 0.36, 0.47, 0.53]
+
+    /// Deterministic curated hue for a seed: stableHue picks the palette slot.
+    static func tileHue(for seed: String) -> Double {
+        let slot = Int(stableHue(seed.isEmpty ? "aiity" : seed) * Double(tileHues.count)) % tileHues.count
+        return tileHues[slot]
+    }
+
+    /// A stable identity fill for an app tile derived from its icon/emoji.
     /// `deep` = saturated (for white SF Symbols); otherwise pastel (for emoji).
-    /// `dark` dims and slightly saturates the same hue — identity is preserved
-    /// (hue never changes with the scheme), only the light-tuned glare goes away.
+    /// `dark` dims the same hue — identity is preserved (hue never changes
+    /// with the scheme), only the light-tuned glare goes away. A single hue
+    /// with a top→bottom brightness fall-off, not a hue-drift gradient.
     static func tileGradient(for seed: String, deep: Bool = false, dark: Bool = false) -> LinearGradient {
-        let hue = stableHue(seed.isEmpty ? "aiity" : seed)
+        let hue = tileHue(for: seed)
         let tone = tileTone(deep: deep, dark: dark)
-        let hue2 = (hue + 0.06).truncatingRemainder(dividingBy: 1.0)
         return LinearGradient(
             colors: [Color(hue: hue, saturation: tone.saturation, brightness: tone.top),
-                     Color(hue: hue2, saturation: min(1, tone.saturation + 0.08), brightness: tone.bottom)],
-            startPoint: .topLeading, endPoint: .bottomTrailing
+                     Color(hue: hue, saturation: tone.saturation, brightness: tone.bottom)],
+            startPoint: .top, endPoint: .bottom
         )
     }
 

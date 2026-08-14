@@ -9,10 +9,13 @@ struct SettingsView: View {
     @EnvironmentObject private var session: ChatSession
     @Query private var savedApps: [MiniApp]
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var backupURL: URL?
     @State private var backupSummary = "…"
     @State private var showImporter = false
-    @State private var importSummary = String(localized: "Aus einer Backup-Datei ergänzen")
+    /// Outcome of the last import attempt — success summary or error. nil
+    /// until one ran; shown in the backup section footer.
+    @State private var importStatus: String?
     @State private var needsRestartNotice = false
     @State private var diagnosticsSummary = String(localized: "Letzter Lauf prüfen")
 
@@ -28,6 +31,8 @@ struct SettingsView: View {
                             subtitle: activeLine,
                             systemImage: "cpu"
                         )
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                     }
                     .accessibilityIdentifier("open-connections")
 
@@ -77,7 +82,9 @@ struct SettingsView: View {
                     }
                     .accessibilityIdentifier("icloud-toggle")
                     .onChange(of: prefs.iCloudSyncEnabled) { _, _ in
-                        needsRestartNotice = true
+                        withAnimation(Theme.Motion.preferSpring(Theme.Motion.soft, reduceMotion: reduceMotion)) {
+                            needsRestartNotice = true
+                        }
                     }
 
                     AppSettingsRow(
@@ -95,8 +102,12 @@ struct SettingsView: View {
                     if needsRestartNotice {
                         // Honest rather than convenient: the store is opened once
                         // at launch and cannot switch modes while running.
-                        Text("Wird nach dem nächsten Start der App wirksam. Es geht nichts verloren — beide Modi öffnen denselben lokalen Speicher.")
-                            .foregroundStyle(Color.orange)
+                        Label {
+                            Text("Wird nach dem nächsten Start der App wirksam. Es geht nichts verloren — beide Modi öffnen denselben lokalen Speicher.")
+                        } icon: {
+                            Image(systemName: "exclamationmark.triangle")
+                                .foregroundStyle(.orange)
+                        }
                     } else {
                         Text("Aus heißt: alles bleibt nur auf diesem Gerät. Es wird nichts gelöscht.")
                     }
@@ -107,13 +118,11 @@ struct SettingsView: View {
                 // only thing that survives "I deleted it everywhere".
                 Section {
                     Button {
-                        backupURL = BackupService.writeBackup(apps: savedApps, createdAt: .now)
+                        withAnimation(Theme.Motion.preferSpring(Theme.Motion.soft, reduceMotion: reduceMotion)) {
+                            backupURL = BackupService.writeBackup(apps: savedApps, createdAt: .now)
+                        }
                     } label: {
-                        AppSettingsRow(
-                            title: String(localized: "Backup-Datei erstellen"),
-                            subtitle: backupSummary,
-                            systemImage: "arrow.down.doc"
-                        )
+                        Label("Backup-Datei erstellen", systemImage: "arrow.down.doc")
                     }
                     .accessibilityIdentifier("create-backup")
                     if let backupURL {
@@ -126,18 +135,20 @@ struct SettingsView: View {
                     Button {
                         showImporter = true
                     } label: {
-                        AppSettingsRow(
-                            title: String(localized: "Backup einspielen"),
-                            subtitle: importSummary,
-                            systemImage: "arrow.up.doc"
-                        )
+                        Label("Backup einspielen", systemImage: "arrow.up.doc")
                     }
                     .accessibilityIdentifier("import-backup")
                 } footer: {
-                    // Honest about the two restore semantics: apps merge per
-                    // item, but chats/skills/agents are whole-file and only
-                    // land on a device that has none of its own yet.
-                    Text("Einmalige Kopie zum Weggeben oder Archivieren. iCloud spiegelt auch Löschungen — eine Datei nicht. Beim Einspielen werden Mini-Apps nur ergänzt, nie überschrieben oder gelöscht; Chats, Skills und Agenten werden nur übernommen, wenn dieses Gerät noch keine eigenen hat.")
+                    VStack(alignment: .leading, spacing: 6) {
+                        if let importStatus {
+                            Text(importStatus)
+                        }
+                        Text(backupSummary)
+                        // Honest about the two restore semantics: apps merge per
+                        // item, but chats/skills/agents are whole-file and only
+                        // land on a device that has none of its own yet.
+                        Text("Einmalige Kopie zum Weggeben oder Archivieren. iCloud spiegelt auch Löschungen — eine Datei nicht. Beim Einspielen werden Mini-Apps nur ergänzt, nie überschrieben oder gelöscht; Chats, Skills und Agenten werden nur übernommen, wenn dieses Gerät noch keine eigenen hat.")
+                    }
                 }
 
                 Section("Anzeige") {
@@ -161,11 +172,13 @@ struct SettingsView: View {
                         Label("Web-Tools für lokale Modelle", systemImage: "globe")
                     }
                     .accessibilityIdentifier("allow-local-tools")
-
+                } header: {
+                    Text("Datenschutz")
+                } footer: {
                     Text("Standard für Ollama, LM Studio, LocalAI und On-Device. Jeder Anbieter kann das unter Mehr → KI-Anbieter → Werkzeuge überschreiben — an wie aus.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                }
 
+                Section {
                     Toggle(isOn: $prefs.smartSuggestions) {
                         Label("Ideen vom Modell", systemImage: "lightbulb")
                     }
@@ -176,8 +189,6 @@ struct SettingsView: View {
                     } label: {
                         Label("Datenschutz", systemImage: "hand.raised")
                     }
-                } header: {
-                    Text("Datenschutz")
                 } footer: {
                     Text("Ideen vom Modell holt im leeren Chat höchstens einmal am Tag ein paar Vorschläge bei deinem eigenen KI-Anbieter — ohne Chat-Inhalte, ohne Titel, ohne App-Namen. Nur mit API-Key und selbst gewähltem Modell, nie mit Abo-Login oder lokalem Modell.")
                 }
@@ -223,7 +234,7 @@ struct SettingsView: View {
     private func importBackup(_ outcome: Result<[URL], Error>) {
         guard case .success(let urls) = outcome, let url = urls.first else {
             if case .failure(let error) = outcome {
-                importSummary = error.localizedDescription
+                importStatus = error.localizedDescription
             }
             return
         }
@@ -234,7 +245,7 @@ struct SettingsView: View {
         do {
             data = try Data(contentsOf: url)
         } catch {
-            importSummary = error.localizedDescription
+            importStatus = error.localizedDescription
             return
         }
 
@@ -244,7 +255,7 @@ struct SettingsView: View {
         // 20 s timeout in SyncStatus bounds this); usually it settled long
         // before the user reached this screen and the wait is zero.
         if !sync.initialImportComplete {
-            importSummary = String(localized: "Warte auf iCloud-Abgleich …")
+            importStatus = String(localized: "Warte auf iCloud-Abgleich …")
         }
         Task {
             await sync.waitUntilInitialImportSettled()
@@ -252,7 +263,7 @@ struct SettingsView: View {
             // archive is empty. Otherwise an older debounced snapshot can land
             // after the import and overwrite the restored conversation.
             guard await session.flushPersistence() else {
-                importSummary = String(localized: "Chat-Verlauf konnte vor dem Import nicht gesichert werden.")
+                importStatus = String(localized: "Chat-Verlauf konnte vor dem Import nicht gesichert werden.")
                 return
             }
             await applyBackup(data)
@@ -283,10 +294,10 @@ struct SettingsView: View {
             // SkillStore has no shared instance — each view constructs its own
             // and therefore reads the restored file on next appearance, so it
             // needs no reload here.
-            importSummary = result.summary
+            importStatus = result.summary
             backupSummary = BackupService.summary(apps: savedApps)
         } catch {
-            importSummary = error.localizedDescription
+            importStatus = error.localizedDescription
         }
     }
 
@@ -307,8 +318,7 @@ struct SettingsView: View {
         let s = settingsStore.settings
         let model = s.effectiveModel
         if model.isEmpty { return s.preset.label }
-        let short = model.count > 28 ? String(model.prefix(26)) + "…" : model
-        return "\(s.preset.label) · \(short)"
+        return "\(s.preset.label) · \(model)"
     }
 }
 

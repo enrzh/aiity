@@ -110,9 +110,7 @@ struct MiniAppSheet: View {
                     Button {
                         openAIEdit()
                     } label: {
-                        Image(systemName: "sparkles")
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(Color.accentColor)
+                        Image(systemName: "wand.and.stars")
                     }
                     .accessibilityLabel("Mit KI bearbeiten")
                     .accessibilityIdentifier("miniapp-ai-edit")
@@ -222,18 +220,14 @@ struct MiniAppPermissionSheet: View {
                                 .foregroundStyle(.secondary)
                         } else {
                             ForEach(hosts, id: \.self) { host in
-                                HStack {
-                                    Text(host)
-                                    Spacer()
-                                    Button(role: .destructive) {
-                                        hosts.removeAll { $0 == host }
-                                        _ = MiniAppConsent.revokeHost(appId: appId, host: host)
-                                        MiniAppRunnerView.removeSessionStore(for: appId)
-                                    } label: {
-                                        Image(systemName: "trash")
-                                    }
-                                    .accessibilityLabel("Host (host) widerrufen")
+                                Text(host)
+                            }
+                            .onDelete { offsets in
+                                for host in offsets.map({ hosts[$0] }) {
+                                    _ = MiniAppConsent.revokeHost(appId: appId, host: host)
                                 }
+                                MiniAppRunnerView.removeSessionStore(for: appId)
+                                hosts.remove(atOffsets: offsets)
                             }
                         }
                     }
@@ -317,9 +311,10 @@ struct MiniAppIconView: View {
                 }
             }
             .overlay(
+                // The rim sits on the colored gradient tile, never on the
+                // scheme background — white reads correctly in both schemes.
                 RoundedRectangle(cornerRadius: size * 0.3, style: .continuous)
                     .strokeBorder(.white.opacity(0.14), lineWidth: 0.5)
             )
-            .shadow(color: .black.opacity(0.06), radius: 3, y: 1)
     }
 }

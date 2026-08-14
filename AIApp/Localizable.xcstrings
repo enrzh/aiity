@@ -3233,6 +3233,107 @@
         }
       }
     },
+    "API-Keys bleiben im Schlüsselbund. Kein Konto, kein aiity-Server.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API keys stay in the keychain. No account, no aiity server."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Las claves API se quedan en el llavero. Sin cuenta y sin servidor de aiity."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les clés API restent dans le trousseau. Pas de compte, pas de serveur aiity."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "As chaves de API ficam no teu porta-chaves. Sem conta, sem servidor da aiity."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le chiavi API restano nel portachiavi. Nessun account, nessun server aiity."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kunci API tetap di keychain. Tanpa akun, tanpa server aiity."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Khóa API nằm trong keychain. Không tài khoản, không máy chủ aiity."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API-ключи хранятся в связке ключей. Без аккаунта и без сервера aiity."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API anahtarları anahtar zincirinde kalır. Hesap yok, aiity sunucusu yok."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "APIキーはキーチェーンに保存。アカウントもaiityのサーバーも不要です。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API 키는 키체인에 저장됩니다. 계정도, aiity 서버도 없습니다."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API 密钥保存在钥匙串中。无需账户，也没有 aiity 服务器。"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API keys कीचेन में रहती हैं। न कोई खाता, न कोई aiity सर्वर।"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API key কিচেইনে থাকে। কোনো অ্যাকাউন্ট নেই, কোনো aiity সার্ভার নেই।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تبقى مفاتيح API في سلسلة المفاتيح. لا حساب ولا خادم لـ aiity."
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API keys کی چین میں رہتی ہیں۔ نہ کوئی اکاؤنٹ، نہ aiity کا سرور۔"
+          }
+        }
+      }
+    },
     "Abbrechen": {
       "extractionState": "manual",
       "localizations": {
@@ -3532,6 +3633,107 @@
           "stringUnit": {
             "state": "translated",
             "value": "중단 이유 — 앱 자체가 기록할 수 있는 것보다 더 정확합니다."
+          }
+        }
+      }
+    },
+    "Abgeschlossen": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مكتمل"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "সম্পন্ন"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Completed"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Completado"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminé"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "पूरा हुआ"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selesai"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Completato"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完了"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "완료됨"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Concluído"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Завершено"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tamamlandı"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مکمل"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã hoàn tất"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已完成"
           }
         }
       }
@@ -4950,6 +5152,208 @@
         }
       }
     },
+    "Anhang entfernen": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إزالة المرفق"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove attachment"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eliminar adjunto"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer la pièce jointe"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rimuovi allegato"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添付ファイルを削除"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remover anexo"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Удалить вложение"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除附件"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "अटैचमेंट हटाएँ"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "সংযুক্তি সরান"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "منسلکہ ہٹائیں"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hapus lampiran"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eki kaldır"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xóa tệp đính kèm"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "첨부 파일 제거"
+          }
+        }
+      }
+    },
+    "Anhänge": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المرفقات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attachments"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adjuntos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pièces jointes"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allegati"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添付ファイル"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anexos"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вложения"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "附件"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "अटैचमेंट"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "সংযুক্তি"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "منسلکات"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lampiran"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ekler"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tệp đính kèm"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "첨부 파일"
+          }
+        }
+      }
+    },
     "Anleitung für den Agenten": {
       "extractionState": "manual",
       "localizations": {
@@ -5653,6 +6057,107 @@
           "stringUnit": {
             "state": "translated",
             "value": "표시"
+          }
+        }
+      }
+    },
+    "Apple Intelligence auf diesem iPhone — kein Konto, kein Key.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence on this iPhone — no account, no key."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence en este iPhone: sin cuenta y sin clave."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence sur cet iPhone — sans compte ni clé."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence neste iPhone — sem conta, sem chave."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence su questo iPhone — senza account né chiave."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence di iPhone ini — tanpa akun, tanpa kunci."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence trên iPhone này — không tài khoản, không khóa."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence на этом iPhone — без аккаунта и без ключа."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu iPhone'da Apple Intelligence — hesapsız, anahtarsız."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この iPhone の Apple Intelligence — アカウントもキーも不要。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 iPhone의 Apple Intelligence — 계정도 키도 필요 없습니다."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这台 iPhone 上的 Apple Intelligence — 无需账户，无需密钥。"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "इस iPhone पर Apple Intelligence — न खाता, न key।"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "এই iPhone-এ Apple Intelligence — অ্যাকাউন্টও না, key-ও না।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence على هذا iPhone — بلا حساب وبلا مفتاح."
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اس iPhone پر Apple Intelligence — نہ اکاؤنٹ، نہ key۔"
           }
         }
       }
@@ -8114,6 +8619,107 @@
         }
       }
     },
+    "Beschreibe eine Idee und aiity baut daraus eine kleine App.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Describe an idea and aiity builds it into a small app."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Describe una idea y aiity la convierte en una pequeña app."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Décris une idée et aiity en fait une petite app."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descreve uma ideia e o aiity transforma-a numa pequena app."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descrivi un'idea e aiity la trasforma in una piccola app."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jelaskan sebuah ide dan aiity mengubahnya menjadi aplikasi kecil."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mô tả một ý tưởng và aiity sẽ biến nó thành một ứng dụng nhỏ."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Опиши идею — aiity превратит её в маленькое приложение."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bir fikri anlatın, aiity ondan küçük bir uygulama yapsın."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アイデアを説明するだけで、aiityが小さなアプリに仕上げます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "아이디어를 설명하면 aiity가 작은 앱으로 만들어 드립니다."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "描述一个想法，aiity 就能把它做成一个小应用。"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "कोई आइडिया बताओ, aiity उससे एक छोटा ऐप बना देगा।"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "একটি আইডিয়া বর্ণনা করুন, aiity সেটিকে ছোট একটি অ্যাপ বানিয়ে দেবে।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "صف فكرة وسيحوّلها aiity إلى تطبيق صغير."
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "کوئی آئیڈیا بیان کریں، aiity اسے ایک چھوٹی ایپ بنا دے گا۔"
+          }
+        }
+      }
+    },
     "Bezeichnung (optional, z. B. „Privat“)": {
       "extractionState": "manual",
       "localizations": {
@@ -8215,6 +8821,107 @@
         }
       }
     },
+    "Bild": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "صورة"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ছবি"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Image"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imagen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Image"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "छवि"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gambar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Immagine"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画像"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이미지"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imagem"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Изображение"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Görsel"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تصویر"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hình ảnh"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "图片"
+          }
+        }
+      }
+    },
     "Bild erstellt und dem Nutzer angezeigt.": {
       "extractionState": "manual",
       "localizations": {
@@ -8312,6 +9019,107 @@
           "stringUnit": {
             "state": "translated",
             "value": "이미지가 생성되어 사용자에게 표시되었습니다."
+          }
+        }
+      }
+    },
+    "Bild nicht verfügbar": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الصورة غير متاحة"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ছবি উপলভ্য নয়"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Image unavailable"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imagen no disponible"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Image indisponible"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "छवि उपलब्ध नहीं"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gambar tidak tersedia"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Immagine non disponibile"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画像を利用できません"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이미지를 사용할 수 없음"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imagem indisponível"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Изображение недоступно"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Görsel kullanılamıyor"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تصویر دستیاب نہیں"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không có hình ảnh"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "图片不可用"
           }
         }
       }
@@ -8716,6 +9524,107 @@
           "stringUnit": {
             "state": "translated",
             "value": "빌드 중 화면 켜짐"
+          }
+        }
+      }
+    },
+    "Bildvorschau öffnen": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "فتح معاينة الصورة"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ছবির প্রিভিউ খুলুন"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open image preview"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrir vista previa de imagen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrir l’aperçu de l’image"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "छवि पूर्वावलोकन खोलें"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buka pratinjau gambar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apri anteprima immagine"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画像プレビューを開く"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이미지 미리보기 열기"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrir pré-visualização da imagem"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть предпросмотр изображения"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Görsel önizlemesini aç"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تصویر کا پیش نظارہ کھولیں"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mở bản xem trước hình ảnh"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开图片预览"
           }
         }
       }
@@ -10740,6 +11649,107 @@
         }
       }
     },
+    "Datei": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ملف"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archivo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fichier"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ファイル"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ficheiro"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Файл"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文件"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "फ़ाइल"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ফাইল"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "فائل"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dosya"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tệp"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "파일"
+          }
+        }
+      }
+    },
     "Datei ist kein gültiges ZIP.": {
       "extractionState": "manual",
       "localizations": {
@@ -10837,6 +11847,410 @@
           "stringUnit": {
             "state": "translated",
             "value": "파일이 유효한 ZIP이 아닙니다."
+          }
+        }
+      }
+    },
+    "Datei konnte nicht geladen werden.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعذر تحميل الملف."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not load file."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo cargar el archivo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de charger le fichier."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile caricare il file."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ファイルを読み込めませんでした。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível carregar o ficheiro."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось загрузить файл."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法加载文件。"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "फ़ाइल लोड नहीं हो सकी।"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ফাইল লোড করা যায়নি।"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "فائل لوڈ نہیں ہو سکی۔"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File tidak dapat dimuat."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dosya yüklenemedi."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không thể tải tệp."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "파일을 불러올 수 없습니다."
+          }
+        }
+      }
+    },
+    "Datei konnte nicht gelesen werden.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعذر قراءة الملف."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not read file."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo leer el archivo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de lire le fichier."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile leggere il file."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ファイルを読み込めませんでした。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível ler o ficheiro."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось прочитать файл."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法读取文件。"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "फ़ाइल पढ़ी नहीं जा सकी।"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ফাইল পড়া যায়নি।"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "فائل پڑھی نہیں جا سکی۔"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File tidak dapat dibaca."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dosya okunamadı."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không thể đọc tệp."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "파일을 읽을 수 없습니다."
+          }
+        }
+      }
+    },
+    "Datei konnte nicht gespeichert werden.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعذر حفظ الملف."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not save file."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo guardar el archivo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d’enregistrer le fichier."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile salvare il file."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ファイルを保存できませんでした。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível guardar o ficheiro."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось сохранить файл."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法保存文件。"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "फ़ाइल सेव नहीं हो सकी।"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ফাইল সংরক্ষণ করা যায়নি।"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "فائل محفوظ نہیں ہو سکی۔"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File tidak dapat disimpan."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dosya kaydedilemedi."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không thể lưu tệp."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "파일을 저장할 수 없습니다."
+          }
+        }
+      }
+    },
+    "Datei nicht verfügbar": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الملف غير متاح"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ফাইল উপলভ্য নয়"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File unavailable"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archivo no disponible"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fichier indisponible"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "फ़ाइल उपलब्ध नहीं"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File tidak tersedia"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File non disponibile"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ファイルを利用できません"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "파일을 사용할 수 없음"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ficheiro indisponível"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Файл недоступен"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dosya kullanılamıyor"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "فائل دستیاب نہیں"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không có tệp"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文件不可用"
           }
         }
       }
@@ -11245,97 +12659,204 @@
         }
       }
     },
-    "Dein KI-Chat.\nDeine Mini-Apps.": {
+    "Dein KI-Chat": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Your AI chat.\nYour Mini-Apps."
+            "value": "Your AI chat"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu chat de IA"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ton chat IA.\nTes Mini-Apps."
+            "value": "Ton chat IA"
           }
         },
         "pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "O teu chat de IA.\nAs tuas Mini-Apps."
+            "value": "O teu chat de IA"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "La tua chat IA.\nLe tue Mini-Apps."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "你的 AI 聊天。\n你的 Mini-Apps。"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "あなたのAIチャット。\nあなたの Mini-Apps。"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Твой ИИ-чат.\nТвои Mini-Apps."
-          }
-        },
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "دردشتك مع الذكاء الاصطناعي.\nMini-Apps الخاصة بك."
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "तुम्हारी AI चैट।\nतुम्हारे Mini-Apps।"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "আপনার AI চ্যাট।\nআপনার Mini-Apps।"
-          }
-        },
-        "ur": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "آپ کی AI چیٹ۔\nآپ کی Mini-Apps۔"
+            "value": "La tua chat IA"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Chat AI Anda.\nMini-Apps Anda."
-          }
-        },
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "AI sohbetiniz.\nMini-App'leriniz."
+            "value": "Chat AI Anda"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Trò chuyện AI của bạn.\nMini-App của bạn."
+            "value": "Trò chuyện AI của bạn"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Твой ИИ-чат"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI sohbetiniz"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "あなたのAIチャット"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "당신의 AI 채팅.\n당신의 Mini-App."
+            "value": "당신의 AI 채팅"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的 AI 聊天"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "तुम्हारी AI चैट"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "আপনার AI চ্যাট"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "دردشتك مع الذكاء الاصطناعي"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "آپ کی AI چیٹ"
+          }
+        }
+      }
+    },
+    "Deine Daten gehören dir": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your data stays yours"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tus datos son tuyos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tes données t'appartiennent"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os teus dados são teus"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I tuoi dati sono tuoi"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data Anda tetap milik Anda"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dữ liệu của bạn là của bạn"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Твои данные — только твои"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verileriniz size aittir"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "データはあなたのもの"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "당신의 데이터는 당신의 것"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的数据属于你"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "तुम्हारा डेटा तुम्हारा है"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "আপনার ডেটা আপনারই"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بياناتك ملكك"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "آپ کا ڈیٹا آپ کا ہے"
           }
         }
       }
@@ -11639,6 +13160,107 @@
           "stringUnit": {
             "state": "translated",
             "value": "Agent는 채팅과 동일한 제공자를 사용합니다. 채팅 제공자를 변경하면 Agent도 함께 변경됩니다."
+          }
+        }
+      }
+    },
+    "Der Anhang %@ wird von diesem Modell nicht unterstützt.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "هذا النموذج لا يدعم المرفق %@."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This model does not support the %@ attachment."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este modelo no admite el adjunto %@."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce modèle ne prend pas en charge la pièce jointe %@."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Questo modello non supporta l’allegato %@."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このモデルは添付ファイル %@ に対応していません。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este modelo não suporta o anexo %@."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Эта модель не поддерживает вложение %@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此模型不支持附件 %@。"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "यह मॉडल %@ अटैचमेंट को सपोर्ट नहीं करता।"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "এই মডেলটি %@ সংযুক্তি সমর্থন করে না।"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "یہ ماڈل %@ منسلکے کو سپورٹ نہیں کرتا۔"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Model ini tidak mendukung lampiran %@."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu model %@ ekini desteklemiyor."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mô hình này không hỗ trợ tệp đính kèm %@."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 모델은 %@ 첨부 파일을 지원하지 않습니다."
           }
         }
       }
@@ -17400,6 +19022,107 @@
         }
       }
     },
+    "Fehlgeschlagen": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "فشل"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ব্যর্থ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fallido"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échec"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "विफल"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gagal"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non riuscito"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "失敗"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "실패함"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Falhou"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Başarısız"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ناکام"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thất bại"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "失败"
+          }
+        }
+      }
+    },
     "Fertig": {
       "extractionState": "manual",
       "localizations": {
@@ -17699,6 +19422,309 @@
           "stringUnit": {
             "state": "translated",
             "value": "형식: owner/repo/path@branch 또는 https://…"
+          }
+        }
+      }
+    },
+    "Foto": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "صورة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Photo"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Foto"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Photo"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Foto"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "写真"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Foto"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Фото"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "照片"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "फ़ोटो"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ছবি"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تصویر"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Foto"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotoğraf"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ảnh"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "사진"
+          }
+        }
+      }
+    },
+    "Foto konnte nicht geladen werden.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعذر تحميل الصورة."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not load photo."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo cargar la foto."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de charger la photo."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile caricare la foto."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "写真を読み込めませんでした。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível carregar a foto."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось загрузить фото."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法加载照片。"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "फ़ोटो लोड नहीं हो सकी।"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ছবি লোড করা যায়নি।"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تصویر لوڈ نہیں ہو سکی۔"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Foto tidak dapat dimuat."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotoğraf yüklenemedi."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không thể tải ảnh."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "사진을 불러올 수 없습니다."
+          }
+        }
+      }
+    },
+    "Foto konnte nicht gespeichert werden.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعذر حفظ الصورة."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not save photo."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo guardar la foto."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d’enregistrer la photo."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile salvare la foto."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "写真を保存できませんでした。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível guardar a foto."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось сохранить фото."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法保存照片。"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "फ़ोटो सेव नहीं हो सकी।"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ছবি সংরক্ষণ করা যায়নি।"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تصویر محفوظ نہیں ہو سکی۔"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Foto tidak dapat disimpan."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotoğraf kaydedilemedi."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không thể lưu ảnh."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "사진을 저장할 수 없습니다."
           }
         }
       }
@@ -27309,6 +29335,107 @@
         }
       }
     },
+    "Läuft": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "قيد التشغيل"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "চলছে"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Running"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En curso"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En cours"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "चल रहा है"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Berjalan"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In esecuzione"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "実行中"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "실행 중"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Em execução"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выполняется"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Çalışıyor"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "چل رہا ہے"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đang chạy"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "运行中"
+          }
+        }
+      }
+    },
     "Läuft im Hintergrund…": {
       "extractionState": "manual",
       "localizations": {
@@ -28315,6 +30442,107 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld번 시도 후 Mini-App 검사: "
+          }
+        }
+      }
+    },
+    "Mini-Apps aus Worten": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mini-Apps from words"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mini-Apps a partir de palabras"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Des Mini-Apps à partir de mots"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mini-Apps a partir de palavras"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mini-Apps dalle parole"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mini-Apps dari kata-kata"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mini-App từ câu chữ"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mini-Apps из слов"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kelimelerden Mini-App'ler"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "言葉からMini-Appを"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "말로 만드는 Mini-App"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用文字生成 Mini-Apps"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "शब्दों से Mini-Apps"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "কথা থেকে Mini-Apps"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mini-Apps من الكلمات"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الفاظ سے Mini-Apps"
           }
         }
       }
@@ -34794,915 +37022,6 @@
         }
       }
     },
-    "Bild": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "صورة"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ছবি"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Image"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Imagen"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Image"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "छवि"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gambar"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Immagine"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "画像"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "이미지"
-          }
-        },
-        "pt": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Imagem"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Изображение"
-          }
-        },
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Görsel"
-          }
-        },
-        "ur": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "تصویر"
-          }
-        },
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hình ảnh"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "图片"
-          }
-        }
-      }
-    },
-    "Bild nicht verfügbar": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "الصورة غير متاحة"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ছবি উপলভ্য নয়"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Image unavailable"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Imagen no disponible"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Image indisponible"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "छवि उपलब्ध नहीं"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gambar tidak tersedia"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Immagine non disponibile"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "画像を利用できません"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "이미지를 사용할 수 없음"
-          }
-        },
-        "pt": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Imagem indisponível"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Изображение недоступно"
-          }
-        },
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Görsel kullanılamıyor"
-          }
-        },
-        "ur": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "تصویر دستیاب نہیں"
-          }
-        },
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Không có hình ảnh"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "图片不可用"
-          }
-        }
-      }
-    },
-    "Video nicht verfügbar": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "الفيديو غير متاح"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ভিডিও উপলভ্য নয়"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Video unavailable"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Vídeo no disponible"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Vidéo indisponible"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "वीडियो उपलब्ध नहीं"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Video tidak tersedia"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Video non disponibile"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ビデオを利用できません"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "비디오를 사용할 수 없음"
-          }
-        },
-        "pt": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Vídeo indisponível"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Видео недоступно"
-          }
-        },
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Video kullanılamıyor"
-          }
-        },
-        "ur": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ویڈیو دستیاب نہیں"
-          }
-        },
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Không có video"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "视频不可用"
-          }
-        }
-      }
-    },
-    "Datei nicht verfügbar": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "الملف غير متاح"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ফাইল উপলভ্য নয়"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "File unavailable"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Archivo no disponible"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fichier indisponible"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "फ़ाइल उपलब्ध नहीं"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "File tidak tersedia"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "File non disponibile"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ファイルを利用できません"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "파일을 사용할 수 없음"
-          }
-        },
-        "pt": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ficheiro indisponível"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Файл недоступен"
-          }
-        },
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dosya kullanılamıyor"
-          }
-        },
-        "ur": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "فائل دستیاب نہیں"
-          }
-        },
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Không có tệp"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "文件不可用"
-          }
-        }
-      }
-    },
-    "Bildvorschau öffnen": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "فتح معاينة الصورة"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ছবির প্রিভিউ খুলুন"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open image preview"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Abrir vista previa de imagen"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ouvrir l’aperçu de l’image"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "छवि पूर्वावलोकन खोलें"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Buka pratinjau gambar"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Apri anteprima immagine"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "画像プレビューを開く"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "이미지 미리보기 열기"
-          }
-        },
-        "pt": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Abrir pré-visualização da imagem"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Открыть предпросмотр изображения"
-          }
-        },
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Görsel önizlemesini aç"
-          }
-        },
-        "ur": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "تصویر کا پیش نظارہ کھولیں"
-          }
-        },
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mở bản xem trước hình ảnh"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "打开图片预览"
-          }
-        }
-      }
-    },
-    "Zu den neuesten Nachrichten": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "الانتقال إلى أحدث الرسائل"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "সর্বশেষ বার্তাগুলিতে যান"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Go to latest messages"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ir a los mensajes más recientes"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Accéder aux derniers messages"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "नवीनतम संदेशों पर जाएँ"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ke pesan terbaru"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Vai ai messaggi più recenti"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "最新のメッセージへ移動"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "최신 메시지로 이동"
-          }
-        },
-        "pt": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ir para as mensagens mais recentes"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "К последним сообщениям"
-          }
-        },
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "En yeni mesajlara git"
-          }
-        },
-        "ur": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "تازہ ترین پیغامات پر جائیں"
-          }
-        },
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Đến tin nhắn mới nhất"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "转到最新消息"
-          }
-        }
-      }
-    },
-    "Läuft": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "قيد التشغيل"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "চলছে"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Running"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "En curso"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "En cours"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "चल रहा है"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Berjalan"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "In esecuzione"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "実行中"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "실행 중"
-          }
-        },
-        "pt": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Em execução"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Выполняется"
-          }
-        },
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Çalışıyor"
-          }
-        },
-        "ur": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "چل رہا ہے"
-          }
-        },
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Đang chạy"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "运行中"
-          }
-        }
-      }
-    },
-    "Abgeschlossen": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "مكتمل"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "সম্পন্ন"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Completed"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Completado"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Terminé"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "पूरा हुआ"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Selesai"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Completato"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "完了"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "완료됨"
-          }
-        },
-        "pt": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Concluído"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Завершено"
-          }
-        },
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tamamlandı"
-          }
-        },
-        "ur": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "مکمل"
-          }
-        },
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Đã hoàn tất"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已完成"
-          }
-        }
-      }
-    },
-    "Fehlgeschlagen": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "فشل"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ব্যর্থ"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Failed"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fallido"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Échec"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "विफल"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gagal"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Non riuscito"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "失敗"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "실패함"
-          }
-        },
-        "pt": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Falhou"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Не удалось"
-          }
-        },
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Başarısız"
-          }
-        },
-        "ur": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ناکام"
-          }
-        },
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Thất bại"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "失败"
-          }
-        }
-      }
-    },
     "Schließen": {
       "extractionState": "manual",
       "localizations": {
@@ -37925,6 +39244,107 @@
         }
       }
     },
+    "Sofort loslegen": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start right away"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Empieza al instante"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Commencer tout de suite"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Começa já"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inizia subito"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Langsung mulai"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bắt đầu ngay"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Начать сразу"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hemen başlayın"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すぐに始める"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "바로 시작하기"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "立即开始"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "तुरंत शुरू करो"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "এখনই শুরু করুন"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ابدأ فورًا"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "فوراً شروع کریں"
+          }
+        }
+      }
+    },
     "Speicher": {
       "extractionState": "manual",
       "localizations": {
@@ -39956,6 +41376,107 @@
         }
       }
     },
+    "Testnachricht senden": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send test message"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enviar mensaje de prueba"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Envoyer un message de test"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enviar mensagem de teste"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invia messaggio di prova"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kirim pesan uji"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gửi tin nhắn thử"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Отправить тестовое сообщение"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test mesajı gönder"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "テストメッセージを送信"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "테스트 메시지 보내기"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发送测试消息"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "टेस्ट संदेश भेजो"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "টেস্ট বার্তা পাঠান"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إرسال رسالة تجريبية"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ٹیسٹ پیغام بھیجیں"
+          }
+        }
+      }
+    },
     "UNERWARTET BEENDET (Ursache nicht eindeutig)": {
       "extractionState": "manual",
       "localizations": {
@@ -41168,6 +42689,107 @@
         }
       }
     },
+    "Verbinde dein eigenes Modell — OpenAI, Anthropic oder lokal auf dem iPhone.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect your own model — OpenAI, Anthropic, or local on your iPhone."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conecta tu propio modelo: OpenAI, Anthropic o local en tu iPhone."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connecte ton propre modèle — OpenAI, Anthropic ou en local sur ton iPhone."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liga o teu próprio modelo — OpenAI, Anthropic ou local no teu iPhone."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collega il tuo modello — OpenAI, Anthropic o in locale su iPhone."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hubungkan model Anda sendiri — OpenAI, Anthropic, atau lokal di iPhone."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kết nối mô hình của riêng bạn — OpenAI, Anthropic hoặc chạy ngay trên iPhone."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Подключи свою модель — OpenAI, Anthropic или локально на iPhone."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kendi modelinizi bağlayın — OpenAI, Anthropic veya iPhone'da yerel."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自分のモデルを接続 — OpenAI、Anthropic、iPhone上のローカルモデルも。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내 모델을 연결하세요 — OpenAI, Anthropic 또는 iPhone의 로컬 모델."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接你自己的模型 — OpenAI、Anthropic，或 iPhone 本地模型。"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "अपना मॉडल जोड़ो — OpenAI, Anthropic या iPhone पर लोकल।"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "নিজের মডেল যুক্ত করুন — OpenAI, Anthropic বা iPhone-এ লোকাল।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اربط نموذجك الخاص — OpenAI أو Anthropic أو محليًا على iPhone."
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اپنا ماڈل جوڑیں — OpenAI، Anthropic یا iPhone پر لوکل۔"
+          }
+        }
+      }
+    },
     "Verbinde…": {
       "extractionState": "manual",
       "localizations": {
@@ -41770,6 +43392,107 @@
           "stringUnit": {
             "state": "translated",
             "value": "동영상 보기"
+          }
+        }
+      }
+    },
+    "Video nicht verfügbar": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الفيديو غير متاح"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ভিডিও উপলভ্য নয়"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video unavailable"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vídeo no disponible"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vidéo indisponible"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "वीडियो उपलब्ध नहीं"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video tidak tersedia"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video non disponibile"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ビデオを利用できません"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "비디오를 사용할 수 없음"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vídeo indisponível"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Видео недоступно"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video kullanılamıyor"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ویڈیو دستیاب نہیں"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không có video"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "视频不可用"
           }
         }
       }
@@ -44152,6 +45875,107 @@
         }
       }
     },
+    "Willkommen bei aiity": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Welcome to aiity"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Te damos la bienvenida a aiity"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bienvenue dans aiity"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Damos-te as boas-vindas ao aiity"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ti diamo il benvenuto in aiity"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selamat datang di aiity"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chào mừng bạn đến với aiity"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добро пожаловать в aiity"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "aiity'ye hoş geldiniz"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "aiityへようこそ"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "aiity에 오신 것을 환영합니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "欢迎使用 aiity"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "aiity में आपका स्वागत है"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "aiity-তে আপনাকে স্বাগতম"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مرحبًا بك في aiity"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "aiity میں خوش آمدید"
+          }
+        }
+      }
+    },
     "Wird für Bilder verwendet": {
       "extractionState": "manual",
       "localizations": {
@@ -44960,6 +46784,107 @@
         }
       }
     },
+    "Zu den neuesten Nachrichten": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الانتقال إلى أحدث الرسائل"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "সর্বশেষ বার্তাগুলিতে যান"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Go to latest messages"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ir a los mensajes más recientes"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accéder aux derniers messages"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "नवीनतम संदेशों पर जाएँ"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ke pesan terbaru"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vai ai messaggi più recenti"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最新のメッセージへ移動"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "최신 메시지로 이동"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ir para as mensagens mais recentes"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "К последним сообщениям"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En yeni mesajlara git"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تازہ ترین پیغامات پر جائیں"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đến tin nhắn mới nhất"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "转到最新消息"
+          }
+        }
+      }
+    },
     "Zu wenig Speicher": {
       "extractionState": "manual",
       "localizations": {
@@ -45057,6 +46982,107 @@
           "stringUnit": {
             "state": "translated",
             "value": "메모리 부족"
+          }
+        }
+      }
+    },
+    "Zugang und Modell prüfen": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check access and model"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comprobar acceso y modelo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vérifier l'accès et le modèle"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verificar acesso e modelo"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verifica accesso e modello"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Periksa akses dan model"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kiểm tra quyền truy cập và mô hình"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Проверить доступ и модель"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erişimi ve modeli kontrol et"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクセスとモデルを確認"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "접근 권한과 모델 확인"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检查访问权限和模型"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "एक्सेस और मॉडल जाँचो"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "অ্যাক্সেস ও মডেল যাচাই করুন"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التحقق من الوصول والنموذج"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "رسائی اور ماڈل جانچیں"
           }
         }
       }
@@ -49360,216 +51386,6 @@
             "value": "“%@”이(가) 제거 중입니다."
           }
         }
-      }
-    },
-    "Foto": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": { "stringUnit": { "state": "translated", "value": "صورة" } },
-        "en": { "stringUnit": { "state": "translated", "value": "Photo" } },
-        "es": { "stringUnit": { "state": "translated", "value": "Foto" } },
-        "fr": { "stringUnit": { "state": "translated", "value": "Photo" } },
-        "it": { "stringUnit": { "state": "translated", "value": "Foto" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "写真" } },
-        "pt": { "stringUnit": { "state": "translated", "value": "Foto" } },
-        "ru": { "stringUnit": { "state": "translated", "value": "Фото" } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "照片" } },
-        "hi": { "stringUnit": { "state": "translated", "value": "फ़ोटो" } },
-        "bn": { "stringUnit": { "state": "translated", "value": "ছবি" } },
-        "ur": { "stringUnit": { "state": "translated", "value": "تصویر" } },
-        "id": { "stringUnit": { "state": "translated", "value": "Foto" } },
-        "tr": { "stringUnit": { "state": "translated", "value": "Fotoğraf" } },
-        "vi": { "stringUnit": { "state": "translated", "value": "Ảnh" } },
-        "ko": { "stringUnit": { "state": "translated", "value": "사진" } }
-      }
-    },
-    "Datei": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": { "stringUnit": { "state": "translated", "value": "ملف" } },
-        "en": { "stringUnit": { "state": "translated", "value": "File" } },
-        "es": { "stringUnit": { "state": "translated", "value": "Archivo" } },
-        "fr": { "stringUnit": { "state": "translated", "value": "Fichier" } },
-        "it": { "stringUnit": { "state": "translated", "value": "File" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "ファイル" } },
-        "pt": { "stringUnit": { "state": "translated", "value": "Ficheiro" } },
-        "ru": { "stringUnit": { "state": "translated", "value": "Файл" } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "文件" } },
-        "hi": { "stringUnit": { "state": "translated", "value": "फ़ाइल" } },
-        "bn": { "stringUnit": { "state": "translated", "value": "ফাইল" } },
-        "ur": { "stringUnit": { "state": "translated", "value": "فائل" } },
-        "id": { "stringUnit": { "state": "translated", "value": "File" } },
-        "tr": { "stringUnit": { "state": "translated", "value": "Dosya" } },
-        "vi": { "stringUnit": { "state": "translated", "value": "Tệp" } },
-        "ko": { "stringUnit": { "state": "translated", "value": "파일" } }
-      }
-    },
-    "Anhänge": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": { "stringUnit": { "state": "translated", "value": "المرفقات" } },
-        "en": { "stringUnit": { "state": "translated", "value": "Attachments" } },
-        "es": { "stringUnit": { "state": "translated", "value": "Adjuntos" } },
-        "fr": { "stringUnit": { "state": "translated", "value": "Pièces jointes" } },
-        "it": { "stringUnit": { "state": "translated", "value": "Allegati" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "添付ファイル" } },
-        "pt": { "stringUnit": { "state": "translated", "value": "Anexos" } },
-        "ru": { "stringUnit": { "state": "translated", "value": "Вложения" } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "附件" } },
-        "hi": { "stringUnit": { "state": "translated", "value": "अटैचमेंट" } },
-        "bn": { "stringUnit": { "state": "translated", "value": "সংযুক্তি" } },
-        "ur": { "stringUnit": { "state": "translated", "value": "منسلکات" } },
-        "id": { "stringUnit": { "state": "translated", "value": "Lampiran" } },
-        "tr": { "stringUnit": { "state": "translated", "value": "Ekler" } },
-        "vi": { "stringUnit": { "state": "translated", "value": "Tệp đính kèm" } },
-        "ko": { "stringUnit": { "state": "translated", "value": "첨부 파일" } }
-      }
-    },
-    "Anhang entfernen": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": { "stringUnit": { "state": "translated", "value": "إزالة المرفق" } },
-        "en": { "stringUnit": { "state": "translated", "value": "Remove attachment" } },
-        "es": { "stringUnit": { "state": "translated", "value": "Eliminar adjunto" } },
-        "fr": { "stringUnit": { "state": "translated", "value": "Supprimer la pièce jointe" } },
-        "it": { "stringUnit": { "state": "translated", "value": "Rimuovi allegato" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "添付ファイルを削除" } },
-        "pt": { "stringUnit": { "state": "translated", "value": "Remover anexo" } },
-        "ru": { "stringUnit": { "state": "translated", "value": "Удалить вложение" } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "移除附件" } },
-        "hi": { "stringUnit": { "state": "translated", "value": "अटैचमेंट हटाएँ" } },
-        "bn": { "stringUnit": { "state": "translated", "value": "সংযুক্তি সরান" } },
-        "ur": { "stringUnit": { "state": "translated", "value": "منسلکہ ہٹائیں" } },
-        "id": { "stringUnit": { "state": "translated", "value": "Hapus lampiran" } },
-        "tr": { "stringUnit": { "state": "translated", "value": "Eki kaldır" } },
-        "vi": { "stringUnit": { "state": "translated", "value": "Xóa tệp đính kèm" } },
-        "ko": { "stringUnit": { "state": "translated", "value": "첨부 파일 제거" } }
-      }
-    },
-    "Foto konnte nicht geladen werden.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": { "stringUnit": { "state": "translated", "value": "تعذر تحميل الصورة." } },
-        "en": { "stringUnit": { "state": "translated", "value": "Could not load photo." } },
-        "es": { "stringUnit": { "state": "translated", "value": "No se pudo cargar la foto." } },
-        "fr": { "stringUnit": { "state": "translated", "value": "Impossible de charger la photo." } },
-        "it": { "stringUnit": { "state": "translated", "value": "Impossibile caricare la foto." } },
-        "ja": { "stringUnit": { "state": "translated", "value": "写真を読み込めませんでした。" } },
-        "pt": { "stringUnit": { "state": "translated", "value": "Não foi possível carregar a foto." } },
-        "ru": { "stringUnit": { "state": "translated", "value": "Не удалось загрузить фото." } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法加载照片。" } },
-        "hi": { "stringUnit": { "state": "translated", "value": "फ़ोटो लोड नहीं हो सकी।" } },
-        "bn": { "stringUnit": { "state": "translated", "value": "ছবি লোড করা যায়নি।" } },
-        "ur": { "stringUnit": { "state": "translated", "value": "تصویر لوڈ نہیں ہو سکی۔" } },
-        "id": { "stringUnit": { "state": "translated", "value": "Foto tidak dapat dimuat." } },
-        "tr": { "stringUnit": { "state": "translated", "value": "Fotoğraf yüklenemedi." } },
-        "vi": { "stringUnit": { "state": "translated", "value": "Không thể tải ảnh." } },
-        "ko": { "stringUnit": { "state": "translated", "value": "사진을 불러올 수 없습니다." } }
-      }
-    },
-    "Foto konnte nicht gespeichert werden.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": { "stringUnit": { "state": "translated", "value": "تعذر حفظ الصورة." } },
-        "en": { "stringUnit": { "state": "translated", "value": "Could not save photo." } },
-        "es": { "stringUnit": { "state": "translated", "value": "No se pudo guardar la foto." } },
-        "fr": { "stringUnit": { "state": "translated", "value": "Impossible d’enregistrer la photo." } },
-        "it": { "stringUnit": { "state": "translated", "value": "Impossibile salvare la foto." } },
-        "ja": { "stringUnit": { "state": "translated", "value": "写真を保存できませんでした。" } },
-        "pt": { "stringUnit": { "state": "translated", "value": "Não foi possível guardar a foto." } },
-        "ru": { "stringUnit": { "state": "translated", "value": "Не удалось сохранить фото." } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法保存照片。" } },
-        "hi": { "stringUnit": { "state": "translated", "value": "फ़ोटो सेव नहीं हो सकी।" } },
-        "bn": { "stringUnit": { "state": "translated", "value": "ছবি সংরক্ষণ করা যায়নি।" } },
-        "ur": { "stringUnit": { "state": "translated", "value": "تصویر محفوظ نہیں ہو سکی۔" } },
-        "id": { "stringUnit": { "state": "translated", "value": "Foto tidak dapat disimpan." } },
-        "tr": { "stringUnit": { "state": "translated", "value": "Fotoğraf kaydedilemedi." } },
-        "vi": { "stringUnit": { "state": "translated", "value": "Không thể lưu ảnh." } },
-        "ko": { "stringUnit": { "state": "translated", "value": "사진을 저장할 수 없습니다." } }
-      }
-    },
-    "Der Anhang %@ wird von diesem Modell nicht unterstützt.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": { "stringUnit": { "state": "translated", "value": "هذا النموذج لا يدعم المرفق %@." } },
-        "en": { "stringUnit": { "state": "translated", "value": "This model does not support the %@ attachment." } },
-        "es": { "stringUnit": { "state": "translated", "value": "Este modelo no admite el adjunto %@." } },
-        "fr": { "stringUnit": { "state": "translated", "value": "Ce modèle ne prend pas en charge la pièce jointe %@." } },
-        "it": { "stringUnit": { "state": "translated", "value": "Questo modello non supporta l’allegato %@." } },
-        "ja": { "stringUnit": { "state": "translated", "value": "このモデルは添付ファイル %@ に対応していません。" } },
-        "pt": { "stringUnit": { "state": "translated", "value": "Este modelo não suporta o anexo %@." } },
-        "ru": { "stringUnit": { "state": "translated", "value": "Эта модель не поддерживает вложение %@." } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "此模型不支持附件 %@。" } },
-        "hi": { "stringUnit": { "state": "translated", "value": "यह मॉडल %@ अटैचमेंट को सपोर्ट नहीं करता।" } },
-        "bn": { "stringUnit": { "state": "translated", "value": "এই মডেলটি %@ সংযুক্তি সমর্থন করে না।" } },
-        "ur": { "stringUnit": { "state": "translated", "value": "یہ ماڈل %@ منسلکے کو سپورٹ نہیں کرتا۔" } },
-        "id": { "stringUnit": { "state": "translated", "value": "Model ini tidak mendukung lampiran %@." } },
-        "tr": { "stringUnit": { "state": "translated", "value": "Bu model %@ ekini desteklemiyor." } },
-        "vi": { "stringUnit": { "state": "translated", "value": "Mô hình này không hỗ trợ tệp đính kèm %@." } },
-        "ko": { "stringUnit": { "state": "translated", "value": "이 모델은 %@ 첨부 파일을 지원하지 않습니다." } }
-      }
-    },
-    "Datei konnte nicht geladen werden.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": { "stringUnit": { "state": "translated", "value": "تعذر تحميل الملف." } },
-        "en": { "stringUnit": { "state": "translated", "value": "Could not load file." } },
-        "es": { "stringUnit": { "state": "translated", "value": "No se pudo cargar el archivo." } },
-        "fr": { "stringUnit": { "state": "translated", "value": "Impossible de charger le fichier." } },
-        "it": { "stringUnit": { "state": "translated", "value": "Impossibile caricare il file." } },
-        "ja": { "stringUnit": { "state": "translated", "value": "ファイルを読み込めませんでした。" } },
-        "pt": { "stringUnit": { "state": "translated", "value": "Não foi possível carregar o ficheiro." } },
-        "ru": { "stringUnit": { "state": "translated", "value": "Не удалось загрузить файл." } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法加载文件。" } },
-        "hi": { "stringUnit": { "state": "translated", "value": "फ़ाइल लोड नहीं हो सकी।" } },
-        "bn": { "stringUnit": { "state": "translated", "value": "ফাইল লোড করা যায়নি।" } },
-        "ur": { "stringUnit": { "state": "translated", "value": "فائل لوڈ نہیں ہو سکی۔" } },
-        "id": { "stringUnit": { "state": "translated", "value": "File tidak dapat dimuat." } },
-        "tr": { "stringUnit": { "state": "translated", "value": "Dosya yüklenemedi." } },
-        "vi": { "stringUnit": { "state": "translated", "value": "Không thể tải tệp." } },
-        "ko": { "stringUnit": { "state": "translated", "value": "파일을 불러올 수 없습니다." } }
-      }
-    },
-    "Datei konnte nicht gelesen werden.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": { "stringUnit": { "state": "translated", "value": "تعذر قراءة الملف." } },
-        "en": { "stringUnit": { "state": "translated", "value": "Could not read file." } },
-        "es": { "stringUnit": { "state": "translated", "value": "No se pudo leer el archivo." } },
-        "fr": { "stringUnit": { "state": "translated", "value": "Impossible de lire le fichier." } },
-        "it": { "stringUnit": { "state": "translated", "value": "Impossibile leggere il file." } },
-        "ja": { "stringUnit": { "state": "translated", "value": "ファイルを読み込めませんでした。" } },
-        "pt": { "stringUnit": { "state": "translated", "value": "Não foi possível ler o ficheiro." } },
-        "ru": { "stringUnit": { "state": "translated", "value": "Не удалось прочитать файл." } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法读取文件。" } },
-        "hi": { "stringUnit": { "state": "translated", "value": "फ़ाइल पढ़ी नहीं जा सकी।" } },
-        "bn": { "stringUnit": { "state": "translated", "value": "ফাইল পড়া যায়নি।" } },
-        "ur": { "stringUnit": { "state": "translated", "value": "فائل پڑھی نہیں جا سکی۔" } },
-        "id": { "stringUnit": { "state": "translated", "value": "File tidak dapat dibaca." } },
-        "tr": { "stringUnit": { "state": "translated", "value": "Dosya okunamadı." } },
-        "vi": { "stringUnit": { "state": "translated", "value": "Không thể đọc tệp." } },
-        "ko": { "stringUnit": { "state": "translated", "value": "파일을 읽을 수 없습니다." } }
-      }
-    },
-    "Datei konnte nicht gespeichert werden.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": { "stringUnit": { "state": "translated", "value": "تعذر حفظ الملف." } },
-        "en": { "stringUnit": { "state": "translated", "value": "Could not save file." } },
-        "es": { "stringUnit": { "state": "translated", "value": "No se pudo guardar el archivo." } },
-        "fr": { "stringUnit": { "state": "translated", "value": "Impossible d’enregistrer le fichier." } },
-        "it": { "stringUnit": { "state": "translated", "value": "Impossibile salvare il file." } },
-        "ja": { "stringUnit": { "state": "translated", "value": "ファイルを保存できませんでした。" } },
-        "pt": { "stringUnit": { "state": "translated", "value": "Não foi possível guardar o ficheiro." } },
-        "ru": { "stringUnit": { "state": "translated", "value": "Не удалось сохранить файл." } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法保存文件。" } },
-        "hi": { "stringUnit": { "state": "translated", "value": "फ़ाइल सेव नहीं हो सकी।" } },
-        "bn": { "stringUnit": { "state": "translated", "value": "ফাইল সংরক্ষণ করা যায়নি।" } },
-        "ur": { "stringUnit": { "state": "translated", "value": "فائل محفوظ نہیں ہو سکی۔" } },
-        "id": { "stringUnit": { "state": "translated", "value": "File tidak dapat disimpan." } },
-        "tr": { "stringUnit": { "state": "translated", "value": "Dosya kaydedilemedi." } },
-        "vi": { "stringUnit": { "state": "translated", "value": "Không thể lưu tệp." } },
-        "ko": { "stringUnit": { "state": "translated", "value": "파일을 저장할 수 없습니다." } }
       }
     }
   },

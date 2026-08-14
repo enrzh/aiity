@@ -86,6 +86,7 @@ struct ChatView: View {
     @State private var scrollContentHeight: CGFloat = 0
     @State private var isNearBottom = true
     @State private var showJumpToLatest = false
+    @State private var emptyStateRevealed = false
     @State private var scrollToLatestRequest = 0
 #if DEBUG
     @State private var uiTestFixtureDelivered = false
@@ -722,24 +723,39 @@ struct ChatView: View {
 
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: Theme.space3) {
-            Image(systemName: isEditingApp ? "wand.and.stars" : "sparkles")
-                // Text style instead of a fixed size — tracks Dynamic Type.
-                .font(.title.weight(.semibold))
-                .foregroundStyle(Theme.accent)
-            Text(isEditingApp ? "Was ändern?" : "Was soll ich bauen?")
-                .font(.title2.bold())
-            SuggestionList(suggestions: isEditingApp ? [
-                "Dunkleres Design",
-                String(localized: "Bearbeiten & Löschen"),
-                "Anderes Icon",
-                "Netzwerk erlauben",
-            ] : buildSuggestions) { suggestion in
-                input = suggestion
-                send()
+            revealStep(0.15) {
+                if isEditingApp {
+                    Image(systemName: "wand.and.stars")
+                        // Text style instead of a fixed size — tracks Dynamic Type.
+                        .font(.title.weight(.semibold))
+                        .foregroundStyle(Theme.accent)
+                } else {
+                    // Brand mark instead of a generic glyph; the tiles land as
+                    // the hero slot fades in.
+                    AssemblingTileMark(tileSize: 28, initialDelay: 0.2)
+                }
+            }
+            revealStep(0.3) {
+                Text(isEditingApp ? "Was ändern?" : "Was soll ich bauen?")
+                    .font(.title2.bold())
+            }
+            revealStep(0.45) {
+                SuggestionList(suggestions: isEditingApp ? [
+                    "Dunkleres Design",
+                    String(localized: "Bearbeiten & Löschen"),
+                    "Anderes Icon",
+                    "Netzwerk erlauben",
+                ] : buildSuggestions) { suggestion in
+                    input = suggestion
+                    send()
+                }
             }
         }
         .padding(.top, Theme.space4)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .onAppear { emptyStateRevealed = true }
+        // Reset so a fresh conversation replays the entrance.
+        .onDisappear { emptyStateRevealed = false }
         // Only the empty state asks for model-generated ideas, so no request
         // can ever fire from a conversation that already has messages. The id
         // re-runs it when the user picks a different provider or model.
@@ -750,6 +766,19 @@ struct ChatView: View {
                 savedAppCount: savedApps.count
             )
         }
+    }
+
+    /// One step of the empty state's staggered entrance: fade + rise, sequenced
+    /// by delay. The bound animation is nil under Reduce Motion, so the reveal
+    /// snaps into place instead.
+    private func revealStep(_ delay: Double, @ViewBuilder content: () -> some View) -> some View {
+        content()
+            .opacity(emptyStateRevealed ? 1 : 0)
+            .offset(y: emptyStateRevealed ? 0 : 12)
+            .animation(
+                reduceMotion ? nil : Theme.Motion.soft.delay(delay),
+                value: emptyStateRevealed
+            )
     }
 
     /// Build-mode chips. The session owns the composition; the fallback only
@@ -942,12 +971,18 @@ struct ChatView: View {
             contentBottom: contentBottom,
             viewportBottom: scrollViewportHeight
         )
-        showJumpToLatest = !isNearBottom
+        // Animated so the button's declared scale/opacity transition actually
+        // runs — a bare write pops it in and out.
+        withAnimation(Theme.Motion.preferSpring(Theme.Motion.snappy, reduceMotion: reduceMotion)) {
+            showJumpToLatest = !isNearBottom
+        }
     }
 
     private func requestScrollToLatestIfNeeded(_ proxy: ScrollViewProxy) {
         guard isNearBottom else {
-            showJumpToLatest = true
+            withAnimation(Theme.Motion.preferSpring(Theme.Motion.snappy, reduceMotion: reduceMotion)) {
+                showJumpToLatest = true
+            }
             return
         }
         scrollToLatest(proxy)
@@ -959,8 +994,9 @@ struct ChatView: View {
             Theme.Motion.preferSpring(Theme.Motion.scroll, reduceMotion: reduceMotion)
         ) {
             proxy.scrollTo("chat-bottom-sentinel", anchor: .bottom)
+            // Inside the block so the button fades out with the scroll.
+            showJumpToLatest = false
         }
-        showJumpToLatest = false
     }
 
     private func retryLastUserMessage() {
@@ -1203,7 +1239,6 @@ private struct MessageBubble: View {
     let onPreviewMedia: (ChatMediaPreviewRoute) -> Void
     let isBusy: Bool
     var showTyping: Bool = false
-    @Environment(\.colorScheme) private var colorScheme
 
     private var bubbleText: String {
         message.role == .assistant ? ChatView.strippingHTMLFence(from: message.text) : message.text
@@ -1239,10 +1274,17 @@ private struct MessageBubble: View {
                     // In a group, every bubble says who is speaking — without
                     // it a discussion is an unattributed wall of text.
                     if let author = message.authorName {
-                        Text("\(message.authorEmoji ?? "🤖") \(author)")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(Color.accentColor)
-                            .padding(.leading, 4)
+                        HStack(spacing: 3) {
+                            if let emoji = message.authorEmoji {
+                                Text(emoji)
+                            } else {
+                                Image(systemName: "person.crop.circle")
+                            }
+                            Text(author)
+                        }
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(Color.accentColor)
+                        .padding(.leading, 4)
                     }
                     if !message.toolCalls.isEmpty {
                         ForEach(message.toolCalls) { call in
@@ -1270,7 +1312,7 @@ private struct MessageBubble: View {
                             .padding(.vertical, 10)
                             .background(
                                 message.role == .user
-                                    ? AnyShapeStyle(Theme.accentGradient(for: colorScheme))
+                                    ? AnyShapeStyle(Color.accentColor)
                                     : AnyShapeStyle(Color(.secondarySystemBackground)),
                                 in: RoundedRectangle(cornerRadius: Theme.bubbleRadius, style: .continuous)
                             )
@@ -1586,7 +1628,7 @@ private struct MiniAppCard: View {
                     .accessibilityIdentifier("preview-app")
                 if let onEditAI {
                     Button(action: onEditAI) {
-                        Image(systemName: "sparkles")
+                        Image(systemName: "wand.and.stars")
                     }
                     .buttonStyle(.bordered)
                     .disabled(isStreaming)

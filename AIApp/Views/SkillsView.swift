@@ -5,19 +5,15 @@ struct SkillsView: View {
     @StateObject private var store = SkillStore()
     @State private var showingAdd = false
     @State private var showingImport = false
-    @State private var upgrading = false
+    /// Install key of the one recommendation currently installing — a shared
+    /// flag would spin every row at once.
+    @State private var installingKey: String?
 
     var body: some View {
         List {
             let imported = store.skills.filter { !$0.builtin }
             let builtins = store.skills.filter(\.builtin)
             let active = store.skills.filter(\.enabled).count
-
-            Section {
-                Text(active == 0 ? "Keine Skills aktiv" : "\(active) aktiv")
-                    .font(.subheadline)
-                    .foregroundStyle(active == 0 ? .secondary : Color.accentColor)
-            }
 
             if !imported.isEmpty {
                 Section("Importiert") {
@@ -27,10 +23,14 @@ struct SkillsView: View {
                 }
             }
 
-            Section("Integriert") {
+            Section {
                 ForEach(builtins) { skill in
                     skillRow(skill)
                 }
+            } header: {
+                Text("Integriert")
+            } footer: {
+                Text(active == 0 ? "Keine Skills aktiv" : "\(active) aktiv")
             }
 
             // Already-installed recommendations vanish from the lists (and
@@ -59,7 +59,7 @@ struct SkillsView: View {
                 }
             }
 
-            Section("Installieren") {
+            Section {
                 Button {
                     showingImport = true
                 } label: {
@@ -71,21 +71,18 @@ struct SkillsView: View {
                 } label: {
                     Label("Selbst schreiben", systemImage: "square.and.pencil")
                 }
+            } header: {
+                Text("Installieren")
+            } footer: {
                 if let error = store.errorMessage {
-                    BannerView(message: error, kind: .error) {
-                        store.errorMessage = nil
-                    }
-                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                }
-                if let ok = store.lastInstallMessage {
-                    BannerView(message: ok, kind: .success) {
-                        store.lastInstallMessage = nil
-                    }
-                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    Text(error).foregroundStyle(.red)
+                } else if let ok = store.lastInstallMessage {
+                    Text(ok)
                 }
             }
         }
         .navigationTitle("Skills")
+        .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingAdd) {
             AddSkillSheet { name, instructions in
                 store.add(name: name, instructions: instructions)
@@ -108,10 +105,9 @@ struct SkillsView: View {
                     .foregroundStyle(Color.accentColor)
                     .frame(width: 28)
                 Text(rec.title)
-                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
                 Spacer(minLength: 0)
-                if upgrading {
+                if installingKey == rec.installKey {
                     ProgressView().controlSize(.small)
                 } else {
                     Image(systemName: "plus.circle.fill")
@@ -119,29 +115,14 @@ struct SkillsView: View {
                 }
             }
         }
-        .disabled(upgrading)
+        .disabled(installingKey == rec.installKey)
         .accessibilityIdentifier("skill-rec-\(rec.id)")
     }
 
     private func skillRow(_ skill: AgentSkill) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(skill.name)
-                    if skill.builtin {
-                        Text("Integriert")
-                            .font(.caption2)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 1)
-                            .background(Color.secondary.opacity(0.15), in: Capsule())
-                    } else if skill.source != nil {
-                        Text("Paket")
-                            .font(.caption2)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 1)
-                            .background(Color.accentColor.opacity(0.12), in: Capsule())
-                    }
-                }
+                Text(skill.name)
                 if !skill.summary.isEmpty {
                     Text(skill.summary)
                         .font(.caption)
@@ -150,6 +131,15 @@ struct SkillsView: View {
                 }
             }
             Spacer()
+            if skill.builtin {
+                Text("Integriert")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else if skill.source != nil {
+                Text("Paket")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Toggle("", isOn: Binding(
                 get: { skill.enabled },
                 set: { _ in store.toggle(skill) }
@@ -167,10 +157,10 @@ struct SkillsView: View {
             }
             if skill.source != nil {
                 Button {
-                    upgrading = true
+                    installingKey = skill.name
                     Task {
                         await store.updateFromSource(skill)
-                        upgrading = false
+                        installingKey = nil
                     }
                 } label: {
                     Label("Update", systemImage: "arrow.clockwise")
@@ -181,7 +171,7 @@ struct SkillsView: View {
     }
 
     private func installRecommendation(_ rec: SkillRecommendation) {
-        upgrading = true
+        installingKey = rec.installKey
         store.errorMessage = nil
         store.lastInstallMessage = nil
         Task {
@@ -190,7 +180,7 @@ struct SkillsView: View {
             if store.errorMessage != nil, let remote = rec.remoteSource {
                 await store.install(from: remote)
             }
-            upgrading = false
+            installingKey = nil
             if store.errorMessage == nil {
                 Analytics.track("skill_installed", ["source": "recommendation", "key": rec.installKey])
             }

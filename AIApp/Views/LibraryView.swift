@@ -7,6 +7,7 @@ struct LibraryView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var session: ChatSession
     @Environment(\.openChatTab) private var openChatTab
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject private var sync = SyncStatus.shared
     @State private var openApp: MiniApp?
     @State private var iconEditApp: MiniApp?
@@ -35,21 +36,21 @@ struct LibraryView: View {
                                 appCard(app)
                             }
                         }
+                        .animation(
+                            Theme.Motion.preferSpring(Theme.Motion.soft, reduceMotion: reduceMotion),
+                            value: apps.map(\.id)
+                        )
                         .padding()
                     }
                 }
             }
-            // No title: the tab bar already says "Apps" right below this screen,
-            // so a large "Meine Apps" header just repeated it and ate a row of
-            // grid space.
-            .navigationTitle("")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationTitle(String(localized: "Apps"))
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showAddWebApp = true
                     } label: {
-                        Image(systemName: "globe.badge.chevron.backward")
+                        Image(systemName: "plus")
                     }
                     .accessibilityIdentifier("add-webapp")
                     .accessibilityLabel("Website als App hinzufügen")
@@ -140,11 +141,17 @@ struct LibraryView: View {
             systemImage: "icloud.and.arrow.down",
             message: String(localized: "iCloud gleicht gerade ab — deine Apps von anderen Geräten sollten gleich erscheinen.")
         )
+        // AppEmptyState draws the symbol internally; a container symbolEffect
+        // reaches it. The pulse belongs to this call site — only here is the
+        // symbol an activity indicator rather than decoration.
+        .symbolEffect(
+            .variableColor.iterative, options: .repeating,
+            isActive: !reduceMotion && !sync.initialImportComplete
+        )
     }
 
     private func appCard(_ app: MiniApp) -> some View {
         Button {
-            Theme.Haptics.tap()
             openApp = app
         } label: {
             MiniAppTile(
@@ -155,6 +162,7 @@ struct LibraryView: View {
             )
         }
         .buttonStyle(.pressable)
+        .transition(.scale(scale: 0.9).combined(with: .opacity))
         .accessibilityIdentifier("library-app")
         // The library is a grid, and `.swipeActions` only exists on List rows —
         // so the delete affordance is the long-press menu, which is what a grid
@@ -164,7 +172,7 @@ struct LibraryView: View {
                 session.startEditing(id: app.id, name: app.name, html: app.runnableHTML)
                 openChatTab()
             } label: {
-                Label("Mit KI bearbeiten", systemImage: "sparkles")
+                Label("Mit KI bearbeiten", systemImage: "wand.and.stars")
             }
             Button {
                 iconEditApp = app
@@ -245,6 +253,7 @@ struct AddWebAppSheet: View {
 struct IconPickerSheet: View {
     @Bindable var app: MiniApp
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var emojiDraft: String = ""
     @State private var symbolDraft: String = ""
 
@@ -273,7 +282,13 @@ struct IconPickerSheet: View {
                             } label: {
                                 Text(e).font(.title)
                                     .frame(width: 44, height: 44)
-                                    .background(emojiDraft == e ? Color.accentColor.opacity(0.2) : Color.clear, in: RoundedRectangle(cornerRadius: Theme.chipRadius, style: .continuous))
+                                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.chipRadius, style: .continuous))
+                                    .overlay {
+                                        if emojiDraft == e {
+                                            RoundedRectangle(cornerRadius: Theme.chipRadius, style: .continuous)
+                                                .strokeBorder(Color.accentColor, lineWidth: 2)
+                                        }
+                                    }
                             }
                             .buttonStyle(.plain)
                         }
@@ -288,7 +303,13 @@ struct IconPickerSheet: View {
                             } label: {
                                 Image(systemName: s)
                                     .frame(width: 44, height: 44)
-                                    .background(symbolDraft == s ? Color.accentColor.opacity(0.2) : Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.chipRadius, style: .continuous))
+                                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.chipRadius, style: .continuous))
+                                    .overlay {
+                                        if symbolDraft == s {
+                                            RoundedRectangle(cornerRadius: Theme.chipRadius, style: .continuous)
+                                                .strokeBorder(Color.accentColor, lineWidth: 2)
+                                        }
+                                    }
                             }
                             .buttonStyle(.plain)
                         }
@@ -304,6 +325,11 @@ struct IconPickerSheet: View {
                             emoji: emojiDraft.isEmpty ? app.emoji : emojiDraft,
                             iconSymbol: symbolDraft.isEmpty ? nil : symbolDraft,
                             size: 72
+                        )
+                        .contentTransition(reduceMotion ? .identity : .symbolEffect(.replace))
+                        .animation(
+                            Theme.Motion.preferSpring(Theme.Motion.snappy, reduceMotion: reduceMotion),
+                            value: symbolDraft
                         )
                         Spacer()
                     }

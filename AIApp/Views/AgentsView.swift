@@ -5,6 +5,7 @@ import SwiftUI
 struct AgentsView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     @ObservedObject private var store = AgentStore.shared
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var editing: AgentDefinition?
     @State private var deleteCandidate: AgentDefinition?
     /// Collapse state of the "Vorschläge" section once agents exist. Persisted
@@ -64,8 +65,7 @@ struct AgentsView: View {
                     }
                 }
             }
-            .navigationTitle("")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("Agenten")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -124,7 +124,9 @@ struct AgentsView: View {
             Text("Vorschläge")
         } else {
             Button {
-                withAnimation { suggestionsExpanded.toggle() }
+                withAnimation(Theme.Motion.preferSpring(Theme.Motion.snappy, reduceMotion: reduceMotion)) {
+                    suggestionsExpanded.toggle()
+                }
             } label: {
                 HStack {
                     Text("Vorschläge")
@@ -145,6 +147,24 @@ struct AgentsView: View {
         }
     }
 
+    /// Identity seated in a filled circle, like system avatar rows. Saved
+    /// agents always carry an emoji (the edit sheet defaults it), so the
+    /// symbol branch is purely defensive.
+    private func avatar(_ emoji: String) -> some View {
+        ZStack {
+            Circle().fill(Color(.tertiarySystemFill))
+            if emoji.isEmpty {
+                Image(systemName: "person.crop.circle")
+                    .font(.title2)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text(emoji).font(.title2)
+            }
+        }
+        .frame(width: 36, height: 36)
+        .accessibilityHidden(true)
+    }
+
     /// A suggestion opens the editor pre-filled rather than saving straight
     /// away — the user still names the model and can rewrite the role.
     private func suggestionRow(_ template: AgentSuggestion.Template) -> some View {
@@ -152,10 +172,9 @@ struct AgentsView: View {
             editing = AgentSuggestion.agent(from: template)
         } label: {
             HStack(spacing: 12) {
-                Text(template.emoji).font(.title2).frame(width: 34)
+                avatar(template.emoji)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(template.name)
-                        .font(.body.weight(.semibold))
                         .foregroundStyle(.primary)
                     Text(template.role)
                         .font(.caption)
@@ -184,12 +203,9 @@ struct AgentsView: View {
                 editing = agent
             } label: {
                 HStack(spacing: 12) {
-                    Text(agent.emoji)
-                        .font(.title2)
-                        .frame(width: 34)
+                    avatar(agent.emoji)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(agent.name.isEmpty ? "Ohne Namen" : agent.name)
-                            .font(.body.weight(.semibold))
                             .foregroundStyle(agent.enabled ? .primary : .secondary)
                         Text(agent.providerLabel(fallback: settingsStore.settings))
                             .font(.caption)
@@ -299,19 +315,15 @@ struct AgentEditSheet: View {
                     Button {
                         writeRole()
                     } label: {
-                        if writingRole {
-                            HStack(spacing: 8) {
-                                ProgressView().controlSize(.small)
-                                Text("Schreibt…")
-                            }
-                        } else {
-                            Label(
-                                agent.role.trimmingCharacters(in: .whitespaces).isEmpty
-                                    ? "Mit KI beschreiben"
-                                    : "Mit KI verbessern",
-                                systemImage: "sparkles"
-                            )
-                        }
+                        Label(
+                            agent.role.trimmingCharacters(in: .whitespaces).isEmpty
+                                ? "Mit KI beschreiben"
+                                : "Mit KI verbessern",
+                            systemImage: "wand.and.stars"
+                        )
+                        // Stays mounted while the rewrite runs — the pulsing
+                        // wand is the progress indicator.
+                        .symbolEffect(.pulse, isActive: writingRole)
                     }
                     .disabled(writingRole)
                     .accessibilityIdentifier("agent-write-role")

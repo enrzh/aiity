@@ -145,4 +145,24 @@ final class ScreenshotTests: XCTestCase {
 
         print("AIITY-SHOTS \(shotDirectory.path)")
     }
+
+    /// Onboarding needs its own launch: every other capture sets the
+    /// completed flag, and these two frames are exactly the screens that
+    /// flag suppresses.
+    func testCaptureOnboarding() {
+        let app = XCUIApplication()
+        let language = ProcessInfo.processInfo.environment["AIITY_SHOT_LANG"] ?? "de"
+        app.launchArguments += ["-AppleLanguages", "(\(language))", "-AppleLocale", language]
+        app.launch()
+
+        let next = app.descendants(matching: .any)
+            .matching(identifier: "onboarding-next").firstMatch
+        XCTAssertTrue(next.waitForExistence(timeout: 25), "no onboarding CTA")
+        sleep(2)  // let the entrance choreography land before framing
+        capture("00-onboarding-welcome")
+
+        next.tap()
+        sleep(1)
+        capture("00-onboarding-connect")
+    }
 }

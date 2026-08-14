@@ -14,6 +14,7 @@ struct ProviderConnectionView: View {
     var promptsOnExit: Bool = true
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var settingsStore: SettingsStore
     @EnvironmentObject private var accountStore: AccountStore
     @StateObject private var oauth = OAuthService()
@@ -217,8 +218,12 @@ struct ProviderConnectionView: View {
         Section {
             switch AppleFoundationProvider.availability() {
             case .available:
-                Label("Bereit", systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
+                Label {
+                    Text("Bereit")
+                } icon: {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                }
             case .unavailable(let reason):
                 Label(reason, systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.secondary)
@@ -417,25 +422,24 @@ struct ProviderConnectionView: View {
 
     private var testConnectionSection: some View {
         Section {
-            LabeledContent("1", value: "Zugang und Modell prüfen")
+            Text("Zugang und Modell prüfen")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
             TextField("Testnachricht", text: $testMessage, axis: .vertical)
                 .lineLimit(1...3)
                 .accessibilityIdentifier("provider-test-message")
             Button {
                 runProbe()
             } label: {
-                if probing {
-                    ProgressView()
-                } else {
-                    Label("2 · Testnachricht senden", systemImage: "paperplane")
+                BusyRowLabel(busy: probing) {
+                    Label("Testnachricht senden", systemImage: "paperplane")
                 }
             }
             .disabled(probing)
             .accessibilityIdentifier("test-connection")
             if let probeResult {
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: probeResult.ok ? "checkmark.circle.fill" : "xmark.octagon.fill")
-                        .foregroundStyle(probeResult.ok ? Color.green : Color.red)
+                HStack(alignment: .top, spacing: Theme.space1) {
+                    ProbeResultIcon(ok: probeResult.ok)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(probeResult.reason)
                             .font(.footnote)
@@ -451,7 +455,7 @@ struct ProviderConnectionView: View {
                                 .foregroundStyle(.secondary)
                         }
                         ForEach(probeResult.stages) { stage in
-                            HStack(spacing: 6) {
+                            HStack(spacing: Theme.space1) {
                                 Image(systemName: stageIcon(stage.state))
                                     .foregroundStyle(stageColor(stage.state))
                                 Text(stage.name)
@@ -464,6 +468,7 @@ struct ProviderConnectionView: View {
                         }
                     }
                 }
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
             if probeResult == nil, let health = sub2APIHealth, presetId == "sub2api" {
                 LabeledContent("Zuletzt geprüft", value: health.checkedAt.formatted(date: .abbreviated, time: .shortened))
@@ -471,9 +476,7 @@ struct ProviderConnectionView: View {
                 if let latency = health.latencyMilliseconds { LabeledContent("Latenz", value: "\(latency) ms") }
             }
             if let validationError {
-                Text(validationError.localizedDescription)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
+                ConnectionErrorRow(message: validationError.localizedDescription)
                     .accessibilityIdentifier("provider-validation-error")
             }
         } header: {
@@ -491,14 +494,17 @@ struct ProviderConnectionView: View {
                 Button {
                     accountStore.setActive(account)
                 } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: account.id == activeAccount?.id ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(account.id == activeAccount?.id ? Color.accentColor : Color.secondary)
+                    HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(account.label)
                             Text(account.isOAuth ? "Abo-Login (OAuth)" : "API-Key")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        if account.id == activeAccount?.id {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(.tint)
                         }
                     }
                 }
@@ -530,9 +536,7 @@ struct ProviderConnectionView: View {
                 Button {
                     signInWithOAuth()
                 } label: {
-                    if oauth.busy {
-                        ProgressView()
-                    } else {
+                    BusyRowLabel(busy: oauth.busy) {
                         Label(oauthButtonTitle, systemImage: "person.crop.circle.badge.plus")
                     }
                 }
@@ -554,9 +558,9 @@ struct ProviderConnectionView: View {
                         .font(.caption.weight(.semibold))
                 }
             }
-            .padding(.vertical, 2)
+            .padding(.vertical, 4)
             if let authError {
-                Text(authError).font(.caption).foregroundStyle(.red)
+                ConnectionErrorRow(message: authError)
             }
         } header: {
             Text("Konten")
@@ -650,16 +654,14 @@ struct ProviderConnectionView: View {
                 sub2APIEnrollmentError = nil
                 showSub2APIScanner = true
             } label: {
-                if enrollingSub2API {
-                    ProgressView()
-                } else {
+                BusyRowLabel(busy: enrollingSub2API) {
                     Label("Einrichtungs-QR scannen", systemImage: "qrcode.viewfinder")
                 }
             }
             .disabled(enrollingSub2API)
             .accessibilityIdentifier("sub2api-scan-enrollment")
             if let sub2APIEnrollmentError {
-                Text(sub2APIEnrollmentError).font(.caption).foregroundStyle(.red)
+                ConnectionErrorRow(message: sub2APIEnrollmentError)
             }
             Text("Der QR-Code enthält nur ein einmaliges Geräte-Token. Alternativ: Gateway-Adresse und Geräte-Key manuell eintragen.")
                 .font(.caption)
@@ -729,9 +731,7 @@ struct ProviderConnectionView: View {
             Button {
                 fetchModels()
             } label: {
-                if fetchingModels {
-                    ProgressView()
-                } else {
+                BusyRowLabel(busy: fetchingModels) {
                     Label(
                         catalogModels.isEmpty
                             ? "Modelle laden"
@@ -743,10 +743,7 @@ struct ProviderConnectionView: View {
             .disabled(fetchingModels)
             .accessibilityIdentifier("fetch-models")
             if let err = modelsError {
-                BannerView(message: err, kind: .error) {
-                    self.modelsError = nil
-                }
-                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                ConnectionErrorRow(message: err)
             }
         } header: {
             Text(modality.modelSectionTitle)
@@ -799,7 +796,8 @@ struct ProviderConnectionView: View {
     private func bootstrapModels() {
         let seed = ModelCatalogCache.modelsForDisplay(presetId: presetId)
         if !seed.isEmpty {
-            catalogModels = seed
+            // Animated: this flips the model row from TextField to Picker.
+            withAnimation(Theme.Motion.snappy) { catalogModels = seed }
             switch modality {
             case .chat:
                 suggestChatModel(from: seed, settings: connectionSettings)
@@ -835,7 +833,8 @@ struct ProviderConnectionView: View {
             if let models = try? await ModelCatalogService.fetchModels(settings: snapshot, apiKey: key),
                !models.isEmpty {
                 await MainActor.run {
-                    catalogModels = models
+                    // Animated: this can restructure the model row mid-look.
+                    withAnimation(Theme.Motion.snappy) { catalogModels = models }
                     switch modality {
                     case .chat:
                         suggestChatModel(from: models, settings: snapshot)
@@ -893,34 +892,31 @@ struct ProviderConnectionView: View {
                 Button {
                     localModelDraft = model.id
                 } label: {
-                    HStack {
-                        Image(systemName: selectionSymbol(for: model.id, blocked: shortage != nil))
-                            .foregroundStyle(
-                                shortage != nil ? Color.secondary
-                                    : (localModelDraft == model.id ? Color.accentColor : Color.secondary)
-                            )
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 5) {
-                                Text(model.displayName)
-                                    .foregroundStyle(shortage != nil ? Color.secondary : Color.primary)
-                                if model.recommended {
-                                    Label("Empfohlen", systemImage: "star.fill")
-                                        .font(.caption2)
-                                        .foregroundStyle(Color.accentColor)
-                                }
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 4) {
+                            Text(model.displayName)
+                                .foregroundStyle(shortage != nil ? Color.secondary : Color.primary)
+                            if model.recommended {
+                                Label("Empfohlen", systemImage: "star.fill")
+                                    .font(.caption2)
+                                    .foregroundStyle(Color.accentColor)
                             }
-                            // The shortage REPLACES the marketing subtitle: two
-                            // lines that disagree about whether a model is a
-                            // good idea is how the old screen read.
-                            Text(shortage.map { String(localized: "Deaktiviert: \($0)") } ?? model.details)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
                         }
+                        // The shortage REPLACES the marketing subtitle: two
+                        // lines that disagree about whether a model is a
+                        // good idea is how the old screen read.
+                        Text(shortage.map { String(localized: "Deaktiviert: \($0)") } ?? model.details)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 .buttonStyle(.plain)
                 .disabled(shortage != nil)
                 Spacer()
+                if shortage == nil, localModelDraft == model.id {
+                    Image(systemName: "checkmark")
+                        .foregroundStyle(.tint)
+                }
                 if let fraction = modelStore.progress[model.id] {
                     ProgressView(value: fraction)
                         .frame(width: 60)
@@ -951,15 +947,8 @@ struct ProviderConnectionView: View {
             }
         }
         if let error = modelStore.errorMessage {
-            Text(error)
-                .font(.caption)
-                .foregroundStyle(.red)
+            ConnectionErrorRow(message: error)
         }
-    }
-
-    private func selectionSymbol(for modelId: String, blocked: Bool) -> String {
-        if blocked { return "slash.circle" }
-        return localModelDraft == modelId ? "checkmark.circle.fill" : "circle"
     }
 
     // MARK: Actions
@@ -1024,7 +1013,7 @@ struct ProviderConnectionView: View {
                 // Ensure OAuth OpenAI snapshot still uses openai presetId for curated path.
                 snapshot.presetId = presetId
                 let models = try await ModelCatalogService.fetchModels(settings: snapshot, apiKey: key)
-                catalogModels = models
+                withAnimation(Theme.Motion.snappy) { catalogModels = models }
                 if models.isEmpty {
                     modelsError = "Keine Modelle gemeldet."
                 } else {
@@ -1048,7 +1037,9 @@ struct ProviderConnectionView: View {
                 modelsError = NetworkErrorFriendly.message(for: error)
                 // Keep showing defaults if we have them.
                 if catalogModels.isEmpty {
-                    catalogModels = ModelCatalogCache.modelsForDisplay(presetId: presetId)
+                    withAnimation(Theme.Motion.snappy) {
+                        catalogModels = ModelCatalogCache.modelsForDisplay(presetId: presetId)
+                    }
                 }
             }
             fetchingModels = false
@@ -1058,8 +1049,11 @@ struct ProviderConnectionView: View {
     private func runProbe(for targetModality: ModelModality? = nil, model targetModel: String? = nil) {
         let probeModality = targetModality ?? modality
         let probeModel = targetModel ?? modelDraft
-        probeResult = nil
-        validationError = nil
+        let motion = Theme.Motion.preferSpring(Theme.Motion.snappy, reduceMotion: reduceMotion)
+        withAnimation(motion) {
+            probeResult = nil
+            validationError = nil
+        }
         // The synchronous credential peek is intentionally non-refreshing. It
         // lets validation finish before any OAuth or Keychain mutation.
         let draftKey = newKey.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1081,7 +1075,9 @@ struct ProviderConnectionView: View {
             credentialSnapshot: credentialSnapshot
         )
         guard case .success(let candidate) = candidateResult else {
-            if case .failure(let error) = candidateResult { validationError = error }
+            if case .failure(let error) = candidateResult {
+                withAnimation(motion) { validationError = error }
+            }
             return
         }
         probeTask?.cancel()
@@ -1102,7 +1098,7 @@ struct ProviderConnectionView: View {
                     ? "Reply with exactly: ok" : testMessage
             )
             guard !Task.isCancelled, generation == probeGeneration else { return }
-            probeResult = result
+            withAnimation(motion) { probeResult = result }
             let mapping = Sub2APIModelMapping(
                 chat: result.recommendedChatModel,
                 image: result.recommendedImageModel
@@ -1117,8 +1113,10 @@ struct ProviderConnectionView: View {
             )
             if ProviderConnectionModel.shouldCommit(candidate: resolvedCandidate, probe: result),
                !resolvedCandidate.model.isEmpty {
-                commit(resolvedCandidate, label: label, modality: probeModality)
-                modelDraft = resolvedCandidate.model
+                withAnimation(motion) {
+                    commit(resolvedCandidate, label: label, modality: probeModality)
+                    modelDraft = resolvedCandidate.model
+                }
                 if presetId == "sub2api", let image = mapping.image {
                     ProviderProfiles.update(presetId: presetId) { $0.lastImageModel = image }
                 }
@@ -1127,10 +1125,10 @@ struct ProviderConnectionView: View {
             if probeModality == .chat, modality == .chat, result.ok, !result.models.isEmpty {
                 if let rich = try? await ModelCatalogService.fetchModels(settings: snapshot, apiKey: candidate.apiKey) {
                     guard !Task.isCancelled, generation == probeGeneration else { return }
-                    catalogModels = rich
+                    withAnimation(Theme.Motion.snappy) { catalogModels = rich }
                     suggestChatModel(from: rich, settings: snapshot)
                 } else {
-                    catalogModels = result.models.map { CatalogModel(id: $0) }
+                    withAnimation(Theme.Motion.snappy) { catalogModels = result.models.map { CatalogModel(id: $0) } }
                     suggestChatModel(from: catalogModels, settings: snapshot)
                 }
             }
@@ -1251,6 +1249,59 @@ struct ProviderConnectionView: View {
         newLabel = ""
     }
 
+}
+
+/// Trailing spinner that fades in while a row's action runs — the label stays
+/// mounted so the row never changes size.
+private struct BusyRowLabel<Content: View>: View {
+    let busy: Bool
+    @ViewBuilder var label: () -> Content
+
+    var body: some View {
+        HStack {
+            label()
+            Spacer()
+            ProgressView()
+                .opacity(busy ? 1 : 0)
+        }
+        .animation(Theme.Motion.snappy, value: busy)
+    }
+}
+
+/// The form's single error idiom: the red icon carries the severity, the
+/// message stays primary so long provider errors remain readable.
+private struct ConnectionErrorRow: View {
+    let message: String
+
+    var body: some View {
+        Label {
+            Text(message)
+        } icon: {
+            Image(systemName: "exclamationmark.circle")
+                .foregroundStyle(.red)
+        }
+        .font(.footnote)
+    }
+}
+
+/// One-shot bounce on the success checkmark — the setup journey's single
+/// celebration moment. State + onAppear rather than a value-keyed effect:
+/// the row is inserted already holding its final value, so a value change
+/// would never be observed.
+private struct ProbeResultIcon: View {
+    let ok: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var bounced = false
+
+    var body: some View {
+        Image(systemName: ok ? "checkmark.circle.fill" : "xmark.circle.fill")
+            .foregroundStyle(ok ? Color.green : Color.red)
+            .symbolEffect(.bounce, options: .nonRepeating, value: bounced)
+            .onAppear {
+                // One-shot; Reduce Motion never triggers the bounce at all.
+                if ok, !reduceMotion { bounced = true }
+            }
+    }
 }
 
 // PasteCodeSheet lives in Components/PasteCodeSheet.swift

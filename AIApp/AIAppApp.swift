@@ -173,6 +173,7 @@ struct RootView: View {
     @StateObject private var onboarding = OnboardingStore()
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showOnboarding = false
     @State private var selectedTab = 0
     /// Mini-app an `OpenMiniAppIntent` asked for. Presented from the root, not
@@ -198,7 +199,7 @@ struct RootView: View {
             }
         }
         .animation(
-            Theme.Motion.preferSpring(Theme.Motion.soft, reduceMotion: false),
+            Theme.Motion.preferSpring(Theme.Motion.soft, reduceMotion: reduceMotion),
             value: splashFinished
         )
         // Applied at the root so every sheet and pushed screen inherits it.
@@ -265,8 +266,8 @@ struct RootView: View {
         .tint(Theme.accent)
         // Let content scroll UNDER the tab bar so its glass has something to
         // refract. With an opaque bar the effect has nothing behind it and
-        // reads as a solid black pill.
-        .toolbarBackground(.hidden, for: .tabBar)
+        // reads as a solid black pill. iOS 26 only — see GlassTabBarBackground.
+        .modifier(GlassTabBarBackground())
         .environment(\.openChatTab) {
             selectedTab = 0
         }
@@ -406,6 +407,20 @@ struct RootView: View {
         // system charges us for.
         if changed {
             AiityAppShortcuts.updateAppShortcutParameters()
+        }
+    }
+}
+
+/// Hides the tab bar background only where the liquid-glass bar exists to
+/// refract what scrolls under it (iOS 26+). On 17–25 there is no glass — hiding
+/// the background would just strip the bar's legibility layer, so the system
+/// default stays. Same availability split as GlassSurface in Theme.swift.
+private struct GlassTabBarBackground: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.toolbarBackground(.hidden, for: .tabBar)
+        } else {
+            content
         }
     }
 }

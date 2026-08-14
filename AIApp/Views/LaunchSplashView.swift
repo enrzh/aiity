@@ -10,6 +10,8 @@ import SwiftUI
 struct LaunchSplashView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
+    @ScaledMetric(relativeTo: .largeTitle) private var wordmarkSize: CGFloat = 34
+    @ScaledMetric(relativeTo: .caption2) private var taglineSize: CGFloat = 11
 
     @State private var titleOpacity: Double = 0
     @State private var titleTracking: CGFloat = 14
@@ -34,7 +36,7 @@ struct LaunchSplashView: View {
 
                 VStack(spacing: 0) {
                     Text("aiity")
-                        .font(.system(size: 34, weight: .semibold, design: .rounded))
+                        .font(.system(size: wordmarkSize, weight: .semibold, design: .rounded))
                         .tracking(titleTracking)
                         .foregroundStyle(.primary)
                         .opacity(titleOpacity)
@@ -49,26 +51,17 @@ struct LaunchSplashView: View {
                         .padding(.top, 18)
 
                     Text("AI IT YOURSELF")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.system(size: taglineSize, weight: .medium))
                         .tracking(4.5)
                         .foregroundStyle(.secondary)
                         .opacity(metaOpacity)
                         .padding(.top, 14)
                 }
 
-                // Abstract mini-apps: a 2×2 grid that assembles tile by tile.
-                VStack(spacing: 10) {
-                    HStack(spacing: 10) {
-                        tile(0)
-                        tile(1)
-                    }
-                    HStack(spacing: 10) {
-                        tile(2)
-                        tile(3)
-                    }
-                }
-                .frame(width: 132)
-                .padding(.top, 40)
+                // Abstract mini-apps: the shared brand mark assembling tile
+                // by tile — same drawing as onboarding and the empty states.
+                AiityTileMark(tileSize: 61, progress: tileProgress)
+                    .padding(.top, 40)
 
                 Spacer(minLength: 0)
 
@@ -96,20 +89,6 @@ struct LaunchSplashView: View {
             startPoint: .top,
             endPoint: .bottom
         )
-    }
-
-    private func tile(_ index: Int) -> some View {
-        let progress = tileProgress[index]
-        let shape = RoundedRectangle(cornerRadius: 9, style: .continuous)
-        return shape
-            .fill(Theme.accent.opacity(0.06 + 0.10 * Double(progress)))
-            .glassSurface(in: shape)
-            .overlay(
-                shape.strokeBorder(Theme.accent.opacity(0.45 * Double(progress)), lineWidth: 1)
-            )
-            .frame(width: 61, height: 61)
-            .scaleEffect(0.86 + 0.14 * progress)
-            .opacity(Double(progress))
     }
 
     private func runEntrance() {

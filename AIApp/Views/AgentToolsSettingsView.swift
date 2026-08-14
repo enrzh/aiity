@@ -90,18 +90,14 @@ struct AgentToolsSettingsView: View {
                 .accessibilityIdentifier("share-files")
 
                 ForEach(files.entries) { entry in
-                    HStack {
-                        Label(entry.name, systemImage: "doc")
-                            .lineLimit(1)
-                        Spacer()
-                        Button {
-                            files.remove(entry.id)
-                        } label: {
-                            Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Freigabe entfernen")
-                    }
+                    Label(entry.name, systemImage: "doc")
+                        .lineLimit(1)
+                }
+                .onDelete { offsets in
+                    // Resolve ids first — removing by offset while entries
+                    // mutates underneath would shift the indices.
+                    let ids = offsets.map { files.entries[$0].id }
+                    for id in ids { files.remove(id) }
                 }
                 if !files.entries.isEmpty {
                     Button("Alle Freigaben aufheben", role: .destructive) { files.removeAll() }

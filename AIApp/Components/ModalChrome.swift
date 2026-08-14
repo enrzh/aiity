@@ -6,6 +6,7 @@ struct ModalChrome<Content: View>: View {
     var cancelTitle: String = String(localized: "Abbrechen")
     var confirmTitle: String? = nil
     var confirmDisabled: Bool = false
+    var confirmRole: ButtonRole? = nil
     var onCancel: () -> Void
     var onConfirm: (() -> Void)? = nil
     @ViewBuilder var content: () -> Content
@@ -21,7 +22,7 @@ struct ModalChrome<Content: View>: View {
                     }
                     if let confirmTitle, let onConfirm {
                         ToolbarItem(placement: .confirmationAction) {
-                            Button(confirmTitle, action: onConfirm)
+                            Button(confirmTitle, role: confirmRole, action: onConfirm)
                                 .disabled(confirmDisabled)
                                 .fontWeight(.semibold)
                         }
@@ -87,15 +88,19 @@ struct BannerView: View {
                     Image(systemName: "xmark")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
-                        .frame(width: 28, height: 28)
+                        .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                // 44pt hit target without 44pt of layout: the negative padding
+                // hands back the extra 8pt per side, so the banner stays one
+                // visual line while the frame above still catches the touch.
+                .padding(-8)
                 .accessibilityLabel("Schließen")
             }
         }
         .padding(.horizontal, Theme.space2)
-        .padding(.vertical, 10)
+        .padding(.vertical, Theme.space2)
         .background(color.opacity(0.08), in: RoundedRectangle(cornerRadius: Theme.chipRadius, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(message)
@@ -143,6 +148,7 @@ struct ConfirmModal: View {
         ModalChrome(
             title: title,
             confirmTitle: confirmTitle,
+            confirmRole: isDestructive ? .destructive : nil,
             onCancel: onCancel,
             onConfirm: onConfirm
         ) {

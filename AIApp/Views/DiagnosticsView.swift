@@ -6,12 +6,17 @@ import UIKit
 /// Analyse & Verbesserungen → Analysedaten, or attach the phone to a Mac.
 struct DiagnosticsView: View {
     @ObservedObject private var sync = SyncStatus.shared
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var run: DiagnosticRun?
     @State private var verdict: DiagnosticVerdict = .noPreviousRun
     @State private var metricKit: String?
     @State private var exportURL: URL?
     @State private var copied = false
+    @State private var copyResetTask: Task<Void, Never>?
     @State private var showClearConfirm = false
+    /// Bumped when load() resolves — triggers the one-shot verdict-icon bounce.
+    @State private var loadTick = 0
+    @ScaledMetric(relativeTo: .subheadline) private var bulletSize: CGFloat = 5
 
     var body: some View {
         List {
@@ -60,10 +65,10 @@ struct DiagnosticsView: View {
                     .font(.title2)
                     .foregroundStyle(tint)
                     .frame(width: 32)
+                    .symbolEffect(.bounce, options: .nonRepeating, value: reduceMotion ? 0 : loadTick)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(DiagnosticsReport.headline(verdict, run: run))
                         .font(.headline)
-                        .foregroundStyle(tint)
                     Text(explanation)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -135,7 +140,7 @@ struct DiagnosticsView: View {
                 Label {
                     Text(cause).font(.subheadline)
                 } icon: {
-                    Image(systemName: "circle.fill").font(.system(size: 5)).foregroundStyle(.secondary)
+                    Image(systemName: "circle.fill").font(.system(size: bulletSize)).foregroundStyle(.secondary)
                 }
             }
         } header: {
@@ -222,10 +227,24 @@ struct DiagnosticsView: View {
 
             Button {
                 UIPasteboard.general.string = DiagnosticsRecorder.shared.renderReport()
-                copied = true
+                withAnimation(Theme.Motion.preferSpring(Theme.Motion.snappy, reduceMotion: reduceMotion)) {
+                    copied = true
+                }
+                copyResetTask?.cancel()
+                copyResetTask = Task {
+                    try? await Task.sleep(for: .seconds(2))
+                    guard !Task.isCancelled else { return }
+                    withAnimation(Theme.Motion.preferSpring(Theme.Motion.snappy, reduceMotion: reduceMotion)) {
+                        copied = false
+                    }
+                }
             } label: {
-                Label(copied ? "Kopiert" : "Vollen Bericht kopieren",
-                      systemImage: copied ? "checkmark" : "doc.on.doc")
+                Label {
+                    Text(copied ? "Kopiert" : "Vollen Bericht kopieren")
+                } icon: {
+                    Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                        .contentTransition(.symbolEffect(.replace))
+                }
             }
             .accessibilityIdentifier("copy-diagnostics")
 
@@ -282,6 +301,8 @@ struct DiagnosticsView: View {
         verdict = snapshot.verdict
         metricKit = snapshot.metricKit
         exportURL = DiagnosticsRecorder.shared.exportReport()
+        copyResetTask?.cancel()
         copied = false
+        loadTick += 1
     }
 }

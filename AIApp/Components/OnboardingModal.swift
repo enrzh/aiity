@@ -26,41 +26,38 @@ struct OnboardingModal: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     @EnvironmentObject private var accountStore: AccountStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    /// Scales the hero mark with the type size instead of pinning it at 44pt.
-    @ScaledMetric(relativeTo: .largeTitle) private var heroIconSize: CGFloat = 44
+    /// Scales the hero mark with the type size (one tile of the 2×2 grid).
+    @ScaledMetric(relativeTo: .largeTitle) private var heroTileSize: CGFloat = 34
+
+    // Entrance choreography — separate state per element: animating through
+    // an array is flaky.
+    @State private var heroTile0: CGFloat = 0
+    @State private var heroTile1: CGFloat = 0
+    @State private var heroTile2: CGFloat = 0
+    @State private var heroTile3: CGFloat = 0
+    @State private var titleShown = false
+    @State private var row0 = false
+    @State private var row1 = false
+    @State private var row2 = false
+    @State private var ctaShown = false
+    @State private var fmRow = false
+    @State private var connectRow0 = false
+    @State private var connectRow1 = false
+    @State private var connectRow2 = false
 
     var body: some View {
         NavigationStack {
             VStack(spacing: Theme.space4) {
-                Spacer(minLength: 12)
-
-                if page == 0 {
-                    VStack(spacing: Theme.space3) {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: heroIconSize, weight: .semibold))
-                            .foregroundStyle(Theme.accent)
-                        Text("Dein KI-Chat.\nDeine Mini-Apps.")
-                            .font(.title.bold())
-                            .multilineTextAlignment(.center)
+                ZStack {
+                    if page == 0 {
+                        welcomePage.transition(pageTransition)
+                    } else {
+                        connectPage.transition(pageTransition)
                     }
-                    .frame(maxWidth: .infinity)
-                    .transition(.opacity)
-                } else {
-                    VStack(spacing: 10) {
-                        Text("Modell verbinden")
-                            .font(.title2.bold())
-                        connectButton(String(localized: "API-Key"), subtitle: String(localized: "OpenAI, Anthropic, OpenRouter…"),
-                                      systemImage: "key.fill") { connectRoute = .apiKeyPicker }
-                        connectButton(String(localized: "Gateway"), subtitle: String(localized: "sub2api / eigener Server"),
-                                      systemImage: "server.rack") { connectRoute = .preset("sub2api") }
-                        connectButton(String(localized: "Lokal"), subtitle: String(localized: "Ollama / On-Device"),
-                                      systemImage: "desktopcomputer") { connectRoute = .localPicker }
-                    }
-                    .padding(.horizontal)
-                    .transition(.opacity)
                 }
-
-                Spacer()
+                // The CTA and spacers reflow on the same spring as the page
+                // turn instead of resolving independently.
+                .geometryGroup()
 
                 Button {
                     if page == 0 {
@@ -75,16 +72,21 @@ struct OnboardingModal: View {
                 } label: {
                     Text(page == 0 ? "Weiter" : "Loslegen")
                         .frame(maxWidth: .infinity)
+                        .contentTransition(.opacity)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .padding(.horizontal)
+                .animation(Theme.Motion.fade, value: page)
+                .opacity(ctaShown ? 1 : 0)
                 .accessibilityIdentifier("onboarding-next")
 
                 if page == 0 {
                     Button("Überspringen") { finish() }
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                        .opacity(ctaShown ? 1 : 0)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
             }
             .padding(.bottom, Theme.space4)
@@ -162,6 +164,182 @@ struct OnboardingModal: View {
         .interactiveDismissDisabled(true)
     }
 
+    /// Welcome beat: the brand mark assembles, then the headline and the
+    /// three feature rows land one after another — the Journal-sheet cadence.
+    private var welcomePage: some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: Theme.space2)
+
+            AiityTileMark(
+                tileSize: heroTileSize,
+                progress: [heroTile0, heroTile1, heroTile2, heroTile3]
+            )
+
+            Text("Willkommen bei aiity")
+                .font(.largeTitle.bold())
+                .multilineTextAlignment(.center)
+                .opacity(titleShown ? 1 : 0)
+                .offset(y: titleShown ? 0 : 12)
+                .padding(.top, Theme.space4)
+                .padding(.horizontal)
+                .accessibilityAddTraits(.isHeader)
+
+            VStack(alignment: .leading, spacing: Theme.space4) {
+                featureRow(
+                    shown: row0,
+                    systemImage: "bubble.left.and.text.bubble.right",
+                    title: "Dein KI-Chat",
+                    subtitle: "Verbinde dein eigenes Modell — OpenAI, Anthropic oder lokal auf dem iPhone."
+                )
+                featureRow(
+                    shown: row1,
+                    systemImage: "square.grid.2x2",
+                    title: "Mini-Apps aus Worten",
+                    subtitle: "Beschreibe eine Idee und aiity baut daraus eine kleine App."
+                )
+                featureRow(
+                    shown: row2,
+                    systemImage: "lock",
+                    title: "Deine Daten gehören dir",
+                    subtitle: "API-Keys bleiben im Schlüsselbund. Kein Konto, kein aiity-Server."
+                )
+            }
+            .frame(maxWidth: 420)
+            .padding(.horizontal, Theme.space4)
+            .padding(.top, Theme.space4 + Theme.space2)
+
+            Spacer(minLength: Theme.space2)
+        }
+        .frame(maxWidth: .infinity)
+        .onAppear(perform: runWelcomeEntrance)
+    }
+
+    private var connectPage: some View {
+        VStack(spacing: Theme.space2) {
+            Spacer(minLength: Theme.space2)
+
+            Text("Modell verbinden")
+                .font(.title2.bold())
+                .padding(.bottom, Theme.space1)
+
+            Group {
+                // Zero-setup path: Apple Intelligence on-device needs no key,
+                // no account and no model choice — when it's live on this
+                // device it goes first, and one tap finishes onboarding.
+                if foundationAvailable {
+                    connectButton(String(localized: "Sofort loslegen"),
+                                  subtitle: String(localized: "Apple Intelligence auf diesem iPhone — kein Konto, kein Key."),
+                                  systemImage: "apple.intelligence") { startWithFoundationModels() }
+                        .opacity(fmRow ? 1 : 0)
+                        .offset(y: fmRow ? 0 : 12)
+                }
+                connectButton(String(localized: "API-Key"), subtitle: String(localized: "OpenAI, Anthropic, OpenRouter…"),
+                              systemImage: "key.fill") { connectRoute = .apiKeyPicker }
+                    .opacity(connectRow0 ? 1 : 0)
+                    .offset(y: connectRow0 ? 0 : 12)
+                connectButton(String(localized: "Gateway"), subtitle: String(localized: "sub2api / eigener Server"),
+                              systemImage: "server.rack") { connectRoute = .preset("sub2api") }
+                    .opacity(connectRow1 ? 1 : 0)
+                    .offset(y: connectRow1 ? 0 : 12)
+                connectButton(String(localized: "Lokal"), subtitle: String(localized: "Ollama / On-Device"),
+                              systemImage: "desktopcomputer") { connectRoute = .localPicker }
+                    .opacity(connectRow2 ? 1 : 0)
+                    .offset(y: connectRow2 ? 0 : 12)
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal)
+        .frame(maxWidth: .infinity)
+        .onAppear(perform: runConnectEntrance)
+    }
+
+    private func featureRow(
+        shown: Bool, systemImage: String,
+        title: LocalizedStringKey, subtitle: LocalizedStringKey
+    ) -> some View {
+        HStack(spacing: Theme.space3) {
+            Image(systemName: systemImage)
+                .font(.title2.weight(.medium))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(Theme.accent)
+                .frame(width: 40)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.headline)
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .opacity(shown ? 1 : 0)
+        .offset(y: shown ? 0 : 14)
+    }
+
+    /// Forward progress reads as a page turn, not a div swap — content slides
+    /// toward the leading edge while the next beat springs in from trailing.
+    private var pageTransition: AnyTransition {
+        reduceMotion
+            ? .opacity
+            : .asymmetric(
+                insertion: .move(edge: .trailing).combined(with: .opacity),
+                removal: .move(edge: .leading).combined(with: .opacity)
+            )
+    }
+
+    private func runWelcomeEntrance() {
+        if reduceMotion {
+            heroTile0 = 1; heroTile1 = 1; heroTile2 = 1; heroTile3 = 1
+            titleShown = true; row0 = true; row1 = true; row2 = true
+            ctaShown = true
+            return
+        }
+        // Same landing spring as the launch splash, so splash → welcome reads
+        // as one continuous brand moment.
+        let land = Animation.spring(response: 0.42, dampingFraction: 0.72)
+        withAnimation(land.delay(0.05)) { heroTile0 = 1 }
+        withAnimation(land.delay(0.14)) { heroTile1 = 1 }
+        withAnimation(land.delay(0.23)) { heroTile2 = 1 }
+        withAnimation(land.delay(0.32)) { heroTile3 = 1 }
+        withAnimation(Theme.Motion.soft.delay(0.25)) { titleShown = true }
+        withAnimation(Theme.Motion.soft.delay(0.5)) { row0 = true }
+        withAnimation(Theme.Motion.soft.delay(0.62)) { row1 = true }
+        withAnimation(Theme.Motion.soft.delay(0.74)) { row2 = true }
+        withAnimation(Theme.Motion.fade.delay(0.6)) { ctaShown = true }
+    }
+
+    private func runConnectEntrance() {
+        if reduceMotion {
+            fmRow = true; connectRow0 = true; connectRow1 = true; connectRow2 = true
+            return
+        }
+        withAnimation(Theme.Motion.soft.delay(0.12)) { fmRow = true }
+        withAnimation(Theme.Motion.soft.delay(0.2)) { connectRow0 = true }
+        withAnimation(Theme.Motion.soft.delay(0.28)) { connectRow1 = true }
+        withAnimation(Theme.Motion.soft.delay(0.36)) { connectRow2 = true }
+    }
+
+    /// `availability()` is the same check ConnectionProbe runs for this
+    /// dialect — device eligibility, Apple Intelligence enabled, model ready.
+    private var foundationAvailable: Bool {
+        if case .available = AppleFoundationProvider.availability() { return true }
+        return false
+    }
+
+    /// Mirrors what the provider screen's commit does for this preset:
+    /// presetId + empty baseURL + the display model name. No probe needed —
+    /// `foundationAvailable` IS the probe, and there is no exit prompt to
+    /// trigger because the on-device dialect never requires a model choice.
+    private func startWithFoundationModels() {
+        var settings = settingsStore.settings
+        settings.presetId = "apple-foundation"
+        settings.baseURL = ""
+        settings.model = ProviderPreset.preset(for: "apple-foundation").defaultModel
+        settingsStore.settings = settings
+        Theme.Haptics.success()
+        completeFinish()
+    }
+
     /// The chat slot is connected but has no chosen model — the state the
     /// exit prompts exist for. Same trigger logic as the provider screen.
     private var activeChatNeedsModel: Bool {
@@ -197,8 +375,10 @@ struct OnboardingModal: View {
         Button(action: action) {
             HStack(spacing: 12) {
                 Image(systemName: systemImage)
-                    .font(.body.weight(.semibold))
-                    .frame(width: 28)
+                    .font(.title3.weight(.medium))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(Theme.accent)
+                    .frame(width: 32)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).font(.body.weight(.semibold))
                     Text(subtitle)

@@ -202,6 +202,7 @@
 		E56A4FE2D8399CCA664DF1D4 /* DictationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17F98810AC7E6282E6DEEE5E /* DictationService.swift */; };
 		E6D527A59BB3712771A26E75 /* ReportContentSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FAABD9AFCC0E572641D5FE3 /* ReportContentSheet.swift */; };
 		E9CA7FE06AC3CDDE162AE8D2 /* AppIntentsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27E6A2A3C24290F84E5008F4 /* AppIntentsTests.swift */; };
+		EA194E967DBE94987A92D814 /* AiityTileMark.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98DE0DF073E518C24374344A /* AiityTileMark.swift */; };
 		EC6D7C02A57E219BC7DA97E0 /* AppStoreScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00508ACA50A84161BE410545 /* AppStoreScreenshotTests.swift */; };
 		EE87BB72426368F4AD0BA5DB /* ModelCatalogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C60F49D56B0F41AE9A20553C /* ModelCatalogService.swift */; };
 		F206DAD2CFE1E06CECA4FC55 /* ImageGenerationTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4831D1C0C33774F1B4FB92C5 /* ImageGenerationTool.swift */; };
@@ -390,6 +391,7 @@
 		9486190D17B2CF20EE1A3A6B /* LaunchSplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchSplashView.swift; sourceTree = "<group>"; };
 		952A3A78FF0418DF4260311C /* ChatBarKeyboardUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatBarKeyboardUITests.swift; sourceTree = "<group>"; };
 		98BC40E8C2E345AF205629CD /* GroupChatUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupChatUITests.swift; sourceTree = "<group>"; };
+		98DE0DF073E518C24374344A /* AiityTileMark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiityTileMark.swift; sourceTree = "<group>"; };
 		98F3CA6958A5096E90206B67 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		9B87AD62F04F73CCF5AFE2C3 /* AiityAppIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiityAppIntents.swift; sourceTree = "<group>"; };
 		9C9C8F38CD89DD16E7CB01A2 /* AgentLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentLiveActivityWidget.swift; sourceTree = "<group>"; };
@@ -586,6 +588,7 @@
 			isa = PBXGroup;
 			children = (
 				22FCF2E8FDC1437D7606750E /* AddSkillSheet.swift */,
+				98DE0DF073E518C24374344A /* AiityTileMark.swift */,
 				5E9D07F0FA14E5D801DDC06F /* AppScreen.swift */,
 				21240C97219E02C4B96B1C72 /* CameraImagePicker.swift */,
 				D65132944EDD2E70CE9A4190 /* ChatComposer.swift */,
@@ -1050,6 +1053,7 @@
 				5738777D029ED8D3A58FDBE2 /* AgentToolsSettingsView.swift in Sources */,
 				8B4A39C25D38429571EA3572 /* AgentsView.swift in Sources */,
 				15EA876F94AEA3C63DEE5937 /* AiityAppIntents.swift in Sources */,
+				EA194E967DBE94987A92D814 /* AiityTileMark.swift in Sources */,
 				0644A61CAA43A24596FEB946 /* Analytics.swift in Sources */,
 				6F6EA0AD89FC132B8077CA87 /* AnthropicProvider.swift in Sources */,
 				E2247F4E9DA2AC5211C3F07B /* AppNotifications.swift in Sources */,

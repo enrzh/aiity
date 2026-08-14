@@ -72,7 +72,13 @@ struct MiniAppRunnerView: UIViewRepresentable {
         let host = (target.host ?? target.absoluteString)
             .replacingOccurrences(of: "<", with: "&lt;")
         return """
-        <p style="font:15px/1.5 -apple-system,sans-serif;color:#888;padding:24px">
+        <style>
+        :root{color-scheme:light dark}
+        p{font:15px/1.5 -apple-system,sans-serif;color:#636366;padding:24px}
+        b{color:#48484a}
+        @media (prefers-color-scheme:dark){p{color:#aeaeb2}b{color:#d1d1d6}}
+        </style>
+        <p>
         Diese Mini-App wollte <b>\(host)</b> öffnen. Das ist eine Adresse im
         lokalen Netzwerk und wird nicht geladen.
         </p>

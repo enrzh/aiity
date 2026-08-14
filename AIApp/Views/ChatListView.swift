@@ -7,12 +7,21 @@ struct ChatListView: View {
     @EnvironmentObject private var session: ChatSession
     @ObservedObject private var agentStore = AgentStore.shared
     @State private var showNewChat = false
-    @Environment(\.colorScheme) private var colorScheme
+    @State private var searchText = ""
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var threads: [ChatThread] {
-        session.threads
+        let visible = session.threads
             .filter { !$0.messages.isEmpty || $0.id == session.openThreadId }
             .sorted { $0.updatedAt > $1.updatedAt }
+        guard !searchText.isEmpty else { return visible }
+        return visible.filter { thread in
+            if thread.title.localizedStandardContains(searchText) { return true }
+            return agentStore.agents.contains {
+                thread.participantAgentIds.contains($0.id)
+                    && $0.name.localizedStandardContains(searchText)
+            }
+        }
     }
 
     var body: some View {
@@ -25,13 +34,17 @@ struct ChatListView: View {
 
             Group {
                 if threads.isEmpty {
-                    AppEmptyState(
-                        title: String(localized: "Noch keine Chats"),
-                        systemImage: "bubble.left.and.bubble.right",
-                        message: String(localized: "Starte eine Unterhaltung — allein mit der KI oder als Gruppe mit mehreren Agenten."),
-                        actionTitle: String(localized: "Neuer Chat"),
-                        action: { startSolo() }
-                    )
+                    if !searchText.isEmpty {
+                        ContentUnavailableView.search(text: searchText)
+                    } else {
+                        AppEmptyState(
+                            title: String(localized: "Noch keine Chats"),
+                            systemImage: "bubble.left.and.bubble.right",
+                            message: String(localized: "Starte eine Unterhaltung — allein mit der KI oder als Gruppe mit mehreren Agenten."),
+                            actionTitle: String(localized: "Neuer Chat"),
+                            action: { startSolo() }
+                        )
+                    }
                 } else {
                     List {
                         ForEach(threads) { thread in
@@ -43,6 +56,9 @@ struct ChatListView: View {
             }
             }
             .navigationTitle("Chats")
+            // On the stack root, not the List: the field must survive the swap
+            // to ContentUnavailableView when a query matches nothing.
+            .searchable(text: $searchText)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -74,7 +90,7 @@ struct ChatListView: View {
         Button {
             session.open(threadId: thread.id)
         } label: {
-            HStack(spacing: 12) {
+            HStack(spacing: Theme.space2) {
                 avatar(for: thread)
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(alignment: .firstTextBaseline) {
@@ -100,16 +116,22 @@ struct ChatListView: View {
                                 .font(.caption2)
                                 .foregroundStyle(Color.accentColor)
                         }
+                        .transition(.opacity)
                     } else if thread.isGroup {
                         Text(participantNames(thread))
                             .font(.caption2)
                             .foregroundStyle(Color.accentColor)
                             .lineLimit(1)
+                            .transition(.opacity)
                     }
                 }
             }
             .padding(.vertical, 4)
             .contentShape(Rectangle())
+            .animation(
+                Theme.Motion.preferSpring(Theme.Motion.snappy, reduceMotion: reduceMotion),
+                value: session.runningThreadId
+            )
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("thread-row")
@@ -122,32 +144,25 @@ struct ChatListView: View {
         }
     }
 
-    /// Group chats show their members' emoji on a subtle gradient ring; a solo
-    /// chat shows the app mark on the thread's own tile gradient — the same
-    /// stable-hue system the mini-app icons use, seeded by the thread id.
+    /// Group chats show their members' emoji, a solo chat the brand mark at
+    /// monogram scale — both on the same neutral circle, so rows don't compete
+    /// with each other on hue.
     @ViewBuilder
     private func avatar(for thread: ChatThread) -> some View {
         let emojis = agentStore.agents
             .filter { thread.participantAgentIds.contains($0.id) }
             .prefix(2)
             .map(\.emoji)
-        let gradient = Theme.tileGradient(
-            for: thread.id.uuidString, deep: true, dark: colorScheme == .dark
-        )
 
         ZStack {
+            Circle()
+                .fill(Color(.secondarySystemBackground))
             if emojis.isEmpty {
-                Circle()
-                    .fill(gradient)
-                Image(systemName: "sparkles")
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(.white)
+                // tileSize 13 → mark ≈28pt, the monogram ratio for a 44pt circle.
+                AiityTileMark(tileSize: 13)
             } else {
                 Circle()
-                    .fill(Color(.secondarySystemBackground))
-                Circle()
-                    .strokeBorder(gradient, lineWidth: 1.5)
-                    .opacity(0.7)
+                    .strokeBorder(.quaternary, lineWidth: 0.5)
                 Text(emojis.joined())
                     .font(emojis.count > 1 ? .caption : .title3)
                     .minimumScaleFactor(0.5)
@@ -197,7 +212,7 @@ struct NewChatSheet: View {
                         onCreate([])
                         dismiss()
                     } label: {
-                        Label("Nur mit der KI", systemImage: "sparkles")
+                        Label("Nur mit der KI", systemImage: "bubble.left.and.bubble.right")
                     }
                     .accessibilityIdentifier("new-solo-chat")
                 } footer: {
@@ -221,9 +236,14 @@ struct NewChatSheet: View {
                                 }
                             } label: {
                                 HStack {
-                                    Text(agent.emoji)
-                                    Text(agent.name)
-                                        .foregroundStyle(.primary)
+                                    // Label, not a bare HStack: keeps the emoji
+                                    // in the same icon column as the row above.
+                                    Label {
+                                        Text(agent.name)
+                                            .foregroundStyle(.primary)
+                                    } icon: {
+                                        Text(agent.emoji)
+                                    }
                                     Spacer()
                                     if selected.contains(agent.id) {
                                         Image(systemName: "checkmark")

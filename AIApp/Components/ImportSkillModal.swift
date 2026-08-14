@@ -14,10 +14,12 @@ struct ImportSkillModal: View {
     var body: some View {
         ModalChrome(
             title: String(localized: "Skill installieren"),
-            confirmTitle: importing ? nil : String(localized: "Installieren"),
+            // Stays mounted while importing (confirmDisabled covers it) so the
+            // toolbar doesn't jump as the button vanishes and reappears.
+            confirmTitle: String(localized: "Installieren"),
             confirmDisabled: spec.trimmingCharacters(in: .whitespaces).isEmpty || importing,
             onCancel: { dismiss() },
-            onConfirm: importing ? nil : { Task { await installRemote() } }
+            onConfirm: { Task { await installRemote() } }
         ) {
             Form {
                 Section {
@@ -57,8 +59,10 @@ struct ImportSkillModal: View {
                 if let err = localError ?? store.errorMessage {
                     Section {
                         BannerView(message: err, kind: .error) {
-                            localError = nil
-                            store.errorMessage = nil
+                            withAnimation(Theme.Motion.fade) {
+                                localError = nil
+                                store.errorMessage = nil
+                            }
                         }
                     }
                 }
@@ -74,10 +78,12 @@ struct ImportSkillModal: View {
     }
 
     private func installRemote() async {
-        importing = true
-        localError = nil
+        withAnimation(Theme.Motion.fade) {
+            importing = true
+            localError = nil
+        }
         await store.install(from: spec)
-        importing = false
+        withAnimation(Theme.Motion.fade) { importing = false }
         if store.errorMessage == nil {
             Analytics.track("skill_installed", ["source": "remote"])
             dismiss()
@@ -85,9 +91,11 @@ struct ImportSkillModal: View {
     }
 
     private func handleFile(_ result: Result<[URL], Error>) async {
-        importing = true
-        localError = nil
-        defer { importing = false }
+        withAnimation(Theme.Motion.fade) {
+            importing = true
+            localError = nil
+        }
+        defer { withAnimation(Theme.Motion.fade) { importing = false } }
         do {
             let urls = try result.get()
             guard let url = urls.first else { return }
@@ -106,7 +114,9 @@ struct ImportSkillModal: View {
                 dismiss()
             }
         } catch {
-            localError = error.localizedDescription
+            withAnimation(Theme.Motion.fade) {
+                localError = error.localizedDescription
+            }
         }
     }
 }

@@ -4,7 +4,6 @@ import UIKit
 
 struct ChatComposer: View {
     @ObservedObject private var prefs = AppPreferences.shared
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
 
@@ -40,6 +39,7 @@ struct ChatComposer: View {
         VStack(alignment: .leading, spacing: 6) {
             if !attachments.isEmpty {
                 attachmentStrip
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
             HStack(alignment: .bottom, spacing: 10) {
                 composerMenu
@@ -67,6 +67,9 @@ struct ChatComposer: View {
                 Image(systemName: isBusy ? "stop.fill" : "arrow.up")
                     .font(.body.weight(.bold))
                     .contentTransition(.symbolEffect(.replace))
+                    // One-shot bounce the moment the message becomes sendable.
+                    // The value is frozen under Reduce Motion, so it never fires.
+                    .symbolEffect(.bounce, options: .nonRepeating, value: reduceMotion ? false : canSend)
                     .foregroundStyle(buttonForeground)
                     .frame(width: Theme.controlHeight, height: Theme.controlHeight)
                     .background(buttonBackground, in: Circle())
@@ -80,6 +83,7 @@ struct ChatComposer: View {
             .padding(.horizontal, Theme.space2)
             .padding(.vertical, 10)
         }
+        .animation(Theme.Motion.preferSpring(Theme.Motion.soft, reduceMotion: reduceMotion), value: attachments)
         .onChange(of: dictation.transcript) { _, spoken in
             guard !spoken.isEmpty else { return }
             let composed = DictationText.compose(base: dictationBase, transcript: spoken)
@@ -140,10 +144,14 @@ struct ChatComposer: View {
                             .font(.caption)
                             .lineLimit(1)
                         Button {
+                            Theme.Haptics.tap()
                             attachments.removeAll { $0.id == attachment.id }
                         } label: {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.caption)
+                                // Glyph alone is far below the 44pt-ish target.
+                                .frame(width: 28, height: 28)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("chat-attachment-remove-\(attachment.mediaId)")
@@ -243,7 +251,7 @@ struct ChatComposer: View {
             return AnyShapeStyle(Color.red)
         }
         if canSend {
-            return AnyShapeStyle(Theme.accentGradient(for: colorScheme))
+            return AnyShapeStyle(Color.accentColor)
         }
         return AnyShapeStyle(Color(.tertiarySystemFill))
     }
