@@ -703,10 +703,32 @@ final class MiniAppSessionStoreSweepTests: XCTestCase {
         onDisk = await allIdentifiers()
         XCTAssertTrue(onDisk.contains(store(for: keeper.uuidString)),
                       "the live app's logins must survive the sweep")
+
+        // What the sweep PROMISES about an orphan is that it is never silently
+        // kept — not that WebKit deletes it this instant. WebKit refuses to
+        // delete a store the current process has opened, and this test opened
+        // the orphan's when it wrote the cookie, so whether the removal lands
+        // now or is deferred to the next launch is WebKit's call, not ours.
+        // Asserting `reaped: 1, deferred: 0` asserted the timing and failed
+        // intermittently; this asserts the contract the purge queue exists for.
         let orphanIsGone = await jarDisappeared(store(for: orphan.uuidString))
-        XCTAssertTrue(orphanIsGone, "the jar with no record must be gone")
-        XCTAssertEqual(outcome.stores, .swept(reaped: 1, kept: inherited.count + 1, deferred: 0, residual: 0),
-                       "exactly the orphan, and nothing else this test put on disk")
+        guard case let .swept(reaped, kept, deferred, residual) = outcome.stores else {
+            return XCTFail("the sweep must report a partition, got \(outcome.stores)")
+        }
+        XCTAssertEqual(kept, inherited.count + 1,
+                       "only the live app's jar is kept — the orphan is never in `kept`")
+        XCTAssertEqual(reaped + deferred, 1, "the orphan is acted on exactly once")
+        XCTAssertEqual(residual, 0, "nothing here is a leftover from an earlier removal")
+        if reaped == 1 {
+            XCTAssertTrue(orphanIsGone, "a jar counted as reaped must actually be gone")
+        } else {
+            XCTAssertTrue(
+                MiniAppSessionStorePurgeQueue.records().contains {
+                    $0.identifier == store(for: orphan.uuidString) && $0.state == .pending
+                },
+                "a refused removal must stay owed in the durable queue, or the jar strands forever"
+            )
+        }
         XCTAssertEqual(log.revoked, [orphan.uuidString],
                        "the same pass must take the orphan's grant, not only its jar")
         // The keeper's jar goes in `tearDown`, which also runs when an
