@@ -664,13 +664,19 @@ struct ChatView: View {
                 .accessibilityLabel("Skills")
             }
         }
+        // The draft captured on tap, deliberately: it gives the sheet a stable
+        // identity (`MiniAppDraft.id` hashes the html, so a live one would
+        // dismiss and re-present the sheet on every chunk) and a stable
+        // preview app id for consent. The document it SHOWS is the live one —
+        // `followsDraft` hands that to the sheet.
         .sheet(item: $previewDraft) { draft in
             MiniAppSheet(
                 appId: MiniAppConsent.previewId(html: draft.html),
                 name: draft.name,
                 html: draft.html,
                 emoji: draft.emoji,
-                iconSymbol: draft.iconSymbol
+                iconSymbol: draft.iconSymbol,
+                followsDraft: true
             )
             .environmentObject(session)
         }

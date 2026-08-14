@@ -14,11 +14,16 @@ struct MiniAppSheet: View {
     var iconSymbol: String? = nil
     /// Called after dismiss when user wants AI edits (host switches to Chat tab).
     var onEditWithAI: (() -> Void)? = nil
+    /// Follow `session.draftMiniApp` as the model writes it, so a preview
+    /// opened mid-generation keeps building. Only the chat draft card sets
+    /// this; a saved app has no stream to follow.
+    var followsDraft: Bool = false
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var session: ChatSession
     @Environment(\.openChatTab) private var openChatTab
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @StateObject private var browserState = MiniAppBrowserState()
     @State private var effectiveCapability: MiniAppCapability = .offline
@@ -30,8 +35,24 @@ struct MiniAppSheet: View {
     /// Set by a "Verlauf" restore, replacing the `html` this sheet was opened
     /// with — the runner's `updateUIView` reloads on the changed document.
     @State private var restoredHTML: String?
+    /// The live draft while it streams. Only ever moves forward: "Behalten"
+    /// clears `session.draftMiniApp`, and falling back to the snapshot this
+    /// sheet was opened with would rewind the preview to a half-written app.
+    @State private var streamedHTML: String?
+    /// The draft's title as it streams. It arrives with the document's
+    /// `<title>`, so a preview opened early is titled "Mini-App" until then —
+    /// and the consent prompt, which runs only once the stream ends, must name
+    /// the app rather than that placeholder.
+    @State private var streamedName: String?
 
-    private var activeHTML: String { restoredHTML ?? html }
+    private var activeHTML: String { restoredHTML ?? streamedHTML ?? html }
+    private var activeName: String { streamedName ?? name }
+
+    /// True while `activeHTML` is a document the model has not finished. A
+    /// restore replaces the document outright, so it ends the stream.
+    private var isStreamingDraft: Bool {
+        followsDraft && session.busy && restoredHTML == nil
+    }
 
     var body: some View {
         AppSheet(detents: [.large]) {
@@ -45,8 +66,12 @@ struct MiniAppSheet: View {
                 appId: appId,
                 html: activeHTML,
                 capability: effectiveCapability,
-                appName: name,
-                browserState: browserState
+                appName: activeName,
+                browserState: browserState,
+                isStreamingDraft: isStreamingDraft,
+                streamPatchInterval: reduceMotion
+                    ? MiniAppPreviewStream.reducedMotionPatchInterval
+                    : MiniAppPreviewStream.minimumPatchInterval
             )
             // Rebuild the web view when consent flips the tier.
             //
@@ -66,7 +91,28 @@ struct MiniAppSheet: View {
             // app that sets no background of its own.
             .background(Color(.systemBackground).ignoresSafeArea())
             .ignoresSafeArea(edges: .bottom)
-            .onAppear { resolveCapability() }
+            .onAppear {
+                let live = followsDraft ? session.draftMiniApp : nil
+                if let live { adopt(live) }
+                resolveCapability(for: live?.html ?? activeHTML)
+            }
+            .onChange(of: session.draftMiniApp?.html) { _, streamed in
+                guard followsDraft, streamed != nil, let draft = session.draftMiniApp else { return }
+                adopt(draft)
+            }
+            .onChange(of: session.busy) { _, busy in
+                // The tier is read ONCE, off the finished document. The
+                // `<!-- capability: … -->` comment can arrive at any point in
+                // the stream, and re-resolving per chunk would raise the
+                // consent alert over and over — and tear the runner down under
+                // the user's finger through `.id(effectiveCapability)`.
+                //
+                // The last chunk and `busy` land in the SAME update pass, so
+                // the @State mirror above is still one pass behind here. Read
+                // the document off the session rather than waiting for it.
+                guard followsDraft, !busy else { return }
+                resolveCapability(for: session.draftMiniApp?.html ?? activeHTML)
+            }
             .alert("Internetzugriff erlauben?", isPresented: $showConsent) {
                 if pendingDeclared != .offline, pendingHost == nil {
                     TextField("HTTPS-Host", text: $pendingHostDraft)
@@ -94,9 +140,9 @@ struct MiniAppSheet: View {
                 let what = pendingDeclared == .browser
                     ? String(localized: "Webseiten öffnen und laden")
                     : String(localized: "Daten aus dem Internet laden")
-                Text(String(localized: "Die App „\(name)“ möchte \(what) (\(pendingDeclared.label)). Sie kann dabei auch Daten an fremde Server senden. Nur erlauben, wenn du dieser App vertraust."))
+                Text(String(localized: "Die App „\(activeName)“ möchte \(what) (\(pendingDeclared.label)). Sie kann dabei auch Daten an fremde Server senden. Nur erlauben, wenn du dieser App vertraust."))
             }
-            .navigationTitle(name)
+            .navigationTitle(activeName)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 // A browser app that followed a link needs a way out of it.
@@ -127,7 +173,7 @@ struct MiniAppSheet: View {
                 ToolbarItem(placement: .principal) {
                     HStack(spacing: 6) {
                         MiniAppIconView(emoji: emoji, iconSymbol: iconSymbol, size: 22)
-                        Text(name)
+                        Text(activeName)
                             .font(.headline)
                             .lineLimit(1)
                     }
@@ -136,12 +182,12 @@ struct MiniAppSheet: View {
                     Menu {
                         ShareLink(
                             item: MiniAppShareItem(
-                                name: name,
+                                name: activeName,
                                 emoji: emoji,
                                 iconSymbol: iconSymbol,
                                 html: activeHTML
                             ),
-                            preview: SharePreview(name)
+                            preview: SharePreview(activeName)
                         ) {
                             Label("Teilen", systemImage: "square.and.arrow.up")
                         }
@@ -184,12 +230,30 @@ struct MiniAppSheet: View {
         }
     }
 
+    /// Take on the model's current draft. Called for every published chunk, so
+    /// it must never move backwards — the placeholder title the parser returns
+    /// before `<title>` is written would otherwise replace a real one.
+    private func adopt(_ draft: MiniAppDraft) {
+        streamedHTML = draft.html
+        if !draft.name.isEmpty, draft.name != "Mini-App" { streamedName = draft.name }
+    }
+
     /// Offline apps run immediately; a network/browser app runs offline until
     /// the user consents (once per app). Re-run after a "Verlauf" restore —
     /// the restored document may declare a different tier.
-    private func resolveCapability() {
-        let declared = MiniAppCapability.from(html: activeHTML)
-        let host = WebAppBuilder.openTarget(in: activeHTML).flatMap {
+    private func resolveCapability(for document: String? = nil) {
+        // A document the model is still writing runs at the most restrictive
+        // tier, and asks for nothing. Consent must be given for what the app
+        // finally IS: the first kilobytes are not something a user can judge,
+        // and the code that would use the grant has not been written yet. The
+        // stream ending re-enters here and prompts then, once.
+        guard !isStreamingDraft else {
+            effectiveCapability = .offline
+            return
+        }
+        let source = document ?? activeHTML
+        let declared = MiniAppCapability.from(html: source)
+        let host = WebAppBuilder.openTarget(in: source).flatMap {
             NetworkTargetValidator.normalizeHost($0.host ?? "")
         }
         if MiniAppConsent.isAllowed(appId: appId, declared: declared),
@@ -206,9 +270,9 @@ struct MiniAppSheet: View {
 
     private func openAIEdit() {
         if let libraryId {
-            session.startEditing(id: libraryId, name: name, html: activeHTML)
+            session.startEditing(id: libraryId, name: activeName, html: activeHTML)
         } else {
-            session.startEditingDraft(name: name, html: activeHTML, emoji: emoji)
+            session.startEditingDraft(name: activeName, html: activeHTML, emoji: emoji)
         }
         // Drop the web view's keyboard BEFORE the sheet starts dismissing.
         // This path stacks three animations (sheet dismissal, keyboard hide,

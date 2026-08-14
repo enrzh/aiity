@@ -20,7 +20,7 @@ struct LibraryView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if apps.isEmpty && !sync.initialImportComplete {
+                if isAwaitingFirstImport {
                     // An empty query and a store still waiting on its FIRST
                     // CloudKit import look identical — without this, someone
                     // reopening the app on a new device sees "no apps yet"
@@ -43,6 +43,13 @@ struct LibraryView: View {
                         .padding()
                     }
                 }
+            }
+            // The placeholder giving way to a filled grid is silent for
+            // VoiceOver — the only other cue that the import landed is the
+            // symbol pulse stopping, which nobody hears.
+            .onChange(of: isAwaitingFirstImport) { _, awaiting in
+                guard !awaiting, !apps.isEmpty else { return }
+                AccessibilityNotification.Announcement(String(localized: "Apps geladen")).post()
             }
             .navigationTitle(String(localized: "Apps"))
             .toolbar {
@@ -127,6 +134,8 @@ struct LibraryView: View {
             }
         }
     }
+
+    private var isAwaitingFirstImport: Bool { apps.isEmpty && !sync.initialImportComplete }
 
     private var emptyState: some View {
         AppEmptyState(
@@ -293,6 +302,10 @@ struct IconPickerSheet: View {
     @State private var emojiDraft: String = ""
     @State private var symbolDraft: String = ""
 
+    /// Scales with the type size so the glyph doesn't outgrow its tile — the
+    /// grid's minimum has to follow it or the columns stop fitting.
+    @ScaledMetric(relativeTo: .title) private var tileSize: CGFloat = 44
+
     private let symbols = [
         "checklist", "timer", "cart", "heart", "book", "calendar",
         "dollarsign.circle", "map", "music.note", "camera", "gamecontroller",
@@ -310,14 +323,14 @@ struct IconPickerSheet: View {
         NavigationStack {
             Form {
                 Section("Emoji") {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 44))], spacing: 10) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: tileSize))], spacing: 10) {
                         ForEach(emojis, id: \.self) { e in
                             Button {
                                 emojiDraft = e
                                 symbolDraft = ""
                             } label: {
                                 Text(e).font(.title)
-                                    .frame(width: 44, height: 44)
+                                    .frame(width: tileSize, height: tileSize)
                                     .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.chipRadius, style: .continuous))
                                     .overlay {
                                         if emojiDraft == e {
@@ -327,18 +340,20 @@ struct IconPickerSheet: View {
                                     }
                             }
                             .buttonStyle(.plain)
+                            // The stroke is the ONLY selection cue on screen.
+                            .accessibilityAddTraits(emojiDraft == e ? [.isSelected] : [])
                         }
                     }
                     TextField("Eigenes Emoji", text: $emojiDraft)
                 }
                 Section("SF Symbol") {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 44))], spacing: 10) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: tileSize))], spacing: 10) {
                         ForEach(symbols, id: \.self) { s in
                             Button {
                                 symbolDraft = s
                             } label: {
                                 Image(systemName: s)
-                                    .frame(width: 44, height: 44)
+                                    .frame(width: tileSize, height: tileSize)
                                     .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.chipRadius, style: .continuous))
                                     .overlay {
                                         if symbolDraft == s {
@@ -348,6 +363,8 @@ struct IconPickerSheet: View {
                                     }
                             }
                             .buttonStyle(.plain)
+                            // The stroke is the ONLY selection cue on screen.
+                            .accessibilityAddTraits(symbolDraft == s ? [.isSelected] : [])
                         }
                     }
                     TextField("Symbol-Name", text: $symbolDraft)
@@ -367,6 +384,10 @@ struct IconPickerSheet: View {
                             Theme.Motion.preferSpring(Theme.Motion.snappy, reduceMotion: reduceMotion),
                             value: symbolDraft
                         )
+                        // Decorative echo of the two grids above: without a
+                        // label VoiceOver reads a bare emoji or symbol name,
+                        // and the selected-tile trait already states the choice.
+                        .accessibilityHidden(true)
                         Spacer()
                     }
                 }

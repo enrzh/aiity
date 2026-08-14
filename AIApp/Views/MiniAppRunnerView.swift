@@ -29,6 +29,133 @@ final class MiniAppBrowserState: ObservableObject {
     func goBack() { webView?.goBack() }
 }
 
+/// Decides what an already-open runner does with a document the model is still
+/// writing, so a preview opened mid-generation builds itself instead of showing
+/// one frozen snapshot.
+///
+/// Pure, because the interesting part is the decision rather than the WebKit
+/// call. Reloading per chunk is what this exists to avoid: `loadHTMLString`
+/// throws the page away — blank frame, scroll back to the top, every animation
+/// restarted — several times a second.
+enum MiniAppPreviewStream {
+    enum Action: Equatable {
+        /// Same content, too soon, or the user's finger is on the page.
+        case ignore
+        /// Swap the body of the live document; the page itself stays.
+        case patch
+        /// Load the document properly — `loadHTMLString` of the hardened HTML.
+        case reload
+    }
+
+    /// What the runner has already put on screen.
+    struct State: Equatable {
+        /// HTML of the last real document load; `nil` before the first one.
+        var loadedHTML: String?
+        /// HTML the DOM was patched to on top of it; `nil` while the loaded
+        /// document is still authoritative.
+        var patchedHTML: String?
+        var lastPatchAt: Date?
+
+        var visibleHTML: String? { patchedHTML ?? loadedHTML }
+    }
+
+    /// Floor between two body patches. `ChatSession` re-extracts a draft every
+    /// ~200 streamed characters, which on a fast provider is several times a
+    /// second — more often than a phone can usefully re-parse a few KB.
+    static let minimumPatchInterval: TimeInterval = 0.25
+    /// Reduce Motion: a page that rebuilds itself is motion, so it keeps
+    /// building but at a pace closer to "it updated" than "it is animating".
+    static let reducedMotionPatchInterval: TimeInterval = 1.5
+
+    static func action(
+        for next: String,
+        isStreaming: Bool,
+        capability: MiniAppCapability,
+        capabilityChanged: Bool,
+        isUserInteracting: Bool,
+        state: State,
+        now: Date,
+        minimumInterval: TimeInterval = minimumPatchInterval
+    ) -> Action {
+        // A tier change re-hardens the document (different CSP, possibly a
+        // different data store). Never patch across it.
+        if capabilityChanged { return .reload }
+        if state.visibleHTML == next {
+            // The stream ended on content the DOM was only PATCHED to. Load it
+            // for real: a patch deliberately never runs <script>, so the
+            // finished app has to arrive through the same `loadHTMLString` as a
+            // saved one — the shipped artifact is never the streamed one.
+            return (!isStreaming && state.patchedHTML != nil) ? .reload : .ignore
+        }
+        guard isStreaming else { return .reload }
+        // Nothing to patch into yet.
+        guard state.loadedHTML != nil else { return .reload }
+        // A browser app's document is a remote URL, not a body we own.
+        guard capability != .browser else { return .reload }
+        guard structuralSignature(of: state.visibleHTML ?? "") == structuralSignature(of: next) else {
+            return .reload
+        }
+        if isUserInteracting { return .ignore }
+        if let last = state.lastPatchAt, now.timeIntervalSince(last) < minimumInterval { return .ignore }
+        return .patch
+    }
+
+    /// The parts of a draft that decide WHICH document the runner loads.
+    ///
+    /// The model's own `<head>` is deliberately not in here. `Sandbox.harden`
+    /// owns the real head — the model's markup, its head included, is placed in
+    /// the body of a document whose CSP is already in force — so reloading when
+    /// that head changes would rebuild the identical DOM while destroying the
+    /// page. What genuinely differs is the declared tier (it picks the CSP) and
+    /// a browser-tier `<!-- open: … -->` target (it replaces the document with
+    /// a remote page altogether).
+    static func structuralSignature(of html: String) -> String {
+        let target = WebAppBuilder.openTarget(in: html)?.absoluteString ?? ""
+        return "\(MiniAppCapability.from(html: html).rawValue)|\(target)"
+    }
+
+    /// `value` as a JavaScript string literal for `evaluateJavaScript`.
+    ///
+    /// JSON does the escaping; U+2028/U+2029 are escaped on top of it because
+    /// they are legal inside a JSON string but were line terminators in
+    /// JavaScript source before ES2019.
+    static func jsStringLiteral(_ value: String) -> String? {
+        guard let data = try? JSONSerialization.data(withJSONObject: value, options: [.fragmentsAllowed]),
+              let json = String(data: data, encoding: .utf8) else { return nil }
+        return json
+            .replacingOccurrences(of: "\u{2028}", with: "\\u2028")
+            .replacingOccurrences(of: "\u{2029}", with: "\\u2029")
+    }
+
+    /// One-shot script that swaps the body of the live document for `html`,
+    /// which MUST already have been through `Sandbox.harden` — the streamed
+    /// preview runs the same hardening as the final load, never a rawer one.
+    ///
+    /// Three things this does on purpose:
+    ///  * parses detached, so a half-written document is never on screen;
+    ///  * removes every `<script>` before inserting. `innerHTML` would not run
+    ///    them anyway, but saying so in code makes it an invariant rather than
+    ///    a parser subtlety: a script from the middle of a stream can be
+    ///    truncated mid-statement, and any timer or listener it installed would
+    ///    outlive the patch that replaced its markup. Scripts run exactly once,
+    ///    on the final load;
+    ///  * restores the scroll offset, which replacing the body resets.
+    ///
+    /// The hardened wrapper's own `<meta http-equiv="Content-Security-Policy">`
+    /// lands in the body, where it is inert — a body patch can neither loosen
+    /// nor re-declare the policy the document was loaded under.
+    static func patchScript(hardenedHTML: String) -> String? {
+        guard let literal = jsStringLiteral(hardenedHTML) else { return nil }
+        return """
+        (function(){var d=document.createElement('div');d.innerHTML=\(literal);\
+        var s=d.querySelectorAll('script');for(var i=0;i<s.length;i++){s[i].remove();}\
+        var y=window.scrollY||document.documentElement.scrollTop||0;\
+        document.body.replaceChildren.apply(document.body,Array.prototype.slice.call(d.childNodes));\
+        window.scrollTo(0,y);})();
+        """
+    }
+}
+
 struct MiniAppRunnerView: UIViewRepresentable {
     let appId: String
     let html: String
@@ -38,6 +165,19 @@ struct MiniAppRunnerView: UIViewRepresentable {
     var appName: String = ""
     /// Set by the hosting sheet when it wants a back button.
     var browserState: MiniAppBrowserState? = nil
+    /// True while `html` is a document the model is still writing. The runner
+    /// then patches the body of the page it already shows instead of reloading
+    /// it per chunk; the finished document still arrives as a real load.
+    var isStreamingDraft: Bool = false
+    /// Floor between two streaming patches — raised under Reduce Motion.
+    var streamPatchInterval: TimeInterval = MiniAppPreviewStream.minimumPatchInterval
+
+    /// The exact document that enters the web view, by either path. One call
+    /// site for the hardening, so a streaming patch can never be served content
+    /// under a looser policy than the final load of the same app.
+    static func hardenedDocument(html: String, capability: MiniAppCapability, appId: String) -> String {
+        Sandbox.harden(html, capability: capability, allowedHosts: MiniAppConsent.hosts(appId: appId))
+    }
 
     /// A browser app that only exists to open a site loads that site as its
     /// document. Rendering the shell first cannot work: it has a null origin and
@@ -65,7 +205,7 @@ struct MiniAppRunnerView: UIViewRepresentable {
             return
         }
         webView.loadHTMLString(
-            Sandbox.harden(html, capability: capability, allowedHosts: MiniAppConsent.hosts(appId: appId)),
+            Self.hardenedDocument(html: html, capability: capability, appId: appId),
             baseURL: nil
         )
     }
@@ -135,17 +275,14 @@ struct MiniAppRunnerView: UIViewRepresentable {
         context.coordinator.capability = capability
         context.coordinator.schemeWasAssumed = WebAppBuilder.schemeWasAssumed(in: html)
         context.coordinator.bind(browserState, to: webView)
+        // Record what the document was loaded FROM here, not on the first
+        // `updateUIView`. SwiftUI calls that immediately after this method, and
+        // with `loadedHTML` still nil it read as "the document changed" and
+        // loaded the same app a second time on every open.
+        context.coordinator.loadedHTML = html
         context.coordinator.beginTrustedLoad()
         load(into: webView)
-        if capability == .browser,
-           let target = WebAppBuilder.openTarget(in: html),
-           NetworkTargetValidator.isAllowed(
-                target, allowPrivate: false,
-                allowedHosts: MiniAppConsent.hosts(appId: appId)
-           ) {
-            context.coordinator.initialTarget = target
-            context.coordinator.disableBridgeForRemoteDocument()
-        }
+        adoptRemoteTargetIfBrowser(context.coordinator)
         return webView
     }
 
@@ -153,22 +290,57 @@ struct MiniAppRunnerView: UIViewRepresentable {
         let capabilityChanged = context.coordinator.capability != capability
         context.coordinator.capability = capability
         context.coordinator.appName = appName
-        if context.coordinator.loadedHTML != html || capabilityChanged {
+        let scroll = webView.scrollView
+        let now = Date()
+        switch MiniAppPreviewStream.action(
+            for: html,
+            isStreaming: isStreamingDraft,
+            capability: capability,
+            capabilityChanged: capabilityChanged,
+            // A patch replaces the whole body; doing that under a finger that
+            // is dragging or pinching the page is felt immediately.
+            isUserInteracting: scroll.isDragging || scroll.isDecelerating || scroll.isZooming,
+            state: MiniAppPreviewStream.State(
+                loadedHTML: context.coordinator.loadedHTML,
+                patchedHTML: context.coordinator.patchedHTML,
+                lastPatchAt: context.coordinator.lastPatchAt
+            ),
+            now: now,
+            minimumInterval: streamPatchInterval
+        ) {
+        case .ignore:
+            return
+        case .patch:
+            // A refused patch must not be recorded, or it would both claim the
+            // DOM shows content it does not and burn the throttle window.
+            guard context.coordinator.patchStreamingBody(
+                Self.hardenedDocument(html: html, capability: capability, appId: appId)
+            ) else { return }
+            context.coordinator.patchedHTML = html
+            context.coordinator.lastPatchAt = now
+        case .reload:
             context.coordinator.loadedHTML = html
+            context.coordinator.patchedHTML = nil
+            context.coordinator.lastPatchAt = nil
             context.coordinator.schemeWasAssumed = WebAppBuilder.schemeWasAssumed(in: html)
             webView.allowsBackForwardNavigationGestures = capability.allowsTopLevelNavigation
             context.coordinator.beginTrustedLoad()
             load(into: webView)
-            if capability == .browser,
-               let target = WebAppBuilder.openTarget(in: html),
-               NetworkTargetValidator.isAllowed(
-                    target, allowPrivate: false,
-                    allowedHosts: MiniAppConsent.hosts(appId: appId)
-               ) {
-                context.coordinator.initialTarget = target
-                context.coordinator.disableBridgeForRemoteDocument()
-            }
+            adoptRemoteTargetIfBrowser(context.coordinator)
         }
+    }
+
+    /// The document just loaded is a third-party site: remember it for the
+    /// error page's retry, and take the bridge away from it.
+    private func adoptRemoteTargetIfBrowser(_ coordinator: Coordinator) {
+        guard capability == .browser,
+              let target = WebAppBuilder.openTarget(in: html),
+              NetworkTargetValidator.isAllowed(
+                target, allowPrivate: false,
+                allowedHosts: MiniAppConsent.hosts(appId: appId)
+              ) else { return }
+        coordinator.initialTarget = target
+        coordinator.disableBridgeForRemoteDocument()
     }
 
     static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
@@ -241,7 +413,13 @@ struct MiniAppRunnerView: UIViewRepresentable {
         var capability: MiniAppCapability
         var appName: String
         weak var webView: WKWebView?
+        /// The document the web view was actually LOADED with.
         var loadedHTML: String?
+        /// What the DOM was patched to on top of `loadedHTML` while the model
+        /// was still writing it. Cleared by every real load — non-nil means the
+        /// page on screen is a preview, not a loaded document.
+        var patchedHTML: String?
+        var lastPatchAt: Date?
         /// The site this browser app exists to open, for the error page's retry.
         var initialTarget: URL?
         /// True when https was OUR assumption (bare host typed) — the only case
@@ -297,6 +475,25 @@ struct MiniAppRunnerView: UIViewRepresentable {
         /// load without granting it the native bridge.
         func disableBridgeForRemoteDocument() {
             bridgeActive = false
+        }
+
+        /// Show the next few kilobytes of a document still being written, by
+        /// swapping the body of the page that is already up.
+        ///
+        /// No navigation happens, so nothing about the page's security state
+        /// moves: same origin, same CSP, same bridge decision, same consent —
+        /// the streamed markup is strictly less privileged than a reload would
+        /// be, because `patchScript` also drops its scripts.
+        ///
+        /// Answers whether the patch was actually sent. It is refused while a
+        /// navigation is in flight — the script would run against a document
+        /// about to be replaced — and while the runner's own error page is up,
+        /// which is not a mini-app body at all.
+        func patchStreamingBody(_ hardenedHTML: String) -> Bool {
+            guard let webView, !webView.isLoading, !isShowingErrorPage,
+                  let script = MiniAppPreviewStream.patchScript(hardenedHTML: hardenedHTML) else { return false }
+            webView.evaluateJavaScript(script, completionHandler: nil)
+            return true
         }
 
         /// Our own generated page (error/refusal): allowed to load, never
