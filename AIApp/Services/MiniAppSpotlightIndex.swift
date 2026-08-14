@@ -62,6 +62,8 @@ enum MiniAppSpotlightIndex {
         var refreshedPin = false
         /// The record fetch failed. Nothing was touched — see *Bias: keep*.
         var skippedUnreadableLibrary = false
+        /// Apps mirrored into the App Group for the grid widget this pass.
+        var mirroredRecents = 0
     }
 
     // MARK: - Item construction (pure)
@@ -157,6 +159,11 @@ enum MiniAppSpotlightIndex {
     static var storePin: @MainActor (PinnedMiniApp) -> Void = { PinnedMiniAppStore.pin($0) }
     /// Drop the pin (also pokes WidgetKit).
     static var clearPin: @MainActor () -> Void = { PinnedMiniAppStore.clear() }
+    /// Mirror the newest apps into the App Group for the grid widget. A no-op
+    /// write when nothing changed, so this costs nothing on a quiet pass.
+    static var storeRecents: @MainActor ([PinnedMiniApp]) -> Void = {
+        PinnedMiniAppStore.saveRecents($0)
+    }
 
     // MARK: - Record fetch
 
@@ -203,11 +210,20 @@ enum MiniAppSpotlightIndex {
             }
         }
 
+        // `live` is already newest-first (the fetch sorts by updatedAt), so the
+        // grid widget's order comes free from the same list Spotlight got.
+        let recents = live.prefix(PinnedMiniAppStore.maxRecents).map {
+            PinnedMiniApp(id: $0.id, name: $0.name, emoji: $0.emoji, iconSymbol: $0.symbol)
+        }
+        storeRecents(recents)
+        outcome.mirroredRecents = recents.count
+
         DiagnosticsRecorder.shared.record(
             "miniapp",
             "spotlight reconcile: \(outcome.indexed) indexed"
             + (outcome.clearedStalePin ? ", stale pin cleared" : "")
             + (outcome.refreshedPin ? ", pin refreshed" : "")
+            + ", \(outcome.mirroredRecents) mirrored"
         )
         return outcome
     }

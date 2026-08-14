@@ -255,6 +255,13 @@ struct RootView: View {
                 IntentRouter.shared.request(.openMiniApp(id: id))
                 return
             }
+            // The Control Center control and the grid widget's compose button
+            // both land here; neither can reach IntentRouter from the widget
+            // process, so they ask for a chat by URL instead.
+            if MiniAppDeepLink.isNewChat(url) {
+                IntentRouter.shared.request(.newChat(prompt: ""))
+                return
+            }
             importMiniAppFile(url)
         }
         // Spotlight: a tapped result arrives as this activity with the item's
@@ -362,7 +369,22 @@ struct RootView: View {
             // Warm path: the app was already running, `perform()` just landed.
             performIntentRoute()
         }
+        // The Control Center control runs its intent with `openAppWhenRun`,
+        // which cannot carry a URL (OpenURLIntent refuses custom schemes), so
+        // it leaves a flag in the App Group instead. Two collection points,
+        // both gated on the same consuming read so exactly one ever fires:
+        // this one for a warm app…
+        .onReceive(NotificationCenter.default.publisher(for: .aiityNewChatRequested)) { _ in
+            if NewChatRequest.consume() {
+                IntentRouter.shared.request(.newChat(prompt: ""))
+            }
+        }
         .onChange(of: scenePhase) { _, phase in
+            // …and this one for a cold launch, where the intent has already
+            // run before any observer above exists.
+            if phase == .active, NewChatRequest.consume() {
+                IntentRouter.shared.request(.newChat(prompt: ""))
+            }
             // Keep agent streaming alive briefly in background + Live Activity.
             switch phase {
             case .background:

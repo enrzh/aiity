@@ -41,7 +41,16 @@ enum PinnedMiniAppStore {
     /// `StaticConfiguration` can never drift apart.
     static let widgetKind = "PinnedMiniAppWidget"
 
+    /// The grid widget's `kind`, kept beside the pinned one for the same
+    /// reason: one constant, no drift between reload calls and the widget.
+    static let gridWidgetKind = "MiniAppGridWidget"
+
     private static let storageKey = "pinned-miniapp-v1"
+    private static let recentsKey = "miniapp-recents-v1"
+
+    /// How many apps the largest grid can show. Anything beyond this would be
+    /// written on every reconcile and drawn by nobody.
+    static let maxRecents = 8
 
     /// Test seam only (mirrors `MiniAppIndex.storageURL`): production always
     /// uses the App Group.
@@ -71,10 +80,41 @@ enum PinnedMiniAppStore {
         reloadWidget()
     }
 
+    /// The most recently used mini-apps, newest first — what the grid widget
+    /// draws. Same snapshot bargain as the pin: the widget process must never
+    /// need the SwiftData store just to paint a name and an icon.
+    static func loadRecents() -> [PinnedMiniApp] {
+        guard let defaults = UserDefaults(suiteName: suiteName),
+              let data = defaults.data(forKey: recentsKey),
+              let apps = try? JSONDecoder().decode([PinnedMiniApp].self, from: data) else {
+            return []
+        }
+        return apps
+    }
+
+    /// Mirror the library's newest apps into the App Group. Written by the
+    /// same reconcile pass that refreshes the pin, so the two never disagree
+    /// about a renamed or deleted record.
+    static func saveRecents(_ apps: [PinnedMiniApp]) {
+        guard let defaults = UserDefaults(suiteName: suiteName) else { return }
+        let trimmed = Array(apps.prefix(maxRecents))
+        guard trimmed != loadRecents() else { return }  // no redraw for no change
+        guard let data = try? JSONEncoder().encode(trimmed) else { return }
+        defaults.set(data, forKey: recentsKey)
+        reloadWidgets()
+    }
+
     /// Fire-and-forget: with no widget on any Home Screen this is a no-op, so
     /// callers never need to know whether one is installed.
     static func reloadWidget() {
         WidgetCenter.shared.reloadTimelines(ofKind: widgetKind)
+    }
+
+    /// Both widget kinds — the pin and the grid draw from the same store, so a
+    /// change to either half redraws both.
+    static func reloadWidgets() {
+        WidgetCenter.shared.reloadTimelines(ofKind: widgetKind)
+        WidgetCenter.shared.reloadTimelines(ofKind: gridWidgetKind)
     }
 }
 
@@ -89,6 +129,17 @@ enum PinnedMiniAppStore {
 enum MiniAppDeepLink {
     static let scheme = "aiity"
     static let host = "miniapp"
+
+    /// `aiity://chat` — open the app on a fresh conversation. Used by the
+    /// Control Center control and the grid widget's compose button, both of
+    /// which live in the extension and cannot reach `IntentRouter` directly.
+    static let chatURL = URL(string: "aiity://chat")!
+
+    /// True for exactly `aiity://chat`, so the root can route it without
+    /// having to parse anything else.
+    static func isNewChat(_ url: URL) -> Bool {
+        url.scheme?.lowercased() == scheme && url.host?.lowercased() == "chat"
+    }
 
     /// `aiity://miniapp/<uuid>`. Optional only because `URLComponents` is —
     /// a scheme, a fixed host and a UUID path always render.

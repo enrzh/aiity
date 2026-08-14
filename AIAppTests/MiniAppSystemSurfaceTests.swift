@@ -29,6 +29,7 @@ final class MiniAppSystemSurfaceTests: XCTestCase {
     /// the queue in the shared `UserDefaults` (same reason the sweep suite
     /// snapshots it).
     private var purgesBeforeTest: [MiniAppSessionStorePurgeQueue.Record] = []
+    private var previousStoreRecents: (@MainActor ([PinnedMiniApp]) -> Void)!
 
     override func setUp() async throws {
         try await super.setUp()
@@ -40,6 +41,7 @@ final class MiniAppSystemSurfaceTests: XCTestCase {
         previousPinned = MiniAppSpotlightIndex.pinned
         previousStorePin = MiniAppSpotlightIndex.storePin
         previousClearPin = MiniAppSpotlightIndex.clearPin
+        previousStoreRecents = MiniAppSpotlightIndex.storeRecents
         purgesBeforeTest = MiniAppSessionStorePurgeQueue.records()
         MiniAppSessionStorePurgeQueue.removeAll()
     }
@@ -52,6 +54,7 @@ final class MiniAppSystemSurfaceTests: XCTestCase {
         MiniAppSpotlightIndex.pinned = previousPinned
         MiniAppSpotlightIndex.storePin = previousStorePin
         MiniAppSpotlightIndex.clearPin = previousClearPin
+        MiniAppSpotlightIndex.storeRecents = previousStoreRecents
         MiniAppSessionStorePurgeQueue.replaceAll(purgesBeforeTest)
         purgesBeforeTest = []
         try await super.tearDown()
@@ -72,6 +75,8 @@ final class MiniAppSystemSurfaceTests: XCTestCase {
         var indexedIds: [String] = []
         var storedPins: [PinnedMiniApp] = []
         var clearedPins = 0
+        /// Every list handed to the grid widget's mirror, in call order.
+        var mirroredRecents: [[PinnedMiniApp]] = []
     }
 
     private func fakeSystemIndex(_ log: SurfaceLog) -> MiniAppSpotlightIndex.Index {
@@ -92,6 +97,7 @@ final class MiniAppSystemSurfaceTests: XCTestCase {
         MiniAppSpotlightIndex.pinned = { pinned }
         MiniAppSpotlightIndex.storePin = { log.storedPins.append($0); log.events.append("store-pin") }
         MiniAppSpotlightIndex.clearPin = { log.clearedPins += 1; log.events.append("clear-pin") }
+        MiniAppSpotlightIndex.storeRecents = { log.mirroredRecents.append($0) }
     }
 
     // MARK: - Pin store round trip
@@ -187,10 +193,15 @@ final class MiniAppSystemSurfaceTests: XCTestCase {
 
         let outcome = await MiniAppSpotlightIndex.reconcile(context: context)
 
-        XCTAssertEqual(outcome, MiniAppSpotlightIndex.Outcome(indexed: 2))
+        XCTAssertEqual(outcome, MiniAppSpotlightIndex.Outcome(indexed: 2, mirroredRecents: 2))
         XCTAssertEqual(log.events, ["delete miniapps", "index 2"],
                        "the domain reset must come first or a mirrored delete lingers")
         XCTAssertEqual(Set(log.indexedIds), [counter.id.uuidString, timer.id.uuidString])
+        // The grid widget draws this list in order, so newest-first is part of
+        // the contract, not an accident of the fetch.
+        XCTAssertEqual(log.mirroredRecents.count, 1, "mirrored exactly once per pass")
+        XCTAssertEqual(log.mirroredRecents.first?.map(\.id), [timer.id, counter.id],
+                       "newest first — the fetch's updatedAt order is what the widget shows")
     }
 
     func testReconcileClearsAPinWhoseRecordIsGone() async throws {
@@ -242,7 +253,7 @@ final class MiniAppSystemSurfaceTests: XCTestCase {
 
         let outcome = await MiniAppSpotlightIndex.reconcile(context: context)
 
-        XCTAssertEqual(outcome, MiniAppSpotlightIndex.Outcome(indexed: 1),
+        XCTAssertEqual(outcome, MiniAppSpotlightIndex.Outcome(indexed: 1, mirroredRecents: 1),
                        "no pin writes means no widget reload churn")
         XCTAssertEqual(log.storedPins, [])
         XCTAssertEqual(log.clearedPins, 0)

@@ -1,9 +1,9 @@
 import SwiftUI
 import WidgetKit
 
-/// Home-Screen widget for the ONE mini-app the user pinned from the library's
-/// long-press menu — a tap opens it straight in the sandboxed runner via
-/// `aiity://miniapp/<uuid>`.
+/// Home-Screen, Lock-Screen and StandBy widget for the ONE mini-app the user
+/// pinned from the library's long-press menu — a tap opens it straight in the
+/// sandboxed runner via `aiity://miniapp/<uuid>`.
 ///
 /// Data arrives through `PinnedMiniAppStore` (App Group defaults) — the widget
 /// process has no SwiftData container and must not grow one. Timeline policy is
@@ -52,7 +52,7 @@ struct PinnedMiniAppWidget: Widget {
         }
         .configurationDisplayName("Angeheftete Mini-App")
         .description("Öffnet deine angeheftete Mini-App mit einem Tipp.")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular])
     }
 }
 
@@ -64,20 +64,24 @@ struct PinnedMiniAppWidgetView: View {
     var body: some View {
         Group {
             if let pinned = entry.pinned {
-                pinnedContent(pinned)
+                content(pinned)
                     .widgetURL(MiniAppDeepLink.url(for: pinned.id))
             } else {
+                // No `widgetURL`: the user lands at the app root, which is
+                // where pinning happens.
                 emptyContent
             }
         }
-        .containerBackground(for: .widget) {
-            Color(uiColor: .systemBackground)
-        }
+        .aiityWidgetContainerBackground(family)
     }
 
     @ViewBuilder
-    private func pinnedContent(_ pinned: PinnedMiniApp) -> some View {
+    private func content(_ pinned: PinnedMiniApp) -> some View {
         switch family {
+        case .accessoryCircular:
+            circularContent(pinned)
+        case .accessoryRectangular:
+            rectangularContent(pinned)
         case .systemMedium:
             HStack(spacing: 14) {
                 WidgetMiniAppIcon(
@@ -113,32 +117,69 @@ struct PinnedMiniAppWidgetView: View {
         }
     }
 
-    /// The nothing-pinned state: the app mark (2×2 tile grid, one curated hue
-    /// per tile) and one quiet line. Tapping it opens the app root — no
-    /// `widgetURL`, so the user lands where pinning happens.
-    private var emptyContent: some View {
-        VStack(spacing: 10) {
-            Grid(horizontalSpacing: 5, verticalSpacing: 5) {
-                GridRow {
-                    markTile("✨")
-                    markTile("✅")
-                }
-                GridRow {
-                    markTile("📚")
-                    markTile("🛒")
-                }
-            }
-            Text("Keine App angeheftet")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
+    // MARK: - Accessory (Lock Screen / StandBy)
+
+    /// The plate comes from the container background — see
+    /// `aiityWidgetContainerBackground`.
+    private func circularContent(_ pinned: PinnedMiniApp) -> some View {
+        AccessoryGlyph(pinned: pinned)
+            .widgetAccentable()
+            .accessibilityLabel(displayName(pinned))
     }
 
-    private func markTile(_ seed: String) -> some View {
-        RoundedRectangle(cornerRadius: 7, style: .continuous)
-            .fill(WidgetTile.gradient(for: seed, deep: false, dark: colorScheme == .dark))
-            .frame(width: 24, height: 24)
+    private func rectangularContent(_ pinned: PinnedMiniApp) -> some View {
+        HStack(spacing: 8) {
+            AccessoryGlyph(pinned: pinned)
+                .widgetAccentable()
+            VStack(alignment: .leading, spacing: 1) {
+                Text(displayName(pinned))
+                    .font(.headline)
+                    .lineLimit(1)
+                    .widgetAccentable()
+                Text("Mini-App")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    // MARK: - Empty
+
+    /// The nothing-pinned state: the brand mark and one quiet line on the
+    /// Home Screen, a single readable line on the Lock Screen.
+    @ViewBuilder
+    private var emptyContent: some View {
+        switch family {
+        case .accessoryCircular:
+            Image(systemName: "square.grid.2x2")
+                .font(.title3)
+                .symbolRenderingMode(.hierarchical)
+                .widgetAccentable()
+                .accessibilityLabel("Keine App angeheftet")
+        case .accessoryRectangular:
+            VStack(alignment: .leading, spacing: 1) {
+                Text("aiity")
+                    .font(.headline)
+                    .widgetAccentable()
+                Text("Keine App angeheftet")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .combine)
+        default:
+            VStack(spacing: 10) {
+                WidgetBrandMark(tileSize: 24, dark: colorScheme == .dark)
+                Text("Keine App angeheftet")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
     }
 
     private func displayName(_ pinned: PinnedMiniApp) -> String {
@@ -146,77 +187,72 @@ struct PinnedMiniAppWidgetView: View {
     }
 }
 
-// MARK: - Tile look (local mirror of Theme.swift)
-
-/// The identity-color math from `Theme.tileHue`/`tileGradient`/`tileTone`,
-/// duplicated because the extension target does not compile `Theme.swift`
-/// (project.yml pulls only the shared service files in) and the tile on the
-/// Home Screen must match the tile in the app exactly. KEEP IN LOCKSTEP with
-/// `AIApp/Support/Theme.swift` — same hues, same tones, same seed hash.
-private enum WidgetTile {
-    /// Curated tile hues (0…1) anchored on the iOS system palette — see
-    /// `Theme.tileHues`.
-    static let hues: [Double] = [0.58, 0.655, 0.74, 0.89, 0.99, 0.07, 0.13, 0.36, 0.47, 0.53]
-
-    /// djb2 over UTF-8 — NOT `String.hashValue`, which is randomized per
-    /// process and would recolor the widget on every redraw.
-    static func stableHue(_ s: String) -> Double {
-        var h: UInt64 = 5381
-        for b in s.utf8 { h = (h &* 33) &+ UInt64(b) }
-        return Double(h % 360) / 360.0
-    }
-
-    static func hue(for seed: String) -> Double {
-        let slot = Int(stableHue(seed.isEmpty ? "aiity" : seed) * Double(hues.count)) % hues.count
-        return hues[slot]
-    }
-
-    static func tone(deep: Bool, dark: Bool) -> (saturation: Double, top: Double, bottom: Double) {
-        if dark {
-            return deep ? (0.72, 0.70, 0.55) : (0.48, 0.62, 0.48)
-        }
-        return deep ? (0.66, 0.86, 0.66) : (0.42, 0.96, 0.86)
-    }
-
-    static func gradient(for seed: String, deep: Bool, dark: Bool) -> LinearGradient {
-        let hue = hue(for: seed)
-        let tone = tone(deep: deep, dark: dark)
-        return LinearGradient(
-            colors: [Color(hue: hue, saturation: tone.saturation, brightness: tone.top),
-                     Color(hue: hue, saturation: tone.saturation, brightness: tone.bottom)],
-            startPoint: .top, endPoint: .bottom
-        )
-    }
-}
-
-/// Local mirror of `MiniAppIconView` (app target): SF Symbol if set, else
-/// emoji, on the seed-colored rounded tile with the white rim.
-private struct WidgetMiniAppIcon: View {
-    var emoji: String
-    var iconSymbol: String?
-    var size: CGFloat
-    var dark: Bool
-
-    private var isSymbol: Bool { !(iconSymbol ?? "").isEmpty }
-    private var seed: String { (iconSymbol ?? "") + emoji }
+/// The pinned app as a single monochrome-safe glyph.
+///
+/// The Lock Screen renders accessory widgets in `.vibrant`, which flattens an
+/// emoji to an unreadable luminance blob — so the emoji is only used where the
+/// mode is actually full color (StandBy), and everything else falls back to the
+/// app's SF Symbol, then to its initial. No color carries meaning here.
+private struct AccessoryGlyph: View {
+    @Environment(\.widgetRenderingMode) private var renderingMode
+    let pinned: PinnedMiniApp
 
     var body: some View {
-        RoundedRectangle(cornerRadius: size * 0.3, style: .continuous)
-            .fill(WidgetTile.gradient(for: seed, deep: isSymbol, dark: dark))
-            .frame(width: size, height: size)
-            .overlay {
-                if let iconSymbol, isSymbol {
-                    Image(systemName: iconSymbol)
-                        .font(.system(size: size * 0.46, weight: .semibold))
-                        .foregroundStyle(.white)
-                } else {
-                    Text(emoji.isEmpty ? "✨" : emoji)
-                        .font(.system(size: size * 0.56))
-                }
-            }
-            .overlay(
-                RoundedRectangle(cornerRadius: size * 0.3, style: .continuous)
-                    .strokeBorder(.white.opacity(0.14), lineWidth: 0.5)
-            )
+        if let symbol = pinned.iconSymbol, !symbol.isEmpty {
+            Image(systemName: symbol)
+                .font(.title3)
+                .symbolRenderingMode(.hierarchical)
+        } else if renderingMode == .fullColor, !pinned.emoji.isEmpty {
+            Text(pinned.emoji)
+                .font(.title3)
+        } else if let initial = pinned.name.first {
+            Text(String(initial).uppercased())
+                .font(.title3.weight(.semibold))
+        } else {
+            Image(systemName: "square.grid.2x2")
+                .font(.title3)
+                .symbolRenderingMode(.hierarchical)
+        }
     }
 }
+
+#if DEBUG
+private let previewPin = PinnedMiniApp(
+    id: UUID(),
+    name: "Einkaufsliste",
+    emoji: "🛒",
+    iconSymbol: nil
+)
+
+#Preview("Klein", as: .systemSmall) {
+    PinnedMiniAppWidget()
+} timeline: {
+    PinnedMiniAppEntry(date: .now, pinned: previewPin)
+    PinnedMiniAppEntry(date: .now, pinned: nil)
+}
+
+#Preview("Mittel", as: .systemMedium) {
+    PinnedMiniAppWidget()
+} timeline: {
+    PinnedMiniAppEntry(date: .now, pinned: previewPin)
+    PinnedMiniAppEntry(date: .now, pinned: nil)
+}
+
+#Preview("Rund", as: .accessoryCircular) {
+    PinnedMiniAppWidget()
+} timeline: {
+    PinnedMiniAppEntry(date: .now, pinned: previewPin)
+    PinnedMiniAppEntry(
+        date: .now,
+        pinned: PinnedMiniApp(id: UUID(), name: "Notizen", emoji: "📝", iconSymbol: "note.text")
+    )
+    PinnedMiniAppEntry(date: .now, pinned: nil)
+}
+
+#Preview("Rechteckig", as: .accessoryRectangular) {
+    PinnedMiniAppWidget()
+} timeline: {
+    PinnedMiniAppEntry(date: .now, pinned: previewPin)
+    PinnedMiniAppEntry(date: .now, pinned: nil)
+}
+#endif
