@@ -68,3 +68,15 @@ enum MiniAppCapability: String, Codable, Equatable, CaseIterable {
         }
     }
 }
+
+/// Per-app capabilities the user consents to individually, OUTSIDE the
+/// offline/network/browser ladder. Deliberately not a case of
+/// `MiniAppCapability`: a tier grant is a single, replaceable value with a rank
+/// ordering, and folding e.g. notifications into it would make granting them
+/// silently overwrite (or be overwritten by) the app's network tier. A tier
+/// grant never implies one of these and one of these never moves an app up the
+/// ladder.
+enum MiniAppAuxCapability: String, CaseIterable {
+    /// `window.aiity.notifications` — schedule local notifications.
+    case notifications
+}

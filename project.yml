@@ -54,6 +54,24 @@ targets:
         # build up to 7 showed a blank icon in ASC (device home screen was
         # fine — that uses the nested key).
         CFBundleIconName: AppIcon
+        # Mini-apps travel as .aiityapp files (JSON envelope) — declaring the
+        # type is what makes Files/AirDrop route "Open with aiity".
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: aiity Mini-App
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Owner
+            LSItemContentTypes:
+              - com.aiity.miniapp
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: com.aiity.miniapp
+            UTTypeDescription: aiity Mini-App
+            UTTypeConformsTo:
+              - public.json
+            UTTypeTagSpecification:
+              public.filename-extension:
+                - aiityapp
+              public.mime-type:
+                - application/json
         CFBundleDevelopmentRegion: de
         # Declared explicitly so iOS offers the app in these languages and the
         # App Store lists them. The actual strings live in
@@ -165,6 +183,9 @@ targets:
       # its binary because LiveActivityIntent.perform() executes in the APP
       # process. Dropping it from either side breaks one half silently.
       - path: AIApp/Services/StopAgentRunIntent.swift
+      # Shared pin store — the widget reads the pinned mini-app snapshot from
+      # the App Group through it. (Its +App companion file is app-only.)
+      - path: AIApp/Services/PinnedMiniAppStore.swift
     info:
       path: AIAppLiveActivity/Info.plist
       properties:
@@ -189,6 +210,7 @@ targets:
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: H8FW6W6K2D
         SKIP_INSTALL: true
+        CODE_SIGN_ENTITLEMENTS: AIAppLiveActivity/AIAppLiveActivity.entitlements
         LD_RUNPATH_SEARCH_PATHS: ["$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks"]
   AIAppTests:
     type: bundle.unit-test

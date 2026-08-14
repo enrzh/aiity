@@ -62,9 +62,10 @@ struct CrashNoticeBanner: View {
                 )
                 .padding(.horizontal, Theme.space2)
                 // Combined so the banner is ONE element carrying the whole
-                // message; without this its parts are exposed separately and
+                // message; the two buttons surface as VoiceOver custom
+                // actions. Without this its parts are exposed separately and
                 // the identifier does not surface at all.
-                .accessibilityElement(children: .contain)
+                .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("crash-notice")
                 .accessibilityLabel(title)
                 // Reduce Motion: no slide (fade only) and no symbol bounce —

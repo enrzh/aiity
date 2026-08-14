@@ -35,5 +35,12 @@
 	     key as a constant and a unit test fails if the two disagree. -->
 	<key>com.apple.developer.kernel.increased-memory-limit</key>
 	<true/>
+	<!-- Widget ↔ app hand-off: the pinned mini-app snapshot travels through
+	     this group's UserDefaults. Without it BOTH processes silently get
+	     private containers — the widget just shows its empty state forever. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.aiity.app</string>
+	</array>
 </dict>
 </plist>

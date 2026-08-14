@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import Foundation
+import CoreSpotlight
 // `AiityAppShortcuts.updateAppShortcutParameters()` — tells the system the
 // mini-app / agent vocabulary changed.
 import AppIntents
@@ -180,6 +181,8 @@ struct RootView: View {
     /// from the library screen, so the sandbox opens whether or not the Apps
     /// tab has ever been built.
     @State private var intentMiniApp: MiniApp?
+    /// Why an incoming `.aiityapp` file was refused, for the import alert.
+    @State private var importErrorMessage: String?
     /// Soft floor so the launch entrance can play once instead of flashing.
     @State private var splashFinished = false
 
@@ -237,6 +240,40 @@ struct RootView: View {
             if complete && sync.mode == .synced {
                 MiniAppDedup.removeDuplicates(in: modelContext)
             }
+        }
+        // Shared `.aiityapp` files (AirDrop / Files / Mail). Strictly separate
+        // from OAuth: the `aiity://` callback is consumed inside
+        // `ASWebAuthenticationSession` and never reaches `onOpenURL` — and the
+        // file-URL guard in the handler keeps this from touching anything else
+        // that might arrive here later.
+        .onOpenURL { url in
+            // One dispatcher for both arrival kinds: the widget/Spotlight deep
+            // link answers nil for every other aiity:// URL (OAuth callbacks
+            // are consumed inside ASWebAuthenticationSession anyway), and the
+            // file-URL guard inside the importer covers the rest.
+            if let id = MiniAppDeepLink.miniAppId(from: url) {
+                IntentRouter.shared.request(.openMiniApp(id: id))
+                return
+            }
+            importMiniAppFile(url)
+        }
+        // Spotlight: a tapped result arrives as this activity with the item's
+        // uniqueIdentifier — the record's UUID. Same route Siri uses.
+        .onContinueUserActivity(CSSearchableItemActionType) { activity in
+            guard let raw = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
+                  let id = UUID(uuidString: raw) else { return }
+            IntentRouter.shared.request(.openMiniApp(id: id))
+        }
+        .alert(
+            String(localized: "Import fehlgeschlagen"),
+            isPresented: Binding(
+                get: { importErrorMessage != nil },
+                set: { if !$0 { importErrorMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) { importErrorMessage = nil }
+        } message: {
+            Text(importErrorMessage ?? "")
         }
     }
 
@@ -350,6 +387,27 @@ struct RootView: View {
         }
     }
 
+    // MARK: - Mini-app file import
+
+    /// Create a library record from an incoming `.aiityapp` file and show the
+    /// Apps tab, where the new tile is the feedback. The imported HTML gets NO
+    /// trust: `makeMiniApp` mints a fresh UUID, so no consent grant can
+    /// pre-exist and the first open runs the same consent path as any
+    /// AI-generated app.
+    private func importMiniAppFile(_ url: URL) {
+        guard url.isFileURL,
+              url.pathExtension.lowercased() == MiniAppExport.fileExtension else { return }
+        do {
+            let envelope = try MiniAppExport.load(from: url)
+            modelContext.insert(MiniAppExport.makeMiniApp(from: envelope))
+            selectedTab = 1
+            Analytics.track("miniapp_imported")
+        } catch {
+            importErrorMessage = (error as? MiniAppExport.ImportError)?.errorDescription
+                ?? MiniAppExport.ImportError.unreadable.errorDescription
+        }
+    }
+
     // MARK: - Siri / Shortcuts
 
     /// Carry out whatever an App Intent asked for. Intents never touch the
@@ -407,6 +465,9 @@ struct RootView: View {
         // system charges us for.
         if changed {
             AiityAppShortcuts.updateAppShortcutParameters()
+            // Same trigger, same moment: mirror the library into Spotlight and
+            // square the widget pin against the records that just changed.
+            Task { await MiniAppSpotlightIndex.reconcile(context: modelContext) }
         }
     }
 }

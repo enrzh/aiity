@@ -11,6 +11,9 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var backupURL: URL?
+    /// Visible (and announced) failure of the last backup attempt — a nil from
+    /// writeBackup must not end in silence.
+    @State private var backupError: String?
     @State private var backupSummary = "…"
     @State private var showImporter = false
     /// Outcome of the last import attempt — success summary or error. nil
@@ -85,6 +88,8 @@ struct SettingsView: View {
                         withAnimation(Theme.Motion.preferSpring(Theme.Motion.soft, reduceMotion: reduceMotion)) {
                             needsRestartNotice = true
                         }
+                        // Same text as the footer that just appeared below the fold.
+                        AccessibilityNotification.Announcement(String(localized: "Wird nach dem nächsten Start der App wirksam. Es geht nichts verloren — beide Modi öffnen denselben lokalen Speicher.")).post()
                     }
 
                     AppSettingsRow(
@@ -95,6 +100,7 @@ struct SettingsView: View {
                         subtitle: sync.subtitle,
                         systemImage: sync.systemImage
                     )
+                    .accessibilityElement(children: .combine)
                     .accessibilityIdentifier("sync-status")
                 } header: {
                     Text("Daten")
@@ -118,9 +124,18 @@ struct SettingsView: View {
                 // only thing that survives "I deleted it everywhere".
                 Section {
                     Button {
+                        let url = BackupService.writeBackup(apps: savedApps, createdAt: .now)
                         withAnimation(Theme.Motion.preferSpring(Theme.Motion.soft, reduceMotion: reduceMotion)) {
-                            backupURL = BackupService.writeBackup(apps: savedApps, createdAt: .now)
+                            backupURL = url
+                            backupError = url == nil
+                                ? String(localized: "Backup-Datei konnte nicht erstellt werden.")
+                                : nil
                         }
+                        AccessibilityNotification.Announcement(
+                            url != nil
+                                ? String(localized: "Backup erstellt — Teilen verfügbar")
+                                : String(localized: "Backup-Datei konnte nicht erstellt werden.")
+                        ).post()
                     } label: {
                         Label("Backup-Datei erstellen", systemImage: "arrow.down.doc")
                     }
@@ -140,6 +155,9 @@ struct SettingsView: View {
                     .accessibilityIdentifier("import-backup")
                 } footer: {
                     VStack(alignment: .leading, spacing: 6) {
+                        if let backupError {
+                            Text(backupError).foregroundStyle(.red)
+                        }
                         if let importStatus {
                             Text(importStatus)
                         }
@@ -224,6 +242,13 @@ struct SettingsView: View {
                 allowsMultipleSelection: false
             ) { outcome in
                 importBackup(outcome)
+            }
+            // One announcement path for the whole import flow: wait notice,
+            // success summary, and every error land here.
+            .onChange(of: importStatus) { _, status in
+                if let status {
+                    AccessibilityNotification.Announcement(status).post()
+                }
             }
         }
     }

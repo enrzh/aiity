@@ -54,6 +54,7 @@ struct ChatComposer: View {
                     .onSubmit(onSend)
                     .disabled(isBusy)
                     .accessibilityIdentifier("chat-input")
+                    .accessibilityLabel(placeholder)
                     .onChange(of: text) { _, newValue in
                         if dictation.isListening, newValue != dictationApplied { dictation.stop() }
                         onTextChange(newValue)
@@ -70,6 +71,9 @@ struct ChatComposer: View {
                     // One-shot bounce the moment the message becomes sendable.
                     // The value is frozen under Reduce Motion, so it never fires.
                     .symbolEffect(.bounce, options: .nonRepeating, value: reduceMotion ? false : canSend)
+                    // Fixed 44pt circle: cap the glyph's Dynamic Type so
+                    // accessibility sizes can't push it past its frame.
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility2)
                     .foregroundStyle(buttonForeground)
                     .frame(width: Theme.controlHeight, height: Theme.controlHeight)
                     .background(buttonBackground, in: Circle())
@@ -123,6 +127,7 @@ struct ChatComposer: View {
         } label: {
                 Image(systemName: "plus")
                     .font(.body.weight(.semibold))
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility2)
                     .foregroundStyle(prefs.chatMode == .auto ? Color.secondary : Theme.accent)
                     .frame(width: Theme.controlHeight, height: Theme.controlHeight)
                     .glassSurface(in: Circle(), interactive: true)
@@ -149,17 +154,22 @@ struct ChatComposer: View {
                         } label: {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.caption)
-                                // Glyph alone is far below the 44pt-ish target.
-                                .frame(width: 28, height: 28)
+                                .frame(width: 44, height: 44)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        // 44pt hit target without 44pt of chip height
+                        // (BannerView close pattern).
+                        .padding(-8)
                         .accessibilityIdentifier("chat-attachment-remove-\(attachment.mediaId)")
-                        .accessibilityLabel("Anhang entfernen")
+                        .accessibilityLabel(String(localized: "Anhang entfernen: \(attachment.filename)"))
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
                     .background(Color(.secondarySystemBackground), in: Capsule())
+                    // One element per chip; the remove button surfaces as a
+                    // custom action instead of a separate tiny target.
+                    .accessibilityElement(children: .combine)
                 }
             }
             .padding(.horizontal, Theme.space2)
@@ -189,6 +199,7 @@ struct ChatComposer: View {
                         options: .repeating,
                         isActive: dictation.buttonState == .listening && !reduceMotion
                     )
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility2)
                     .foregroundStyle(dictationForeground)
             }
             .frame(width: Theme.controlHeight, height: Theme.controlHeight)

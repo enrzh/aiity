@@ -194,18 +194,19 @@ struct AgentsView: View {
     }
 
     private func agentRow(_ agent: AgentDefinition) -> some View {
+        let displayName = agent.name.isEmpty ? String(localized: "Ohne Namen") : agent.name
         // The toggle is a SIBLING of the tap target, not nested inside it:
         // an interactive control inside a Button's label makes the whole row
         // one ambiguous accessibility element — bad for VoiceOver, and it made
         // the row unaddressable in UI tests.
-        HStack(spacing: 12) {
+        return HStack(spacing: 12) {
             Button {
                 editing = agent
             } label: {
                 HStack(spacing: 12) {
                     avatar(agent.emoji)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(agent.name.isEmpty ? "Ohne Namen" : agent.name)
+                        Text(displayName)
                             .foregroundStyle(agent.enabled ? .primary : .secondary)
                         Text(agent.providerLabel(fallback: settingsStore.settings))
                             .font(.caption)
@@ -224,7 +225,7 @@ struct AgentsView: View {
                 set: { _ in store.toggle(agent) }
             ))
             .labelsHidden()
-            .accessibilityLabel("\(agent.name) aktiv")
+            .accessibilityLabel(String(localized: "\(displayName) aktiv"))
         }
         .swipeActions {
             Button(role: .destructive) {
@@ -251,6 +252,7 @@ struct AgentEditSheet: View {
     private func writeRole() {
         writingRole = true
         roleError = nil
+        AccessibilityNotification.Announcement(String(localized: "Rolle wird geschrieben")).post()
         Task {
             do {
                 agent.role = try await AgentRoleWriter.write(
@@ -258,8 +260,10 @@ struct AgentEditSheet: View {
                     existing: agent.role,
                     settings: settingsStore.settings
                 )
+                AccessibilityNotification.Announcement(String(localized: "Rolle aktualisiert")).post()
             } catch {
                 roleError = error.localizedDescription
+                AccessibilityNotification.Announcement(error.localizedDescription).post()
             }
             writingRole = false
         }

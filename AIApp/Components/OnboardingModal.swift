@@ -44,6 +44,9 @@ struct OnboardingModal: View {
     @State private var connectRow0 = false
     @State private var connectRow1 = false
     @State private var connectRow2 = false
+    /// VoiceOver lands on the connect heading after the page turn — without
+    /// this, focus stays on the CTA whose label silently flipped.
+    @AccessibilityFocusState private var connectHeadingFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -66,6 +69,12 @@ struct OnboardingModal: View {
                         ) {
                             page = 1
                         }
+                        AccessibilityNotification.ScreenChanged().post()
+                        Task {
+                            // Focus after the transition has mounted the heading.
+                            try? await Task.sleep(for: .milliseconds(600))
+                            connectHeadingFocused = true
+                        }
                     } else {
                         finish()
                     }
@@ -85,6 +94,8 @@ struct OnboardingModal: View {
                     Button("Überspringen") { finish() }
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                        .frame(minHeight: Theme.controlHeight)
+                        .contentShape(Rectangle())
                         .opacity(ctaShown ? 1 : 0)
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
@@ -221,6 +232,8 @@ struct OnboardingModal: View {
             Text("Modell verbinden")
                 .font(.title2.bold())
                 .padding(.bottom, Theme.space1)
+                .accessibilityAddTraits(.isHeader)
+                .accessibilityFocused($connectHeadingFocused)
 
             Group {
                 // Zero-setup path: Apple Intelligence on-device needs no key,
@@ -264,6 +277,7 @@ struct OnboardingModal: View {
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(Theme.accent)
                 .frame(width: 40)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.headline)
                 Text(subtitle)
@@ -272,6 +286,7 @@ struct OnboardingModal: View {
             }
             Spacer(minLength: 0)
         }
+        .accessibilityElement(children: .combine)
         .opacity(shown ? 1 : 0)
         .offset(y: shown ? 0 : 14)
     }
@@ -337,6 +352,9 @@ struct OnboardingModal: View {
         settings.model = ProviderPreset.preset(for: "apple-foundation").defaultModel
         settingsStore.settings = settings
         Theme.Haptics.success()
+        AccessibilityNotification.Announcement(
+            String(localized: "Apple Intelligence verbunden")
+        ).post()
         completeFinish()
     }
 
@@ -379,6 +397,7 @@ struct OnboardingModal: View {
                     .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(Theme.accent)
                     .frame(width: 32)
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).font(.body.weight(.semibold))
                     Text(subtitle)

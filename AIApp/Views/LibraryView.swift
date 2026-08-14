@@ -113,6 +113,10 @@ struct LibraryView: View {
                     // the next launch's MiniAppSessionStoreSweep finishes it.
                     MiniAppRunnerView.removeSessionStore(for: app.id.uuidString)
                     MiniAppConsent.revoke(appId: app.id.uuidString)
+                    // Local, never refused — unlike the session store above it
+                    // needs no queue. Mirrored deletes are reconciled by
+                    // MiniAppSessionStoreSweep instead.
+                    MiniAppRevisionStore.removeAll(appId: app.id)
                     modelContext.delete(app)
                     deleteCandidate = nil
                 }
@@ -175,6 +179,23 @@ struct LibraryView: View {
                 Label("Mit KI bearbeiten", systemImage: "wand.and.stars")
             }
             Button {
+                remix(app)
+            } label: {
+                Label("Remix", systemImage: "square.on.square")
+            }
+            .accessibilityIdentifier("library-app-remix")
+            ShareLink(
+                item: MiniAppShareItem(
+                    name: app.name,
+                    emoji: app.emoji,
+                    iconSymbol: app.iconSymbol,
+                    html: app.runnableHTML
+                ),
+                preview: SharePreview(app.name)
+            ) {
+                Label("Teilen", systemImage: "square.and.arrow.up")
+            }
+            Button {
                 iconEditApp = app
             } label: {
                 Label("Icon ändern", systemImage: "paintbrush")
@@ -184,6 +205,11 @@ struct LibraryView: View {
             } label: {
                 Label("Netzwerkzugriff", systemImage: "network")
             }
+            Button {
+                PinnedMiniAppStore.pin(app: app)
+            } label: {
+                Label("Anheften", systemImage: "pin")
+            }
             Button(role: .destructive) {
                 deleteCandidate = app
             } label: {
@@ -191,6 +217,16 @@ struct LibraryView: View {
             }
             .accessibilityIdentifier("library-app-delete")
         }
+    }
+
+    /// Remix = duplicate, then hand the copy to the existing edit-with-AI
+    /// flow. `remixCopy()` mints a fresh UUID, so the copy inherits neither
+    /// consent nor cookie jar nor revision history.
+    private func remix(_ app: MiniApp) {
+        let copy = app.remixCopy()
+        modelContext.insert(copy)
+        session.startEditing(id: copy.id, name: copy.name, html: copy.runnableHTML)
+        openChatTab()
     }
 }
 

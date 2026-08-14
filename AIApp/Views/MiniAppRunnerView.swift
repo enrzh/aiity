@@ -33,6 +33,9 @@ struct MiniAppRunnerView: UIViewRepresentable {
     let appId: String
     let html: String
     var capability: MiniAppCapability = .offline
+    /// Named in runtime consent prompts ("Die App „X“ möchte …"). Empty falls
+    /// back to a generic label; the hosting sheet should pass its title.
+    var appName: String = ""
     /// Set by the hosting sheet when it wants a back button.
     var browserState: MiniAppBrowserState? = nil
 
@@ -86,7 +89,7 @@ struct MiniAppRunnerView: UIViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(appId: appId, capability: capability)
+        Coordinator(appId: appId, capability: capability, appName: appName)
     }
 
     func makeUIView(context: Context) -> WKWebView {
@@ -149,6 +152,7 @@ struct MiniAppRunnerView: UIViewRepresentable {
     func updateUIView(_ webView: WKWebView, context: Context) {
         let capabilityChanged = context.coordinator.capability != capability
         context.coordinator.capability = capability
+        context.coordinator.appName = appName
         if context.coordinator.loadedHTML != html || capabilityChanged {
             context.coordinator.loadedHTML = html
             context.coordinator.schemeWasAssumed = WebAppBuilder.schemeWasAssumed(in: html)
@@ -235,6 +239,7 @@ struct MiniAppRunnerView: UIViewRepresentable {
     final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate {
         let appId: String
         var capability: MiniAppCapability
+        var appName: String
         weak var webView: WKWebView?
         var loadedHTML: String?
         /// The site this browser app exists to open, for the error page's retry.
@@ -265,9 +270,10 @@ struct MiniAppRunnerView: UIViewRepresentable {
         private var downloadDestinations: [ObjectIdentifier: URL] = [:]
         private var canGoBackObservation: NSKeyValueObservation?
 
-        init(appId: String, capability: MiniAppCapability) {
+        init(appId: String, capability: MiniAppCapability, appName: String = "") {
             self.appId = appId
             self.capability = capability
+            self.appName = appName
         }
 
         /// Keep the sheet's back button in step with the web view's history.
@@ -808,9 +814,72 @@ struct MiniAppRunnerView: UIViewRepresentable {
                 let confirmed = await confirmOpenExternal(url)
                 if confirmed { UIApplication.shared.open(url, options: [:], completionHandler: nil) }
                 return ["ok": confirmed]
+
+            // The `window.aiity` surface. Contract in `Sandbox.bridgeScript`;
+            // every answer is the {ok, value?, error?} envelope its JS side
+            // turns into a resolved value or a rejection.
+            case "storage.getItem":
+                guard let key = payload["key"] as? String else { return Self.failure("invalid_argument") }
+                return Self.success(MiniAppStorage.item(appId: appId, key: key) ?? NSNull())
+            case "storage.setItem":
+                guard let key = payload["key"] as? String,
+                      let value = payload["value"] as? String else {
+                    return Self.failure("invalid_argument")
+                }
+                return MiniAppStorage.setItem(appId: appId, key: key, value: value)
+                    ? Self.success(NSNull())
+                    : Self.failure("quota_exceeded")
+            case "storage.removeItem":
+                guard let key = payload["key"] as? String else { return Self.failure("invalid_argument") }
+                MiniAppStorage.removeItem(appId: appId, key: key)
+                return Self.success(NSNull())
+            case "notifications.schedule":
+                guard await requestNotificationConsent() else { return Self.failure("consent_denied") }
+                let result = await MiniAppNotificationScheduler.schedule(
+                    appId: appId,
+                    title: payload["title"] as? String ?? "",
+                    body: payload["body"] as? String ?? "",
+                    at: payload["at"]
+                )
+                if result["ok"] as? Bool == true, let id = result["id"] as? String {
+                    return Self.success(["id": id])
+                }
+                return Self.failure(result["error"] as? String ?? "error")
+            case "notifications.cancelAll":
+                // No prompt: cancelling can only remove what this app itself
+                // scheduled, and without a grant there is nothing pending.
+                return Self.success(["cancelled": await MiniAppNotificationScheduler.cancelAll(appId: appId)])
             default:
                 return NSNull()
             }
+        }
+
+        private static func success(_ value: Any) -> [String: Any] { ["ok": true, "value": value] }
+        private static func failure(_ code: String) -> [String: Any] { ["ok": false, "error": code] }
+
+        /// First-call consent for `.notifications`, the same flow the tier
+        /// consent in `MiniAppSheet` uses: name the app, say plainly what it
+        /// wants, persist only a grant. A denial is deliberately not persisted
+        /// — a later call may ask again, exactly like a declined tier prompt.
+        @MainActor
+        private func requestNotificationConsent() async -> Bool {
+            if MiniAppConsent.auxGranted(appId: appId, .notifications) { return true }
+            guard let presenter = webView?.window?.rootViewController?.topmostPresented else { return false }
+            let name = appName.isEmpty ? String(localized: "Mini-App") : appName
+            let allowed = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
+                var resumed = false
+                func finish(_ value: Bool) { if !resumed { resumed = true; continuation.resume(returning: value) } }
+                let alert = UIAlertController(
+                    title: String(localized: "Mitteilungen erlauben?"),
+                    message: String(localized: "Die App „\(name)“ möchte dir Mitteilungen senden, auch wenn sie gerade nicht geöffnet ist. Nur erlauben, wenn du dieser App vertraust."),
+                    preferredStyle: .alert
+                )
+                alert.addAction(UIAlertAction(title: String(localized: "Nicht erlauben"), style: .cancel) { _ in finish(false) })
+                alert.addAction(UIAlertAction(title: String(localized: "Erlauben"), style: .default) { _ in finish(true) })
+                presenter.present(alert, animated: true)
+            }
+            if allowed { MiniAppConsent.allowAux(appId: appId, .notifications) }
+            return allowed
         }
 
         /// Confirm, then open. For the navigation-policy call sites, which are

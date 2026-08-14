@@ -174,6 +174,18 @@ struct ProviderConnectionView: View {
             // Instant model list from cache/defaults, then silent refresh.
             bootstrapModels()
         }
+        // Spoken download lifecycle for the on-device rows — completion and
+        // failure are otherwise silent row changes.
+        .onChange(of: modelStore.downloadedIds) { old, new in
+            guard let added = new.subtracting(old).first else { return }
+            let name = LocalModel.allCandidates.first { $0.id == added }?.displayName ?? added
+            AccessibilityNotification.Announcement(String(localized: "\(name) heruntergeladen")).post()
+        }
+        .onChange(of: modelStore.errorMessage) { _, message in
+            if let message {
+                AccessibilityNotification.Announcement(message).post()
+            }
+        }
         .sheet(item: $pendingPaste) { pending in
             AppSheet(detents: [.large, .medium]) {
                 PasteCodeSheet(
@@ -332,6 +344,7 @@ struct ProviderConnectionView: View {
                 Text("→ \(effective)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .accessibilityLabel(String(localized: "Effektive Adresse: \(effective)"))
             }
         } header: {
             Text("Server")
@@ -349,6 +362,7 @@ struct ProviderConnectionView: View {
                 Text("→ \(connectionSettings.effectiveBaseURL)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .accessibilityLabel(String(localized: "Effektive Adresse: \(connectionSettings.effectiveBaseURL)"))
             }
             if presetId == "ollama" {
                 Text("Ollama auf dem Mac: `ollama serve`, dann die LAN-IP dieses Macs hier eintragen (nicht localhost vom iPhone).")
@@ -458,6 +472,7 @@ struct ProviderConnectionView: View {
                             HStack(spacing: Theme.space1) {
                                 Image(systemName: stageIcon(stage.state))
                                     .foregroundStyle(stageColor(stage.state))
+                                    .accessibilityHidden(true)
                                 Text(stage.name)
                                 Spacer()
                                 if let detail = stage.detail {
@@ -465,9 +480,13 @@ struct ProviderConnectionView: View {
                                 }
                             }
                             .font(.caption)
+                            // The pass/fail state is color-only; spell it out.
+                            .accessibilityElement(children: .combine)
+                            .accessibilityValue(stageStateLabel(stage.state))
                         }
                     }
                 }
+                .accessibilityElement(children: .combine)
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
             if probeResult == nil, let health = sub2APIHealth, presetId == "sub2api" {
@@ -505,10 +524,14 @@ struct ProviderConnectionView: View {
                         if account.id == activeAccount?.id {
                             Image(systemName: "checkmark")
                                 .foregroundStyle(.tint)
+                                .accessibilityHidden(true)
                         }
                     }
+                    .accessibilityElement(children: .combine)
                 }
                 .buttonStyle(.plain)
+                // The checkmark is the only visual cue for the active account.
+                .accessibilityAddTraits(account.id == activeAccount?.id ? .isSelected : [])
                 .swipeActions {
                     Button(role: .destructive) { accountStore.delete(account) } label: {
                         Label("Löschen", systemImage: "trash")
@@ -909,32 +932,43 @@ struct ProviderConnectionView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                    .accessibilityElement(children: .combine)
                 }
                 .buttonStyle(.plain)
                 .disabled(shortage != nil)
+                // The checkmark is the only visual cue for the chosen model.
+                .accessibilityAddTraits(shortage == nil && localModelDraft == model.id ? .isSelected : [])
                 Spacer()
                 if shortage == nil, localModelDraft == model.id {
                     Image(systemName: "checkmark")
                         .foregroundStyle(.tint)
+                        .accessibilityHidden(true)
                 }
                 if let fraction = modelStore.progress[model.id] {
                     ProgressView(value: fraction)
                         .frame(width: 60)
+                        .accessibilityLabel(String(localized: "Download \(model.displayName)"))
                 } else if modelStore.downloadedIds.contains(model.id) {
                     Button(role: .destructive) {
                         modelStore.delete(model.id)
                     } label: {
                         Image(systemName: "trash")
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.borderless)
+                    .accessibilityLabel(String(localized: "\(model.displayName) löschen"))
                 } else if shortage == nil {
                     Button {
                         modelStore.download(model.id)
                     } label: {
                         Image(systemName: "arrow.down.circle")
                             .font(.title3)
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.borderless)
+                    .accessibilityLabel(String(localized: "\(model.displayName) herunterladen"))
                 } else {
                     // No download button at all rather than a disabled one: the
                     // reason is already on the row, and a tappable-looking
@@ -1016,7 +1050,9 @@ struct ProviderConnectionView: View {
                 withAnimation(Theme.Motion.snappy) { catalogModels = models }
                 if models.isEmpty {
                     modelsError = "Keine Modelle gemeldet."
+                    AccessibilityNotification.Announcement(String(localized: "Keine Modelle gemeldet.")).post()
                 } else {
+                    AccessibilityNotification.Announcement(String(localized: "\(models.count) Modelle geladen")).post()
                     let pickPool = filteredCatalogModels.isEmpty ? models : filteredCatalogModels
                     if modality == .chat {
                         // Loading models neither commits a model nor activates
@@ -1035,6 +1071,9 @@ struct ProviderConnectionView: View {
                 }
             } catch {
                 modelsError = NetworkErrorFriendly.message(for: error)
+                if let modelsError {
+                    AccessibilityNotification.Announcement(modelsError).post()
+                }
                 // Keep showing defaults if we have them.
                 if catalogModels.isEmpty {
                     withAnimation(Theme.Motion.snappy) {
@@ -1084,6 +1123,7 @@ struct ProviderConnectionView: View {
         probeGeneration += 1
         let generation = probeGeneration
         probing = true
+        AccessibilityNotification.Announcement(String(localized: "Verbindung wird getestet")).post()
         let label = newLabel
         probeTask = Task { @MainActor in
             let snapshot = ProviderConnectionModel.probeSettings(
@@ -1099,6 +1139,11 @@ struct ProviderConnectionView: View {
             )
             guard !Task.isCancelled, generation == probeGeneration else { return }
             withAnimation(motion) { probeResult = result }
+            AccessibilityNotification.Announcement(
+                result.ok
+                    ? String(localized: "Erfolgreich: \(result.reason)")
+                    : String(localized: "Fehlgeschlagen: \(result.reason)")
+            ).post()
             let mapping = Sub2APIModelMapping(
                 chat: result.recommendedChatModel,
                 image: result.recommendedImageModel
@@ -1117,6 +1162,7 @@ struct ProviderConnectionView: View {
                     commit(resolvedCandidate, label: label, modality: probeModality)
                     modelDraft = resolvedCandidate.model
                 }
+                AccessibilityNotification.Announcement(String(localized: "\(preset.label) ist jetzt aktiv")).post()
                 if presetId == "sub2api", let image = mapping.image {
                     ProviderProfiles.update(presetId: presetId) { $0.lastImageModel = image }
                 }
@@ -1202,6 +1248,14 @@ struct ProviderConnectionView: View {
         case .passed: return .green
         case .failed: return .red
         case .unavailable: return .secondary
+        }
+    }
+
+    private func stageStateLabel(_ state: ConnectionProbeStage.State) -> String {
+        switch state {
+        case .passed: return String(localized: "bestanden")
+        case .failed: return String(localized: "fehlgeschlagen")
+        case .unavailable: return String(localized: "nicht verfügbar")
         }
     }
 
@@ -1297,6 +1351,7 @@ private struct ProbeResultIcon: View {
         Image(systemName: ok ? "checkmark.circle.fill" : "xmark.circle.fill")
             .foregroundStyle(ok ? Color.green : Color.red)
             .symbolEffect(.bounce, options: .nonRepeating, value: bounced)
+            .accessibilityLabel(ok ? String(localized: "Erfolgreich") : String(localized: "Fehlgeschlagen"))
             .onAppear {
                 // One-shot; Reduce Motion never triggers the bounce at all.
                 if ok, !reduceMotion { bounced = true }

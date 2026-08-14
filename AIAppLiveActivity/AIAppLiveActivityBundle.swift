@@ -5,5 +5,6 @@ import SwiftUI
 struct AIAppLiveActivityBundle: WidgetBundle {
     var body: some Widget {
         AgentLiveActivityWidget()
+        PinnedMiniAppWidget()
     }
 }

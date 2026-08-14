@@ -3,10 +3,11 @@ import SwiftData
 import WebKit
 
 /// The one owner of "reconcile the state a mini-app leaves OUTSIDE its record
-/// against the records that are actually still live". Two things outlive a
-/// `MiniApp`: its persistent cookie jar on disk, and its consent grant in
-/// `UserDefaults`. Both are swept here, in one pass, in a fixed order (see
-/// *Ordering* below). Do not grow a second caller for either half.
+/// against the records that are actually still live". Three things outlive a
+/// `MiniApp`: its persistent cookie jar on disk, its consent grant in
+/// `UserDefaults`, and its local revision history (`MiniAppRevisionStore`,
+/// never synced). All are swept here, in one pass, in a fixed order (see
+/// *Ordering* below). Do not grow a second caller for any of them.
 ///
 /// **The leak (jars).** A browser-tier mini-app gets its own persistent
 /// `WKWebsiteDataStore` (`MiniAppRunnerView.makeUIView`) so the user stays
@@ -109,6 +110,15 @@ enum MiniAppSessionStoreSweep {
         /// this can be non-empty while `stores` is `.skippedNoBrowserGrants`:
         /// a `.network` grant leaves no jar but still leaks privilege.
         var revokedGrants: [String] = []
+        /// Revision histories deleted this pass (app ids, sorted). Same skip
+        /// rules as the grants; a live record always protects its history.
+        var removedRevisions: [UUID] = []
+        /// App ids whose `window.aiity.storage` file was wiped this pass.
+        /// Same stale rule as the grants (previews are kept), sorted.
+        var wipedStorage: [String] = []
+        /// App ids whose pending local notifications were cancelled this pass.
+        /// Same stale rule as the grants, sorted.
+        var cancelledNotifications: [String] = []
     }
 
     /// What one sweep of the cookie jars decided.
@@ -253,6 +263,23 @@ enum MiniAppSessionStoreSweep {
         }.sorted()
     }
 
+    /// The third reconciled resource: revision histories. Directories are
+    /// created under the app's UUID and only ever for SAVED records, so —
+    /// unlike grants — there is no preview shape to protect here; a history
+    /// whose record is gone is stale, full stop. Same `mayCompare` gate as the
+    /// other two halves, for the same reason. Sorted for a stable log line.
+    static func staleRevisionAppIds(
+        revisionOwners: [UUID],
+        liveAppIds: [UUID],
+        mode: SyncStatus.Mode,
+        initialImportComplete: Bool
+    ) -> [UUID] {
+        guard mayCompare(mode: mode, initialImportComplete: initialImportComplete) else { return [] }
+        let live = Set(liveAppIds)
+        return revisionOwners.filter { !live.contains($0) }
+            .sorted { $0.uuidString < $1.uuidString }
+    }
+
     // MARK: - Record seam
 
     /// The live record ids, or `nil` when the library cannot be read.
@@ -331,18 +358,38 @@ enum MiniAppSessionStoreSweep {
         grants: [String: MiniAppCapability] = MiniAppConsent.grants(),
         index: StoreIndex = .webKit,
         records: @MainActor (ModelContext) -> [UUID]? = MiniAppSessionStoreSweep.liveAppIds(in:),
-        revoke: @MainActor (String) -> Void = { MiniAppConsent.revoke(appId: $0) }
+        revoke: @MainActor (String) -> Void = { MiniAppConsent.revoke(appId: $0) },
+        revisionOwners: @MainActor () -> [UUID] = { MiniAppRevisionStore.revisionAppIds() },
+        removeRevisions: @MainActor (UUID) -> Void = { MiniAppRevisionStore.removeAll(appId: $0) },
+        storageOwners: @MainActor () -> [String] = { MiniAppStorage.storedAppIds() },
+        wipeStorage: @MainActor (String) -> Void = { MiniAppStorage.wipe(appId: $0) },
+        notificationOwners: @MainActor () -> [String] = { MiniAppNotificationScheduler.scheduledAppIds() },
+        cancelNotifications: @MainActor (String) async -> Void = { _ = await MiniAppNotificationScheduler.cancelAll(appId: $0) }
     ) async -> Outcome {
         // Everything the previous launches could not finish. Read once, up
         // front: it is both a work list and a reason to run at all.
         let owed = MiniAppSessionStorePurgeQueue.records()
+        // One directory listing, no WebKit — cheap enough to read before the
+        // gate, and a revision history with no grant behind it (an edited
+        // offline app, mirror-deleted) is a reason to run all by itself.
+        let revisions = revisionOwners()
+        // Same shape for the other two grant-independent resources: storage
+        // needs no consent at all, and the notification ledger deliberately
+        // outlives the grant (a local delete revokes in the same breath — the
+        // grant map cannot be the trigger or the pending requests would strand
+        // exactly the way jars used to).
+        let storageOwed = storageOwners()
+        let scheduled = notificationOwners()
 
         // Cheapest gate first: nothing was ever granted, so no persistent
         // store was ever created (the runner only picks one for a `.browser`
         // grant) and no grant can have gone stale. WebKit need not come up.
         // An outstanding purge overrides it — that is precisely the state a
         // finished delete leaves behind (record gone, grant revoked, jar not).
-        guard !grants.isEmpty || !owed.isEmpty else { return Outcome(stores: .skippedNoGrants) }
+        guard !grants.isEmpty || !owed.isEmpty || !revisions.isEmpty
+                || !storageOwed.isEmpty || !scheduled.isEmpty else {
+            return Outcome(stores: .skippedNoGrants)
+        }
         guard mayCompare(mode: status.mode, initialImportComplete: true) else {
             return Outcome(stores: .skippedUnsafeStorageMode)
         }
@@ -386,7 +433,81 @@ enum MiniAppSessionStoreSweep {
                 "consent sweep: revoked \(stale.count) grant(s) with no live record"
             )
         }
-        return Outcome(stores: stores, revokedGrants: stale)
+
+        // ── 3. Revision histories. Local-only files (never synced), so a
+        //       mirrored delete strands them exactly like grants. After the
+        //       jars deliberately: revisions gate nothing and nothing gates
+        //       them, so they must never sit between steps 1 and 2.
+        let staleRevisions = staleRevisionAppIds(
+            revisionOwners: revisions,
+            liveAppIds: live,
+            mode: status.mode,
+            initialImportComplete: status.initialImportComplete
+        )
+        for appId in staleRevisions {
+            removeRevisions(appId)
+        }
+        if !staleRevisions.isEmpty {
+            DiagnosticsRecorder.shared.record(
+                "miniapp",
+                "revision sweep: removed \(staleRevisions.count) history(ies) with no live record"
+            )
+        }
+
+        // ── 4. Durable `window.aiity.storage` files. Grant-independent (no
+        //       consent is ever asked for storage), so the file listing is its
+        //       own trigger above; the stale rule is the grants' — previews
+        //       keep their data, a gone record loses it.
+        let staleStorage = staleGrantIds(
+            grantIds: storageOwed,
+            liveAppIds: live,
+            mode: status.mode,
+            initialImportComplete: status.initialImportComplete
+        )
+        for appId in staleStorage {
+            wipeStorage(appId)
+        }
+        if !staleStorage.isEmpty {
+            DiagnosticsRecorder.shared.record(
+                "miniapp",
+                "storage sweep: wiped \(staleStorage.count) store(s) with no live record"
+            )
+        }
+
+        // ── 5. Pending local notifications, keyed by the durable ledger the
+        //       scheduler maintains — not by the grant map step 2 just pruned,
+        //       so the order between them cannot matter. Cancelling clears the
+        //       app's ledger entry, so a settled state stops re-checking.
+        let staleNotifications = staleGrantIds(
+            grantIds: scheduled,
+            liveAppIds: live,
+            mode: status.mode,
+            initialImportComplete: status.initialImportComplete
+        )
+        for appId in staleNotifications {
+            await cancelNotifications(appId)
+        }
+        if !staleNotifications.isEmpty {
+            DiagnosticsRecorder.shared.record(
+                "miniapp",
+                "notification sweep: cancelled pending for \(staleNotifications.count) app(s) with no live record"
+            )
+        }
+
+        // ── 6. System surfaces: Spotlight items and the Home-Screen widget
+        //       pin are two more things that outlive a mirrored delete.
+        //       Self-contained — seams, ordering, log line and tests all live
+        //       with MiniAppSpotlightIndex; it fetches its own projection and
+        //       refuses on an unreadable library exactly like this pass does.
+        await MiniAppSpotlightIndex.reconcile(context: context)
+
+        return Outcome(
+            stores: stores,
+            revokedGrants: stale,
+            removedRevisions: staleRevisions,
+            wipedStorage: staleStorage,
+            cancelledNotifications: staleNotifications
+        )
     }
 
     /// The jar half of one pass, including everything earlier passes could not

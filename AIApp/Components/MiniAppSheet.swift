@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import UIKit
 
 /// Sheet hosting a sandboxed mini-app. Chrome: **AI · Title · Done**.
@@ -15,6 +16,7 @@ struct MiniAppSheet: View {
     var onEditWithAI: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var session: ChatSession
     @Environment(\.openChatTab) private var openChatTab
 
@@ -24,6 +26,12 @@ struct MiniAppSheet: View {
     @State private var pendingHost: String?
     @State private var pendingHostDraft = ""
     @State private var showConsent = false
+    @State private var showHistory = false
+    /// Set by a "Verlauf" restore, replacing the `html` this sheet was opened
+    /// with — the runner's `updateUIView` reloads on the changed document.
+    @State private var restoredHTML: String?
+
+    private var activeHTML: String { restoredHTML ?? html }
 
     var body: some View {
         AppSheet(detents: [.large]) {
@@ -35,8 +43,9 @@ struct MiniAppSheet: View {
         NavigationStack {
             MiniAppRunnerView(
                 appId: appId,
-                html: html,
+                html: activeHTML,
                 capability: effectiveCapability,
+                appName: name,
                 browserState: browserState
             )
             // Rebuild the web view when consent flips the tier.
@@ -124,19 +133,63 @@ struct MiniAppSheet: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        ShareLink(
+                            item: MiniAppShareItem(
+                                name: name,
+                                emoji: emoji,
+                                iconSymbol: iconSymbol,
+                                html: activeHTML
+                            ),
+                            preview: SharePreview(name)
+                        ) {
+                            Label("Teilen", systemImage: "square.and.arrow.up")
+                        }
+                        // Remix and history need a saved record — a chat
+                        // preview has neither an id to duplicate nor revisions.
+                        if libraryId != nil {
+                            Button {
+                                remix()
+                            } label: {
+                                Label("Remix", systemImage: "square.on.square")
+                            }
+                            .accessibilityIdentifier("miniapp-remix")
+                            Button {
+                                showHistory = true
+                            } label: {
+                                Label("Verlauf", systemImage: "clock.arrow.circlepath")
+                            }
+                            .accessibilityIdentifier("miniapp-history")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                    .accessibilityLabel("Weitere Aktionen")
+                    .accessibilityIdentifier("miniapp-menu")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Button("Fertig") { dismiss() }
                         .fontWeight(.semibold)
                         .accessibilityIdentifier("miniapp-done")
+                }
+            }
+            .sheet(isPresented: $showHistory) {
+                if let libraryId {
+                    MiniAppRevisionSheet(appId: libraryId) { html in
+                        restoredHTML = html
+                        resolveCapability()
+                    }
                 }
             }
         }
     }
 
     /// Offline apps run immediately; a network/browser app runs offline until
-    /// the user consents (once per app).
+    /// the user consents (once per app). Re-run after a "Verlauf" restore —
+    /// the restored document may declare a different tier.
     private func resolveCapability() {
-        let declared = MiniAppCapability.from(html: html)
-        let host = WebAppBuilder.openTarget(in: html).flatMap {
+        let declared = MiniAppCapability.from(html: activeHTML)
+        let host = WebAppBuilder.openTarget(in: activeHTML).flatMap {
             NetworkTargetValidator.normalizeHost($0.host ?? "")
         }
         if MiniAppConsent.isAllowed(appId: appId, declared: declared),
@@ -153,9 +206,9 @@ struct MiniAppSheet: View {
 
     private func openAIEdit() {
         if let libraryId {
-            session.startEditing(id: libraryId, name: name, html: html)
+            session.startEditing(id: libraryId, name: name, html: activeHTML)
         } else {
-            session.startEditingDraft(name: name, html: html, emoji: emoji)
+            session.startEditingDraft(name: name, html: activeHTML, emoji: emoji)
         }
         // Drop the web view's keyboard BEFORE the sheet starts dismissing.
         // This path stacks three animations (sheet dismissal, keyboard hide,
@@ -172,6 +225,24 @@ struct MiniAppSheet: View {
         // torn down by then, which resolves to the key's no-op default.
         openChatTab()
         onEditWithAI?()
+        dismiss()
+    }
+
+    /// Same duplicate-then-edit flow as the library tile's Remix action, and
+    /// the same keyboard / route-before-dismiss order as `openAIEdit` above —
+    /// see the comments there.
+    private func remix() {
+        guard let libraryId else { return }
+        let targetId: UUID = libraryId
+        let descriptor = FetchDescriptor<MiniApp>(predicate: #Predicate { $0.id == targetId })
+        guard let original = try? modelContext.fetch(descriptor).first else { return }
+        let copy = original.remixCopy()
+        modelContext.insert(copy)
+        session.startEditing(id: copy.id, name: copy.name, html: copy.runnableHTML)
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
+        )
+        openChatTab()
         dismiss()
     }
 }
@@ -283,6 +354,107 @@ struct MiniAppPermissionSheet: View {
         }
         hosts = MiniAppConsent.hosts(appId: appId)
         hostDraft = ""
+    }
+}
+
+/// Version history for a saved mini-app: a plain list of restore points with
+/// relative date and size — deliberately no thumbnails, the Pages/Numbers
+/// version-browser restraint. Restoring records the CURRENT state as its own
+/// revision first, so a restore never destroys anything.
+struct MiniAppRevisionSheet: View {
+    let appId: UUID
+    /// Called with the restored HTML so the open runner reloads it.
+    var onRestore: (String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    @State private var revisions: [MiniAppRevisionStore.Revision] = []
+    @State private var restoreCandidate: MiniAppRevisionStore.Revision?
+
+    var body: some View {
+        AppSheet(detents: [.medium, .large]) {
+            NavigationStack {
+                List {
+                    if revisions.isEmpty {
+                        Text("Noch keine Versionen — sie entstehen automatisch, wenn die KI diese App bearbeitet.")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Section {
+                            ForEach(revisions) { revision in
+                                Button {
+                                    restoreCandidate = revision
+                                } label: {
+                                    revisionRow(revision)
+                                }
+                                .accessibilityIdentifier("miniapp-revision")
+                            }
+                        } footer: {
+                            Text("Beim Wiederherstellen wird der aktuelle Stand zuerst als eigene Version gesichert.")
+                        }
+                    }
+                }
+                .navigationTitle("Verlauf")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Fertig") { dismiss() }
+                    }
+                }
+                .onAppear { revisions = MiniAppRevisionStore.revisions(appId: appId) }
+                // Same centered-alert idiom as the library's delete step:
+                // replacing the live document deserves an interruption, not a
+                // sheet-on-sheet continuation.
+                .alert(
+                    String(localized: "Version wiederherstellen?"),
+                    isPresented: Binding(
+                        get: { restoreCandidate != nil },
+                        set: { if !$0 { restoreCandidate = nil } }
+                    ),
+                    presenting: restoreCandidate
+                ) { revision in
+                    Button("Wiederherstellen") { restore(revision) }
+                        .accessibilityIdentifier("miniapp-revision-restore")
+                    Button("Abbrechen", role: .cancel) { restoreCandidate = nil }
+                } message: { _ in
+                    Text("Der aktuelle Stand wird vorher als eigene Version gesichert — es geht nichts verloren.")
+                }
+            }
+        }
+    }
+
+    private func revisionRow(_ revision: MiniAppRevisionStore.Revision) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(revision.savedAt, format: .relative(presentation: .named))
+                Text(revision.savedAt, format: .dateTime.day().month().year().hour().minute())
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Text(Int64(revision.bytes), format: .byteCount(style: .file))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func restore(_ revision: MiniAppRevisionStore.Revision) {
+        defer { restoreCandidate = nil }
+        guard let restored = MiniAppRevisionStore.html(appId: appId, revision: revision) else { return }
+        let targetId: UUID = appId
+        let descriptor = FetchDescriptor<MiniApp>(predicate: #Predicate { $0.id == targetId })
+        guard let app = try? modelContext.fetch(descriptor).first else { return }
+        // Current state FIRST, as its own revision — a restore must never be
+        // the one operation whose starting point cannot be returned to.
+        MiniAppRevisionStore.record(appId: appId, html: app.runnableHTML)
+        app.html = restored
+        // Revisions hold the BUNDLED document, so stale companions must not be
+        // inlined a second time on top of it.
+        app.filesJSON = "{}"
+        app.version += 1
+        app.updatedAt = .now
+        Theme.Haptics.success()
+        onRestore(restored)
+        dismiss()
     }
 }
 

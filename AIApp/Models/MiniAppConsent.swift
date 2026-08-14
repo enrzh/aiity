@@ -12,10 +12,15 @@ enum MiniAppConsent {
         var version: Int = 2
         var capability: MiniAppCapability
         var hosts: [String] = []
+        /// Raw `MiniAppAuxCapability` values, kept as strings so a grant
+        /// written by a newer build decodes as an unknown entry here instead
+        /// of failing the whole record.
+        var aux: [String] = []
 
-        init(capability: MiniAppCapability, hosts: [String] = []) {
+        init(capability: MiniAppCapability, hosts: [String] = [], aux: [String] = []) {
             self.capability = capability
             self.hosts = hosts
+            self.aux = aux
         }
 
         init(from decoder: Decoder) throws {
@@ -23,6 +28,7 @@ enum MiniAppConsent {
             version = try container.decodeIfPresent(Int.self, forKey: .version) ?? 1
             capability = try container.decode(MiniAppCapability.self, forKey: .capability)
             hosts = try container.decodeIfPresent([String].self, forKey: .hosts) ?? []
+            aux = try container.decodeIfPresent([String].self, forKey: .aux) ?? []
         }
     }
 
@@ -59,8 +65,27 @@ enum MiniAppConsent {
             .union(hosts.compactMap(NetworkTargetValidator.normalizeHost))
         all[appId] = Record(
             capability: capability,
-            hosts: normalizedHosts.sorted()
+            hosts: normalizedHosts.sorted(),
+            // Replacing the record must not drop an aux grant the user already
+            // made — tier and aux consent are independent decisions.
+            aux: all[appId]?.aux ?? []
         )
+        persist(all)
+    }
+
+    static func auxGranted(appId: String, _ capability: MiniAppAuxCapability) -> Bool {
+        record(appId: appId)?.aux.contains(capability.rawValue) ?? false
+    }
+
+    /// Grant an aux capability. An app that never consented to a tier gets an
+    /// `.offline` record — rank 0, so this can never satisfy a later
+    /// network/browser request.
+    static func allowAux(appId: String, _ capability: MiniAppAuxCapability) {
+        var all = records()
+        var record = all[appId] ?? Record(capability: .offline)
+        guard !record.aux.contains(capability.rawValue) else { return }
+        record.aux.append(capability.rawValue)
+        all[appId] = record
         persist(all)
     }
 

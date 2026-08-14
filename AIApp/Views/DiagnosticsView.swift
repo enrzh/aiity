@@ -165,6 +165,7 @@ struct DiagnosticsView: View {
                             .foregroundStyle(.secondary)
                     }
                     .padding(.vertical, 1)
+                    .accessibilityElement(children: .combine)
                 }
             }
         }
@@ -230,6 +231,7 @@ struct DiagnosticsView: View {
                 withAnimation(Theme.Motion.preferSpring(Theme.Motion.snappy, reduceMotion: reduceMotion)) {
                     copied = true
                 }
+                AccessibilityNotification.Announcement(String(localized: "Kopiert")).post()
                 copyResetTask?.cancel()
                 copyResetTask = Task {
                     try? await Task.sleep(for: .seconds(2))

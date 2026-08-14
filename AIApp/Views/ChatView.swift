@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import Accessibility
 import PhotosUI
 import UniformTypeIdentifiers
 
@@ -45,6 +46,9 @@ enum ChatToolVisualState: Equatable {
 struct ChatMediaPreviewRoute: Identifiable, Equatable {
     let mediaIds: [String]
     let selectedId: String
+    /// Spoken description per media id (attachment filename) — the gallery
+    /// falls back to "Bild" for ids without one.
+    var mediaLabels: [String: String] = [:]
 
     var id: String { selectedId }
 }
@@ -88,6 +92,9 @@ struct ChatView: View {
     @State private var showJumpToLatest = false
     @State private var emptyStateRevealed = false
     @State private var scrollToLatestRequest = 0
+    /// Message count captured when a turn starts, so the busy→idle transition
+    /// can tell a real reply apart from an error/stop before announcing.
+    @State private var turnStartMessageCount = 0
 #if DEBUG
     @State private var uiTestFixtureDelivered = false
 #endif
@@ -285,6 +292,7 @@ struct ChatView: View {
                             .contextMenu {
                                 Button {
                                     UIPasteboard.general.string = message.text
+                                    AccessibilityNotification.Announcement(String(localized: "Kopiert")).post()
                                 } label: {
                                     Label("Kopieren", systemImage: "doc.on.doc")
                                 }
@@ -495,6 +503,11 @@ struct ChatView: View {
                                 .frame(width: 42, height: 42)
                                 .background(Color(.systemBackground), in: Circle())
                                 .overlay(Circle().stroke(Color.secondary.opacity(0.22)))
+                                // 44pt hit target without growing the 42pt
+                                // visual (BannerView close pattern).
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
+                                .padding(-1)
                         }
                         .accessibilityIdentifier("jump-to-latest")
                         .accessibilityLabel(String(localized: "Zu den neuesten Nachrichten"))
@@ -593,6 +606,25 @@ struct ChatView: View {
 #endif
         }
         .onChange(of: intents.stagedComposerText) { _, _ in stageIntentTextIfNeeded() }
+        // VoiceOver: the end of a turn and the banners appear without moving
+        // focus, so they have to announce themselves.
+        .onChange(of: session.busy) { wasBusy, isBusy in
+            if isBusy {
+                turnStartMessageCount = session.messages.count
+            } else if wasBusy, turnProducedReply() {
+                AccessibilityNotification.Announcement(String(localized: "Antwort erhalten")).post()
+            }
+        }
+        .onChange(of: session.errorMessage) { _, message in
+            guard let message else { return }
+            AccessibilityNotification.Announcement(message).post()
+        }
+        .onChange(of: session.interruptedTurn) { previous, current in
+            guard previous == nil, current != nil else { return }
+            AccessibilityNotification.Announcement(
+                String(localized: "Antwort pausiert — die App war zu lange im Hintergrund.")
+            ).post()
+        }
         .navigationTitle(session.activeThreadTitle.isEmpty ? "Chat" : session.activeThreadTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -701,9 +733,13 @@ struct ChatView: View {
                 Image(systemName: "xmark")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.secondary)
-                    .frame(width: 28, height: 28)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            // 44pt hit target without 44pt of banner height (BannerView
+            // close pattern: the negative padding hands the layout back).
+            .padding(-8)
             .accessibilityLabel("Bearbeiten beenden")
         }
         .padding(.horizontal, Theme.space3)
@@ -714,11 +750,19 @@ struct ChatView: View {
         .accessibilityIdentifier("editing-banner")
     }
 
+    // A button, not a static notice: "oben tippen" pointed at an unnamed
+    // toolbar control — now the banner itself opens the provider setup.
     private var setupBanner: some View {
-        BannerView(
-            message: String(localized: "Noch kein Modell — oben tippen."),
-            kind: .info
-        )
+        Button {
+            composerFocused = false
+            showQuickProvider = true
+        } label: {
+            BannerView(
+                message: String(localized: "Noch kein Modell — tippen, um Anbieter und Modell einzurichten."),
+                kind: .info
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     private var emptyState: some View {
@@ -999,6 +1043,15 @@ struct ChatView: View {
         }
     }
 
+    /// True when the turn that just ended appended assistant content — the
+    /// "Antwort erhalten" announcement must not fire for errors or stops.
+    private func turnProducedReply() -> Bool {
+        session.messages.dropFirst(turnStartMessageCount).contains {
+            $0.role == .assistant
+                && (!ChatView.strippingHTMLFence(from: $0.text).isEmpty || !$0.mediaIds.isEmpty)
+        }
+    }
+
     private func retryLastUserMessage() {
         guard let last = session.messages.last(where: { $0.role == .user }) else { return }
         session.errorMessage = nil
@@ -1084,6 +1137,12 @@ struct ChatView: View {
             let targetId: UUID = context.id
             let descriptor = FetchDescriptor<MiniApp>(predicate: #Predicate { $0.id == targetId })
             if let existing = try? modelContext.fetch(descriptor).first {
+                // The version being replaced, captured BEFORE the overwrite —
+                // and bundled, so the revision stays runnable without the
+                // `filesJSON` this save is about to change.
+                if existing.html != draft.html || (existing.filesJSON ?? "{}") != draft.filesJSON {
+                    MiniAppRevisionStore.record(appId: targetId, html: existing.runnableHTML)
+                }
                 existing.html = draft.html
                 existing.name = draft.name
                 existing.emoji = draft.emoji
@@ -1256,7 +1315,32 @@ private struct MessageBubble: View {
 
     private var previewRoute: ChatMediaPreviewRoute? {
         guard let selectedId = imageMediaIds.first else { return nil }
-        return ChatMediaPreviewRoute(mediaIds: imageMediaIds, selectedId: selectedId)
+        return ChatMediaPreviewRoute(
+            mediaIds: imageMediaIds,
+            selectedId: selectedId,
+            mediaLabels: attachmentLabels
+        )
+    }
+
+    private var attachmentLabels: [String: String] {
+        var labels: [String: String] = [:]
+        for attachment in message.attachments where attachment.kind == .image {
+            labels[attachment.mediaId] = attachment.filename
+        }
+        return labels
+    }
+
+    /// Who is speaking — visually the bubble carries it only through color
+    /// and position, which VoiceOver cannot convey.
+    private var speakerLabel: String {
+        if message.role == .user { return String(localized: "Du") }
+        return message.authorName ?? String(localized: "Assistent")
+    }
+
+    private var spokenBubbleLabel: Text {
+        var label = AttributedString(speakerLabel + ": ")
+        label += ChatView.markdownAttributedString(bubbleText)
+        return Text(label)
     }
 
     var body: some View {
@@ -1285,6 +1369,8 @@ private struct MessageBubble: View {
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(Color.accentColor)
                         .padding(.leading, 4)
+                        // Folded into the bubble's spoken label instead.
+                        .accessibilityHidden(true)
                     }
                     if !message.toolCalls.isEmpty {
                         ForEach(message.toolCalls) { call in
@@ -1304,7 +1390,7 @@ private struct MessageBubble: View {
                             .padding(.horizontal, 14)
                             .padding(.vertical, 14)
                             .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Theme.bubbleRadius, style: .continuous))
-                            .accessibilityLabel("Schreibt")
+                            .accessibilityLabel(Text(speakerLabel + ": ") + Text("Schreibt"))
                     } else if !bubbleText.isEmpty {
                         markdownText(bubbleText)
                             .textSelection(.enabled)
@@ -1317,6 +1403,9 @@ private struct MessageBubble: View {
                                 in: RoundedRectangle(cornerRadius: Theme.bubbleRadius, style: .continuous)
                             )
                             .foregroundStyle(message.role == .user ? Color.white : Color.primary)
+                            // One element per bubble with the speaker folded in.
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel(spokenBubbleLabel)
                     }
                     ForEach(message.mediaIds, id: \.self) { mediaId in
                         GeneratedMediaView(
@@ -1374,7 +1463,7 @@ private struct ChatAttachmentBubble: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("chat-attachment-preview-\(attachment.mediaId)")
-            .accessibilityLabel(String(localized: "Bildvorschau öffnen"))
+            .accessibilityLabel(String(localized: "Bildvorschau öffnen: \(attachment.filename)"))
         } else {
             Label(
                 attachment.kind == .image
@@ -1480,8 +1569,9 @@ private struct ToolChip: View {
         .padding(.vertical, 6)
         .background(Color.accentColor.opacity(0.08), in: Capsule())
         .accessibilityIdentifier("chat-tool-\(name)")
+        // State lives in the value only — in the label it was spoken twice.
         .accessibilityValue(toolStateLabel)
-        .accessibilityLabel("\(label): \(toolStateLabel), \(text)")
+        .accessibilityLabel(text.isEmpty ? label : "\(label): \(text)")
     }
 
     private var toolStateLabel: String {
@@ -1513,7 +1603,7 @@ private struct GeneratedMediaView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("generated-image")
-                .accessibilityLabel(String(localized: "Bildvorschau öffnen"))
+                .accessibilityLabel(String(localized: "Erzeugtes Bild — Vorschau öffnen"))
             } else {
                 missingMedia(kind: .image)
             }
@@ -1570,6 +1660,8 @@ private struct ChatMediaGallery: View {
                                     .scaledToFit()
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                                     .padding(Theme.space3)
+                                    .accessibilityLabel(route.mediaLabels[mediaId] ?? String(localized: "Bild"))
+                                    .accessibilityAddTraits(.isImage)
                             }
                         } else {
                             VStack(spacing: Theme.space2) {
@@ -1618,6 +1710,7 @@ private struct MiniAppCard: View {
                     .lineLimit(1)
                 if isStreaming {
                     ProgressView().controlSize(.mini)
+                        .accessibilityLabel(String(localized: "Wird erstellt"))
                 }
                 Spacer(minLength: 0)
             }

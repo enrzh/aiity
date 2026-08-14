@@ -248,9 +248,12 @@ struct NewChatSheet: View {
                                     if selected.contains(agent.id) {
                                         Image(systemName: "checkmark")
                                             .foregroundStyle(Color.accentColor)
+                                            .accessibilityHidden(true)
                                     }
                                 }
                             }
+                            // Selection as a trait, not a checkmark glyph.
+                            .accessibilityAddTraits(selected.contains(agent.id) ? .isSelected : [])
                             .accessibilityIdentifier("group-agent-option")
                         }
                     } header: {

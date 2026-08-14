@@ -72,6 +72,15 @@ struct BannerView: View {
         }
     }
 
+    /// Severity lives in icon and color only — say it before the message.
+    private var accessibilityMessage: String {
+        switch kind {
+        case .error: return String(localized: "Fehler: \(message)")
+        case .success: return String(localized: "Erfolg: \(message)")
+        case .info: return message
+        }
+    }
+
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: icon)
@@ -103,7 +112,7 @@ struct BannerView: View {
         .padding(.vertical, Theme.space2)
         .background(color.opacity(0.08), in: RoundedRectangle(cornerRadius: Theme.chipRadius, style: .continuous))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(message)
+        .accessibilityLabel(accessibilityMessage)
     }
 }
 
@@ -126,6 +135,10 @@ struct SuggestionList: View {
                             .padding(.horizontal, 14)
                             .padding(.vertical, 9)
                             .background(Color(.secondarySystemBackground), in: Capsule())
+                            // Capsule look unchanged; the extra frame is the
+                            // transparent 44pt touch target.
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.pressable)
                     .accessibilityIdentifier("suggestion-chip")
@@ -152,14 +165,15 @@ struct ConfirmModal: View {
             onCancel: onCancel,
             onConfirm: onConfirm
         ) {
-            VStack(alignment: .leading, spacing: 16) {
+            // Scrolls so accessibility type sizes are not clipped by the
+            // fixed 220pt detent.
+            ScrollView {
                 Text(message)
                     .font(.body)
                     .foregroundStyle(.secondary)
-                Spacer()
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .presentationDetents([.height(220), .medium])
     }

@@ -63,6 +63,19 @@ final class MiniAppSessionStoreSweepTests: XCTestCase {
     /// Set by `usingRealDataStores()`, so `tearDown` only brings WebKit up for
     /// the two tests that already use it.
     private var usesRealDataStores = false
+    /// The sweep's third resource reads a real directory by default
+    /// (`MiniAppRevisionStore.baseDirectory`), and the test host shares its
+    /// container with the app — so every test runs against its own empty temp
+    /// directory instead, restored in `tearDown` like the consent map.
+    private var revisionsBaseBeforeTest: URL!
+    private var revisionsTempDirectory: URL!
+    /// Resources four and five (bridge storage, notification ledger) read real
+    /// state through their defaults exactly like revisions — redirected per
+    /// test for the same reason: fake record sets in these tests must never
+    /// wipe the app's actual mini-app storage or cancel real notifications.
+    private var storageRootBeforeTest: URL?
+    private var storageTempDirectory: URL!
+    private var scheduledAppsBeforeTest: [String] = []
 
     override func setUp() async throws {
         try await super.setUp()
@@ -70,9 +83,25 @@ final class MiniAppSessionStoreSweepTests: XCTestCase {
         for appId in grantsBeforeTest.keys { MiniAppConsent.revoke(appId: appId) }
         purgesBeforeTest = MiniAppSessionStorePurgeQueue.records()
         MiniAppSessionStorePurgeQueue.removeAll()
+        revisionsBaseBeforeTest = MiniAppRevisionStore.baseDirectory
+        revisionsTempDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("sweep-revisions-\(UUID().uuidString)", isDirectory: true)
+        MiniAppRevisionStore.baseDirectory = revisionsTempDirectory
+        storageRootBeforeTest = MiniAppStorage.rootOverride
+        storageTempDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("sweep-storage-\(UUID().uuidString)", isDirectory: true)
+        MiniAppStorage.rootOverride = storageTempDirectory
+        scheduledAppsBeforeTest = MiniAppNotificationScheduler.scheduledAppIds()
+        MiniAppNotificationScheduler.replaceScheduledAppIds([])
     }
 
     override func tearDown() async throws {
+        MiniAppNotificationScheduler.replaceScheduledAppIds(scheduledAppsBeforeTest)
+        scheduledAppsBeforeTest = []
+        MiniAppStorage.rootOverride = storageRootBeforeTest
+        try? FileManager.default.removeItem(at: storageTempDirectory)
+        MiniAppRevisionStore.baseDirectory = revisionsBaseBeforeTest
+        try? FileManager.default.removeItem(at: revisionsTempDirectory)
         if usesRealDataStores {
             // Everything, not just ours: whatever is on disk when this test
             // ends is what the next one — and the next process — would sweep.

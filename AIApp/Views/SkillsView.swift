@@ -104,6 +104,7 @@ struct SkillsView: View {
                 Image(systemName: rec.systemImage)
                     .foregroundStyle(Color.accentColor)
                     .frame(width: 28)
+                    .accessibilityHidden(true)
                 Text(rec.title)
                     .foregroundStyle(.primary)
                 Spacer(minLength: 0)
@@ -112,6 +113,7 @@ struct SkillsView: View {
                 } else {
                     Image(systemName: "plus.circle.fill")
                         .foregroundStyle(Color.accentColor)
+                        .accessibilityHidden(true)
                 }
             }
         }
@@ -121,30 +123,39 @@ struct SkillsView: View {
 
     private func skillRow(_ skill: AgentSkill) -> some View {
         HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(skill.name)
-                if !skill.summary.isEmpty {
-                    Text(skill.summary)
+            // Inner group so name, summary and badge read as one element while
+            // the Toggle stays its own control.
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(skill.name)
+                    if !skill.summary.isEmpty {
+                        Text(skill.summary)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer()
+                if skill.builtin {
+                    Text("Integriert")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                } else if skill.source != nil {
+                    Text("Paket")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
-            Spacer()
-            if skill.builtin {
-                Text("Integriert")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else if skill.source != nil {
-                Text("Paket")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            .accessibilityElement(children: .combine)
+            if installingKey == skill.name {
+                ProgressView().controlSize(.small)
             }
             Toggle("", isOn: Binding(
                 get: { skill.enabled },
                 set: { _ in store.toggle(skill) }
             ))
             .labelsHidden()
+            .accessibilityLabel(skill.name)
             .accessibilityIdentifier("skill-toggle-\(skill.name)")
         }
         .swipeActions {
@@ -157,11 +168,7 @@ struct SkillsView: View {
             }
             if skill.source != nil {
                 Button {
-                    installingKey = skill.name
-                    Task {
-                        await store.updateFromSource(skill)
-                        installingKey = nil
-                    }
+                    updateSkill(skill)
                 } label: {
                     Label("Update", systemImage: "arrow.clockwise")
                 }
@@ -170,10 +177,30 @@ struct SkillsView: View {
         }
     }
 
+    private func updateSkill(_ skill: AgentSkill) {
+        installingKey = skill.name
+        AccessibilityNotification.Announcement(String(localized: "\(skill.name) wird aktualisiert")).post()
+        Task {
+            await store.updateFromSource(skill)
+            installingKey = nil
+            announceInstallOutcome()
+        }
+    }
+
+    /// The install/update result only lands in the section footer — say it too.
+    private func announceInstallOutcome() {
+        if let error = store.errorMessage {
+            AccessibilityNotification.Announcement(error).post()
+        } else if let ok = store.lastInstallMessage {
+            AccessibilityNotification.Announcement(ok).post()
+        }
+    }
+
     private func installRecommendation(_ rec: SkillRecommendation) {
         installingKey = rec.installKey
         store.errorMessage = nil
         store.lastInstallMessage = nil
+        AccessibilityNotification.Announcement(String(localized: "\(rec.title) wird installiert")).post()
         Task {
             // Prefer bundled package (offline, reliable).
             await store.install(from: rec.installKey)
@@ -184,6 +211,7 @@ struct SkillsView: View {
             if store.errorMessage == nil {
                 Analytics.track("skill_installed", ["source": "recommendation", "key": rec.installKey])
             }
+            announceInstallOutcome()
         }
     }
 }
