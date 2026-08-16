@@ -1,4 +1,4 @@
-# aiity
+# aiity (DISCONTINUED for now)
 
 **AI it yourself.** A native iOS chat app where you talk to AI agents — one, or
 several at once — and the small tools you need get *built* in the conversation
@@ -20,9 +20,10 @@ itself.
   <img src="docs/screenshots/04-more.png" width="24%" alt="Settings">
 </p>
 
-> **Status: in development.** Not on the App Store yet. 276 unit tests, and the
-> notes in [`docs/`](docs/) try to be honest about what is verified and what
-> isn't — including the parts that aren't.
+> **Status: on ice.** Discontinued for now — not on the App Store, and not
+> being worked on. The code stays here if you want to build it yourself.
+> 276 unit tests, and the notes in [`docs/`](docs/) try to be honest about
+> what is verified and what isn't — including the parts that aren't.
 
 Ten languages: German (the source), English, Spanish, French, Portuguese,
 Italian, Simplified Chinese, Japanese, Russian and Arabic.
